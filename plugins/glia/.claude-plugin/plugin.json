@@ -1,17 +1,9 @@
 {
   "name": "glia",
   "description": "Servidor MCP da Glia: o Claude Code lista, move, comenta e cria tarefas e sugestões como você, sem abrir o navegador.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Glia"
   },
-  "skills": "./skills/",
-  "mcpServers": {
-    "glia": {
-      "command": "node",
-      "args": [
-        "${CLAUDE_PLUGIN_ROOT}/server/index.js"
-      ]
-    }
-  }
+  "skills": "./skills/"
 }

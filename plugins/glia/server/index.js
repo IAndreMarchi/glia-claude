@@ -11295,7 +11295,7 @@ var init_config = __esm({
         appId: env.GLIA_FIREBASE_APP_ID ?? base2.appId
       };
     })();
-    VERSION = "0.1.1";
+    VERSION = "0.1.2";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
       emulator: process.env.GLIA_EMULATOR === "1",

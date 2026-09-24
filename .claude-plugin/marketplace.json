@@ -11,7 +11,7 @@
       "displayName": "Glia",
       "source": "./plugins/glia",
       "description": "Servidor MCP da Glia: o Claude Code lista, move, comenta e cria tarefas e sugestões como você, sem abrir o navegador.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "category": "productivity",
       "author": {
         "name": "Glia"
