@@ -1,6 +1,6 @@
 ---
 name: glia
-description: Trabalhar nas tarefas da Glia (organizador de projetos da equipe) pelo servidor MCP glia — conectar a conta, listar pendentes de um projeto, entender cada tarefa, executar, marcar subtarefas, comentar e mover no Kanban; registrar ideias como sugestões de melhoria. Use quando o usuário citar a Glia, um projeto/tarefa dela (códigos como IC-25) ou pedir para "conectar na Glia" ou "pegar as tarefas do projeto X".
+description: Trabalhar nas tarefas da Glia (organizador de projetos da equipe) pelo servidor MCP glia — conectar a conta, listar pendentes de um projeto, entender cada tarefa, executar, marcar subtarefas, comentar e mover no Kanban; criar e estruturar projetos com fases de roadmap; registrar ideias como sugestões de melhoria. Use quando o usuário citar a Glia, um projeto/tarefa dela (códigos como IC-25) ou pedir para "conectar na Glia", "pegar as tarefas do projeto X", "criar um projeto" ou "montar as fases do projeto X".
 ---
 
 # Glia pelo MCP
@@ -33,6 +33,14 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 6. **Só então** `mover_tarefa` para a coluna certa (Revisão, Concluído…). Concluir fecha as subtarefas junto. Se a Glia recusar por dependência aberta ("Bloqueada por: …"), diga ao usuário — não force.
 7. **Ideias fora do escopo** viram `criar_sugestao` no projeto, não tarefa nova. Trabalho concreto que precisa existir agora vira `criar_tarefa` (informe o código devolvido: "criei a IC-31").
 
+## Estruturar um projeto (projeto → fases → tarefas)
+
+1. **Confirme o nome** com o usuário antes de `criar_projeto` — a sigla (`PC`, `IC`…) nasce dele e não muda depois, nem se o projeto for renomeado. Nome repetido é recusado: a tool aponta o projeto que já existe.
+2. **`criar_projeto`** aceita, de uma vez: `colunas` do Kanban (em ordem; a **última** é a de conclusão — sem elas, valem as colunas padrão do usuário), `roadmap` (`sequencial` = etapas em ordem, a Montanha; `paralelo` = frentes que rodam juntas) e as `fases` iniciais. Informe a sigla devolvida.
+3. **`criar_fases`** acrescenta etapas (no fim, ou a partir de `posicao`). Cada fase pode ter `descricao`, `inicio`/`fim` (só no sequencial — frente paralela não tem data própria), `dono` (membro ou nome livre) e `entregaveis`. A lista é validada inteira antes de gravar: um erro não deixa metade das fases criada.
+4. **Vincule as tarefas** à fase com `fase` em `criar_tarefa`/`atualizar_tarefa`. A partir daí o **progresso e o status da fase saem das tarefas** (no sequencial, ponderado pelas subtarefas) — `atualizar_fase` recusa `status`/`progresso` manuais numa fase com tarefas. Para a fase andar, mova as tarefas.
+5. **Ajustes**: `atualizar_fase` (nome, datas, `conclusao` real, dono, `posicao`, entregáveis: adicionar/concluir/reabrir/remover); `atualizar_projeto` (nome, descrição, cor, `situacao` planejando/em andamento/pausado/concluído, `roadmap`, `arquivado`). `excluir_fase` recusa se houver tarefas vinculadas — confirme com o usuário e repita com `desvincular_tarefas: true`. Excluir projeto não existe pelo MCP, de propósito: arquive.
+
 ## Referências rápidas
 
 | Quero… | Tool |
@@ -40,7 +48,9 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 | conectar / trocar de conta | `entrar` |
 | saber em que workspace estou / quem está nela | `listar_workspaces`, `listar_membros` |
 | fixar/trocar a workspace padrão | `usar_workspace` |
-| as fases do roadmap | `listar_fases` |
+| as fases do roadmap (progresso real, datas, dono, entregáveis) | `listar_fases` |
+| criar projeto / mudar situação, nome, panorama, arquivar | `criar_projeto`, `atualizar_projeto` |
+| criar, ajustar, reordenar, excluir fases | `criar_fases`, `atualizar_fase`, `excluir_fase` |
 | tarefas de uma coluna, só as minhas, de uma fase | `listar_tarefas` com `coluna`, `minhas`, `fase` |
 | mudar título/descrição/prazo/prioridade/tags/fase/responsáveis | `atualizar_tarefa` (só os campos informados mudam) |
 | ver o que já foi sugerido | `listar_sugestoes` |
@@ -54,3 +64,5 @@ Datas são `AAAA-MM-DD`. Pessoas podem ser referidas por nome, e-mail ou `"eu"`.
 - "O que a IC-25 pede? Faz e me avisa quando terminar."
 - "Registra na Glia que terminei a parte de testes da IC-12 e manda pra revisão."
 - "Anota como sugestão no projeto Portal: validar CPF no front."
+- "Cria o projeto Portal do Cliente com as fases Descoberta, MVP e Lançamento, e já distribui as tarefas que a gente listou."
+- "Põe a fase Piloto antes do MVP e marca o projeto como em andamento."

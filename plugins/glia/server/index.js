@@ -34,6 +34,101 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// mcp/src/config.ts
+var config_exports = {};
+__export(config_exports, {
+  EMULATOR: () => EMULATOR,
+  HOSTING_ORIGIN: () => HOSTING_ORIGIN,
+  VERSION: () => VERSION,
+  carregarFirebaseConfig: () => carregarFirebaseConfig,
+  firebaseConfig: () => firebaseConfig,
+  flags: () => flags
+});
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+function doAmbiente() {
+  const e = process.env;
+  if (!e.GLIA_FIREBASE_API_KEY || !e.GLIA_FIREBASE_PROJECT_ID || !e.GLIA_FIREBASE_AUTH_DOMAIN) return null;
+  return {
+    apiKey: e.GLIA_FIREBASE_API_KEY,
+    authDomain: e.GLIA_FIREBASE_AUTH_DOMAIN,
+    projectId: e.GLIA_FIREBASE_PROJECT_ID,
+    storageBucket: e.GLIA_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: e.GLIA_FIREBASE_MESSAGING_SENDER_ID,
+    appId: e.GLIA_FIREBASE_APP_ID
+  };
+}
+function doCache() {
+  try {
+    const arq = arquivoCache();
+    if (!existsSync(arq)) return null;
+    const c = JSON.parse(readFileSync(arq, "utf8"));
+    return c.apiKey && c.projectId && c.authDomain ? c : null;
+  } catch {
+    return null;
+  }
+}
+async function doHosting() {
+  const url = `${HOSTING_ORIGIN}/__/firebase/init.json`;
+  const r = await fetch(url, { signal: AbortSignal.timeout(8e3) });
+  if (!r.ok) throw new Error(`${url} respondeu ${r.status}`);
+  const c = await r.json();
+  if (!c.apiKey || !c.projectId || !c.authDomain) throw new Error(`${url} veio sem apiKey/projectId/authDomain`);
+  const cfg = {
+    apiKey: c.apiKey,
+    authDomain: c.authDomain,
+    projectId: c.projectId,
+    storageBucket: c.storageBucket,
+    messagingSenderId: c.messagingSenderId,
+    appId: c.appId
+  };
+  try {
+    mkdirSync(path.dirname(arquivoCache()), { recursive: true });
+    writeFileSync(arquivoCache(), JSON.stringify(cfg, null, 2), { encoding: "utf8", mode: 384 });
+  } catch {
+  }
+  return cfg;
+}
+async function carregarFirebaseConfig() {
+  if (carregada) return carregada;
+  const env = doAmbiente();
+  if (env) return carregada = env;
+  try {
+    return carregada = await doHosting();
+  } catch (err) {
+    const cache3 = doCache();
+    if (cache3) return carregada = cache3;
+    throw new Error(
+      `N\xE3o consegui carregar a configura\xE7\xE3o da Glia em ${HOSTING_ORIGIN} (${err instanceof Error ? err.message : err}). Sem rede na primeira abertura?`
+    );
+  }
+}
+function firebaseConfig() {
+  const cfg = carregada ?? doAmbiente();
+  if (!cfg) throw new Error("firebaseConfig() antes de carregarFirebaseConfig()");
+  return carregada = cfg;
+}
+var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
+var init_config = __esm({
+  "mcp/src/config.ts"() {
+    "use strict";
+    VERSION = "0.2.0";
+    HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
+    flags = {
+      /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
+      emulator: process.env.GLIA_EMULATOR === "1",
+      /** Workspace padrão (id ou nome) quando a tool não recebe uma. */
+      workspace: process.env.GLIA_WORKSPACE?.trim() || void 0,
+      /** Onde a sessão fica guardada. */
+      credentialsPath: process.env.GLIA_CREDENTIALS?.trim() || path.join(os.homedir(), ".glia", "credentials.json")
+    };
+    EMULATOR = { authHost: "127.0.0.1", authPort: 9099, firestoreHost: "127.0.0.1", firestorePort: 8080 };
+    carregada = null;
+    arquivoCache = () => path.join(path.dirname(flags.credentialsPath), "firebase-config.json");
+  }
+});
+
 // node_modules/@firebase/util/dist/node-esm/index.node.esm.js
 function getGlobal() {
   if (typeof self !== "undefined") {
@@ -7328,6 +7423,13 @@ function updateDoc(reference, fieldOrUpdateData, value, ...moreFieldsAndValues) 
     parsed.toMutation(reference._key, Precondition.exists(true))
   ]);
 }
+function deleteDoc(reference) {
+  reference = cast(reference, DocumentReference);
+  const datastore = getDatastore(reference.firestore);
+  return invokeCommitRpc(datastore, [
+    new DeleteMutation(reference._key, Precondition.none())
+  ]);
+}
 function addDoc(reference, data2) {
   reference = cast(reference, CollectionReference);
   const docRef = doc(reference);
@@ -11190,21 +11292,21 @@ var init_dist3 = __esm({
 });
 
 // mcp/src/auth/persistence.ts
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
-import path from "node:path";
+import { chmodSync, existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync as readFileSync2, renameSync, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
+import path2 from "node:path";
 function lerArquivo(caminho) {
-  if (!existsSync(caminho)) return null;
+  if (!existsSync2(caminho)) return null;
   try {
-    const raw = JSON.parse(readFileSync(caminho, "utf8"));
+    const raw = JSON.parse(readFileSync2(caminho, "utf8"));
     return { ...vazio(), ...raw, auth: raw.auth ?? {} };
   } catch {
     return null;
   }
 }
 function gravarArquivo(caminho, dados) {
-  mkdirSync(path.dirname(caminho), { recursive: true });
+  mkdirSync2(path2.dirname(caminho), { recursive: true });
   const tmp = `${caminho}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(dados, null, 2), { encoding: "utf8", mode: 384 });
+  writeFileSync2(tmp, JSON.stringify(dados, null, 2), { encoding: "utf8", mode: 384 });
   renameSync(tmp, caminho);
   try {
     chmodSync(caminho, 384);
@@ -11212,7 +11314,7 @@ function gravarArquivo(caminho, dados) {
   }
 }
 function apagarArquivo(caminho) {
-  if (!existsSync(caminho)) return false;
+  if (!existsSync2(caminho)) return false;
   unlinkSync(caminho);
   return true;
 }
@@ -11269,45 +11371,6 @@ var init_persistence = __esm({
   }
 });
 
-// mcp/src/config.ts
-var config_exports = {};
-__export(config_exports, {
-  EMULATOR: () => EMULATOR,
-  VERSION: () => VERSION,
-  firebaseConfig: () => firebaseConfig,
-  flags: () => flags
-});
-import os from "node:os";
-import path2 from "node:path";
-var firebaseConfig, VERSION, flags, EMULATOR;
-var init_config = __esm({
-  "mcp/src/config.ts"() {
-    "use strict";
-    firebaseConfig = (() => {
-      const base2 = JSON.parse('{"apiKey":"AIzaSyDDQ0qyIgO9y1T4O2lnPur5ZBPdmFE1Vmo","authDomain":"spacetask-d20d2.web.app","projectId":"spacetask-d20d2","storageBucket":"spacetask-d20d2.firebasestorage.app","messagingSenderId":"558414514484","appId":"1:558414514484:web:8ca012345930720cbefd61"}');
-      const env = process.env;
-      return {
-        apiKey: env.GLIA_FIREBASE_API_KEY ?? base2.apiKey,
-        authDomain: env.GLIA_FIREBASE_AUTH_DOMAIN ?? base2.authDomain,
-        projectId: env.GLIA_FIREBASE_PROJECT_ID ?? base2.projectId,
-        storageBucket: env.GLIA_FIREBASE_STORAGE_BUCKET ?? base2.storageBucket,
-        messagingSenderId: env.GLIA_FIREBASE_MESSAGING_SENDER_ID ?? base2.messagingSenderId,
-        appId: env.GLIA_FIREBASE_APP_ID ?? base2.appId
-      };
-    })();
-    VERSION = "0.1.2";
-    flags = {
-      /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
-      emulator: process.env.GLIA_EMULATOR === "1",
-      /** Workspace padrão (id ou nome) quando a tool não recebe uma. */
-      workspace: process.env.GLIA_WORKSPACE?.trim() || void 0,
-      /** Onde a sessão fica guardada. */
-      credentialsPath: process.env.GLIA_CREDENTIALS?.trim() || path2.join(os.homedir(), ".glia", "credentials.json")
-    };
-    EMULATOR = { authHost: "127.0.0.1", authPort: 9099, firestoreHost: "127.0.0.1", firestorePort: 8080 };
-  }
-});
-
 // mcp/src/firebase-node.ts
 var app, db, auth, googleProvider;
 var init_firebase_node = __esm({
@@ -11318,7 +11381,7 @@ var init_firebase_node = __esm({
     init_dist3();
     init_persistence();
     init_config();
-    app = getApps()[0] ?? initializeApp(firebaseConfig);
+    app = getApps()[0] ?? initializeApp(firebaseConfig());
     db = initializeFirestore(app, {});
     auth = initializeAuth(app, {
       persistence: fileAuthPersistence(flags.credentialsPath)
@@ -11438,11 +11501,12 @@ var init_firestore = __esm({
 });
 
 // src/lib/firestore-paths.ts
-var membershipsCol, workspaceMembersCol, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, notificationsCol, wsPhasesCol, portalDoc, portalSugestoesCol, portalSugestaoImagemDoc;
+var preferencesDoc, membershipsCol, workspaceMembersCol, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, notificationsCol, wsPhasesCol, wsPhaseDoc, portalDoc, portalSugestoesCol, portalSugestaoImagemDoc;
 var init_firestore_paths = __esm({
   "src/lib/firestore-paths.ts"() {
     init_firestore();
     init_firebase();
+    preferencesDoc = (uid) => doc(db, "users", uid, "settings", "preferences");
     membershipsCol = (uid) => collection(db, "users", uid, "memberships");
     workspaceMembersCol = (wsId) => collection(db, "workspaces", wsId, "members");
     wsProjectsCol = (wsId) => collection(db, "workspaces", wsId, "projects");
@@ -11452,6 +11516,7 @@ var init_firestore_paths = __esm({
     wsTaskMessagesCol = (wsId, projectId, taskId) => collection(db, "workspaces", wsId, "projects", projectId, "tasks", taskId, "messages");
     notificationsCol = (uid) => collection(db, "users", uid, "notifications");
     wsPhasesCol = (wsId, projectId) => collection(db, "workspaces", wsId, "projects", projectId, "phases");
+    wsPhaseDoc = (wsId, projectId, phaseId) => doc(db, "workspaces", wsId, "projects", projectId, "phases", phaseId);
     portalDoc = (portalId) => doc(db, "portais", portalId);
     portalSugestoesCol = (portalId) => collection(db, "portais", portalId, "sugestoes");
     portalSugestaoImagemDoc = (portalId, sugestaoId, imagemId) => doc(db, "portais", portalId, "sugestoes", sugestaoId, "imagens", imagemId);
@@ -11538,25 +11603,29 @@ async function ensureProjectCodes(wsId) {
   if (!wsId || codesEnsured.has(wsId)) return false;
   codesEnsured.add(wsId);
   try {
-    const snap = await getDocs(wsProjectsCol(wsId));
-    const projects = snap.docs.map((d) => ({
-      id: d.id,
-      name: d.data().name ?? "",
-      code: d.data().code
-    }));
-    const plan = planProjectCodes(projects);
-    if (plan.size === 0) return false;
-    const batch = writeBatch(db);
-    for (const [projectId, code] of plan) {
-      batch.update(wsProjectDoc(wsId, projectId), { code });
-    }
-    await batch.commit();
-    return true;
+    return await assignProjectCodes(wsId);
   } catch (err) {
     codesEnsured.delete(wsId);
     console.error("[task-code] n\xE3o foi poss\xEDvel atribuir siglas aos projetos", err);
     return false;
   }
+}
+async function assignProjectCodes(wsId, onlyProjectId) {
+  const snap = await getDocs(wsProjectsCol(wsId));
+  const projects = snap.docs.map((d) => ({
+    id: d.id,
+    name: d.data().name ?? "",
+    code: d.data().code
+  }));
+  let plan = planProjectCodes(projects);
+  if (onlyProjectId) plan = new Map([...plan].filter(([id]) => id === onlyProjectId));
+  if (plan.size === 0) return false;
+  const batch = writeBatch(db);
+  for (const [projectId, code] of plan) {
+    batch.update(wsProjectDoc(wsId, projectId), { code });
+  }
+  await batch.commit();
+  return true;
 }
 async function allocateTaskSeq(wsId, projectId) {
   return runTransaction(db, async (tx) => {
@@ -11624,6 +11693,11 @@ var init_codes = __esm({
 });
 
 // src/features/project-detail/queries.ts
+async function fetchProject(wsId, projectId) {
+  const snap = await getDoc(wsProjectDoc(wsId, projectId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
 async function fetchTasks(wsId, projectId) {
   const q = query(wsTasksCol(wsId, projectId), orderBy("order", "asc"));
   const snap = await getDocs(q);
@@ -11716,6 +11790,62 @@ async function fetchPhases(wsId, projectId) {
     };
   });
 }
+async function createPhase(wsId, projectId, input) {
+  let order = input.order;
+  if (order === void 0) {
+    const existing = await fetchPhases(wsId, projectId);
+    order = existing.length;
+  }
+  const ref = await addDoc(wsPhasesCol(wsId, projectId), {
+    order,
+    name: input.name.trim(),
+    description: (input.description ?? "").trim(),
+    status: input.status ?? "todo",
+    progress: clampProgress(input.progress ?? 0),
+    startDate: input.startDate ? Timestamp.fromDate(input.startDate) : null,
+    endDate: input.endDate ? Timestamp.fromDate(input.endDate) : null,
+    completedAt: input.completedAt ? Timestamp.fromDate(input.completedAt) : null,
+    ownerName: (input.ownerName ?? "").trim(),
+    ownerInitials: (input.ownerInitials ?? "").trim().toUpperCase().slice(0, 2),
+    deliverables: input.deliverables ?? [],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return ref.id;
+}
+async function updatePhase(wsId, projectId, phaseId, patch) {
+  const data2 = { updatedAt: serverTimestamp() };
+  for (const [k, v] of Object.entries(patch)) {
+    if (k === "startDate" || k === "endDate" || k === "completedAt") {
+      data2[k] = v ? Timestamp.fromDate(v) : null;
+    } else if (k === "progress") {
+      data2.progress = clampProgress(v);
+    } else if (k === "ownerInitials") {
+      data2.ownerInitials = String(v ?? "").toUpperCase().slice(0, 2);
+    } else {
+      data2[k] = v;
+    }
+  }
+  await updateDoc(wsPhaseDoc(wsId, projectId, phaseId), data2);
+}
+async function deletePhase(wsId, projectId, phaseId) {
+  await deleteDoc(wsPhaseDoc(wsId, projectId, phaseId));
+}
+async function reorderPhases(wsId, projectId, updates) {
+  if (updates.length === 0) return;
+  const batch = writeBatch(db);
+  for (const u of updates) {
+    batch.update(wsPhaseDoc(wsId, projectId, u.id), {
+      order: u.order,
+      updatedAt: serverTimestamp()
+    });
+  }
+  await batch.commit();
+}
+function clampProgress(n) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
 async function fetchTaskMessages(wsId, projectId, taskId) {
   const q = query(wsTaskMessagesCol(wsId, projectId, taskId), orderBy("createdAt", "asc"));
   const snap = await getDocs(q);
@@ -11773,13 +11903,39 @@ function isTaskAssignedTo(task, uid) {
   if (!uid) return false;
   return taskAssignees(task).some((a) => a.uid === uid);
 }
-var DEFAULT_COLUMNS;
+var PROJECT_PHASES, PROJECT_PHASE_LABELS, ROADMAP_TYPE_LABELS, DEFAULT_COLUMNS, PHASE_STATUS_LABELS, PROJECT_COLORS;
 var init_models = __esm({
   "src/types/models.ts"() {
+    PROJECT_PHASES = ["planejando", "em_andamento", "pausado", "concluido"];
+    PROJECT_PHASE_LABELS = {
+      planejando: "Planejando",
+      em_andamento: "Em Andamento",
+      pausado: "Pausado",
+      concluido: "Conclu\xEDdo"
+    };
+    ROADMAP_TYPE_LABELS = {
+      sequencial: "Fases sequenciais",
+      paralelo: "Frentes paralelas"
+    };
     DEFAULT_COLUMNS = [
       { id: "todo", label: "A Fazer", order: 0 },
       { id: "doing", label: "Em Andamento", order: 1 },
       { id: "done", label: "Conclu\xEDdo", order: 2, isDone: true }
+    ];
+    PHASE_STATUS_LABELS = {
+      todo: "A fazer",
+      doing: "Em andamento",
+      done: "Conclu\xEDdo"
+    };
+    PROJECT_COLORS = [
+      "#c2613f",
+      "#b8893f",
+      "#7a5b3f",
+      "#a14e6b",
+      "#8a5b6e",
+      "#9a5fb0",
+      "#6b5b95",
+      "#4a6fa5"
     ];
   }
 });
@@ -12100,7 +12256,7 @@ function abrirNavegador(url) {
   }
 }
 function paginaLogin(nonce) {
-  const config2 = JSON.stringify(firebaseConfig);
+  const config2 = JSON.stringify(firebaseConfig());
   const emulador = flags.emulator ? JSON.stringify(`http://${EMULATOR.authHost}:${EMULATOR.authPort}`) : "null";
   return `<!doctype html>
 <html lang="pt-BR">
@@ -19603,13 +19759,13 @@ var init_to_json_schema = __esm({
               case "string": {
                 const json = _json;
                 json.type = "string";
-                const { minimum, maximum, format, patterns, contentEncoding } = schema._zod.bag;
+                const { minimum, maximum, format: format2, patterns, contentEncoding } = schema._zod.bag;
                 if (typeof minimum === "number")
                   json.minLength = minimum;
                 if (typeof maximum === "number")
                   json.maxLength = maximum;
-                if (format) {
-                  json.format = formatMap[format] ?? format;
+                if (format2) {
+                  json.format = formatMap[format2] ?? format2;
                   if (json.format === "")
                     delete json.format;
                 }
@@ -19632,8 +19788,8 @@ var init_to_json_schema = __esm({
               }
               case "number": {
                 const json = _json;
-                const { minimum, maximum, format, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
-                if (typeof format === "string" && format.includes("int"))
+                const { minimum, maximum, format: format2, multipleOf, exclusiveMaximum, exclusiveMinimum } = schema._zod.bag;
+                if (typeof format2 === "string" && format2.includes("int"))
                   json.type = "integer";
                 else
                   json.type = "number";
@@ -29660,10 +29816,10 @@ var require_core = __commonJS({
         return this;
       }
       // Add format
-      addFormat(name4, format) {
-        if (typeof format == "string")
-          format = new RegExp(format);
-        this.formats[name4] = format;
+      addFormat(name4, format2) {
+        if (typeof format2 == "string")
+          format2 = new RegExp(format2);
+        this.formats[name4] = format2;
         return this;
       }
       errorsText(errors = this.errors, { separator = ", ", dataVar = "data" } = {}) {
@@ -29781,9 +29937,9 @@ var require_core = __commonJS({
     }
     function addInitialFormats() {
       for (const name4 in this.opts.formats) {
-        const format = this.opts.formats[name4];
-        if (format)
-          this.addFormat(name4, format);
+        const format2 = this.opts.formats[name4];
+        if (format2)
+          this.addFormat(name4, format2);
       }
     }
     function addInitialKeywords(defs) {
@@ -31466,18 +31622,18 @@ var require_format = __commonJS({
           });
           const fDef = gen.const("fDef", (0, codegen_1._)`${fmts}[${schemaCode}]`);
           const fType = gen.let("fType");
-          const format = gen.let("format");
-          gen.if((0, codegen_1._)`typeof ${fDef} == "object" && !(${fDef} instanceof RegExp)`, () => gen.assign(fType, (0, codegen_1._)`${fDef}.type || "string"`).assign(format, (0, codegen_1._)`${fDef}.validate`), () => gen.assign(fType, (0, codegen_1._)`"string"`).assign(format, fDef));
+          const format2 = gen.let("format");
+          gen.if((0, codegen_1._)`typeof ${fDef} == "object" && !(${fDef} instanceof RegExp)`, () => gen.assign(fType, (0, codegen_1._)`${fDef}.type || "string"`).assign(format2, (0, codegen_1._)`${fDef}.validate`), () => gen.assign(fType, (0, codegen_1._)`"string"`).assign(format2, fDef));
           cxt.fail$data((0, codegen_1.or)(unknownFmt(), invalidFmt()));
           function unknownFmt() {
             if (opts.strictSchema === false)
               return codegen_1.nil;
-            return (0, codegen_1._)`${schemaCode} && !${format}`;
+            return (0, codegen_1._)`${schemaCode} && !${format2}`;
           }
           function invalidFmt() {
-            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format}(${data2}) : ${format}(${data2}))` : (0, codegen_1._)`${format}(${data2})`;
-            const validData = (0, codegen_1._)`(typeof ${format} == "function" ? ${callFormat} : ${format}.test(${data2}))`;
-            return (0, codegen_1._)`${format} && ${format} !== true && ${fType} === ${ruleType} && !${validData}`;
+            const callFormat = schemaEnv.$async ? (0, codegen_1._)`(${fDef}.async ? await ${format2}(${data2}) : ${format2}(${data2}))` : (0, codegen_1._)`${format2}(${data2})`;
+            const validData = (0, codegen_1._)`(typeof ${format2} == "function" ? ${callFormat} : ${format2}.test(${data2}))`;
+            return (0, codegen_1._)`${format2} && ${format2} !== true && ${fType} === ${ruleType} && !${validData}`;
           }
         }
         function validateFormat() {
@@ -31488,7 +31644,7 @@ var require_format = __commonJS({
           }
           if (formatDef === true)
             return;
-          const [fmtType, format, fmtRef] = getFormat(formatDef);
+          const [fmtType, format2, fmtRef] = getFormat(formatDef);
           if (fmtType === ruleType)
             cxt.pass(validCondition());
           function unknownFormat() {
@@ -31515,7 +31671,7 @@ var require_format = __commonJS({
                 throw new Error("async format in sync schema");
               return (0, codegen_1._)`await ${fmtRef}(${data2})`;
             }
-            return typeof format == "function" ? (0, codegen_1._)`${fmtRef}(${data2})` : (0, codegen_1._)`${fmtRef}.test(${data2})`;
+            return typeof format2 == "function" ? (0, codegen_1._)`${fmtRef}(${data2})` : (0, codegen_1._)`${fmtRef}.test(${data2})`;
           }
         }
       }
@@ -31530,8 +31686,8 @@ var require_format2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var format_1 = require_format();
-    var format = [format_1.default];
-    exports.default = format;
+    var format2 = [format_1.default];
+    exports.default = format2;
   }
 });
 
@@ -32173,17 +32329,17 @@ var require_limit = __commonJS({
           cxt.fail$data((0, codegen_1.or)((0, codegen_1._)`typeof ${fmt} != "object"`, (0, codegen_1._)`${fmt} instanceof RegExp`, (0, codegen_1._)`typeof ${fmt}.compare != "function"`, compareCode(fmt)));
         }
         function validateFormat() {
-          const format = fCxt.schema;
-          const fmtDef = self2.formats[format];
+          const format2 = fCxt.schema;
+          const fmtDef = self2.formats[format2];
           if (!fmtDef || fmtDef === true)
             return;
           if (typeof fmtDef != "object" || fmtDef instanceof RegExp || typeof fmtDef.compare != "function") {
-            throw new Error(`"${keyword}": format "${format}" does not define "compare" function`);
+            throw new Error(`"${keyword}": format "${format2}" does not define "compare" function`);
           }
           const fmt = gen.scopeValue("formats", {
-            key: format,
+            key: format2,
             ref: fmtDef,
-            code: opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(format)}` : void 0
+            code: opts.code.formats ? (0, codegen_1._)`${opts.code.formats}${(0, codegen_1.getProperty)(format2)}` : void 0
           });
           cxt.fail$data(compareCode(fmt));
         }
@@ -34041,7 +34197,1972 @@ Como trabalhar em um projeto:
 4. Ao terminar, \`comentar_tarefa\` dizendo o que foi feito, onde (arquivos, PR, commit) e o que ficou de fora. Nunca mova para a coluna de conclus\xE3o sem esse coment\xE1rio \u2014 \xE9 o registro que a equipe l\xEA.
 5. S\xF3 ent\xE3o \`mover_tarefa\` para a coluna certa (revis\xE3o, conclu\xEDdo\u2026). Se a Glia recusar por depend\xEAncia aberta, diga isso ao usu\xE1rio em vez de for\xE7ar.
 
+Estruturar um projeto: \`criar_projeto\` (devolve a sigla; aceita colunas, panorama e as fases iniciais) e \`criar_fases\` para as etapas do roadmap, na ordem em que acontecem. Depois vincule as tarefas \xE0 fase (\`fase\` em criar_tarefa/atualizar_tarefa): com tarefas vinculadas, o progresso da fase sai delas \u2014 n\xE3o se edita \xE0 m\xE3o. \`atualizar_fase\` muda datas, dono, entreg\xE1veis e a posi\xE7\xE3o; \`atualizar_projeto\` muda nome, situa\xE7\xE3o, panorama e arquiva. Confirme o nome com o usu\xE1rio antes de criar um projeto (a sigla nasce dele e n\xE3o muda) e antes de excluir fase com tarefas.
+
 Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.`;
+  }
+});
+
+// node_modules/clsx/dist/clsx.mjs
+var init_clsx = __esm({
+  "node_modules/clsx/dist/clsx.mjs"() {
+  }
+});
+
+// node_modules/date-fns/constants.js
+var daysInYear, maxTime, minTime, secondsInHour, secondsInDay, secondsInWeek, secondsInYear, secondsInMonth, secondsInQuarter, constructFromSymbol;
+var init_constants = __esm({
+  "node_modules/date-fns/constants.js"() {
+    daysInYear = 365.2425;
+    maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
+    minTime = -maxTime;
+    secondsInHour = 3600;
+    secondsInDay = secondsInHour * 24;
+    secondsInWeek = secondsInDay * 7;
+    secondsInYear = secondsInDay * daysInYear;
+    secondsInMonth = secondsInYear / 12;
+    secondsInQuarter = secondsInMonth * 3;
+    constructFromSymbol = Symbol.for("constructDateFrom");
+  }
+});
+
+// node_modules/date-fns/constructFrom.js
+function constructFrom(date3, value) {
+  if (typeof date3 === "function") return date3(value);
+  if (date3 && typeof date3 === "object" && constructFromSymbol in date3)
+    return date3[constructFromSymbol](value);
+  if (date3 instanceof Date) return new date3.constructor(value);
+  return new Date(value);
+}
+var init_constructFrom = __esm({
+  "node_modules/date-fns/constructFrom.js"() {
+    init_constants();
+  }
+});
+
+// node_modules/date-fns/toDate.js
+function toDate(argument, context) {
+  return constructFrom(context || argument, argument);
+}
+var init_toDate = __esm({
+  "node_modules/date-fns/toDate.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/addDays.js
+var init_addDays = __esm({
+  "node_modules/date-fns/addDays.js"() {
+  }
+});
+
+// node_modules/date-fns/addMonths.js
+var init_addMonths = __esm({
+  "node_modules/date-fns/addMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/add.js
+var init_add = __esm({
+  "node_modules/date-fns/add.js"() {
+  }
+});
+
+// node_modules/date-fns/isSaturday.js
+var init_isSaturday = __esm({
+  "node_modules/date-fns/isSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/isSunday.js
+var init_isSunday = __esm({
+  "node_modules/date-fns/isSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWeekend.js
+var init_isWeekend = __esm({
+  "node_modules/date-fns/isWeekend.js"() {
+  }
+});
+
+// node_modules/date-fns/addBusinessDays.js
+var init_addBusinessDays = __esm({
+  "node_modules/date-fns/addBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/addMilliseconds.js
+var init_addMilliseconds = __esm({
+  "node_modules/date-fns/addMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/addHours.js
+var init_addHours = __esm({
+  "node_modules/date-fns/addHours.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfWeek.js
+var init_startOfWeek = __esm({
+  "node_modules/date-fns/startOfWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfISOWeek.js
+var init_startOfISOWeek = __esm({
+  "node_modules/date-fns/startOfISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/getISOWeekYear.js
+var init_getISOWeekYear = __esm({
+  "node_modules/date-fns/getISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/_lib/normalizeDates.js
+function normalizeDates(context, ...dates) {
+  const normalize2 = constructFrom.bind(
+    null,
+    context || dates.find((date3) => typeof date3 === "object")
+  );
+  return dates.map(normalize2);
+}
+var init_normalizeDates = __esm({
+  "node_modules/date-fns/_lib/normalizeDates.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/startOfDay.js
+function startOfDay(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  _date2.setHours(0, 0, 0, 0);
+  return _date2;
+}
+var init_startOfDay = __esm({
+  "node_modules/date-fns/startOfDay.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarDays.js
+var init_differenceInCalendarDays = __esm({
+  "node_modules/date-fns/differenceInCalendarDays.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfISOWeekYear.js
+var init_startOfISOWeekYear = __esm({
+  "node_modules/date-fns/startOfISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/setISOWeekYear.js
+var init_setISOWeekYear = __esm({
+  "node_modules/date-fns/setISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/addISOWeekYears.js
+var init_addISOWeekYears = __esm({
+  "node_modules/date-fns/addISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/addMinutes.js
+var init_addMinutes = __esm({
+  "node_modules/date-fns/addMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/addQuarters.js
+var init_addQuarters = __esm({
+  "node_modules/date-fns/addQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/addSeconds.js
+var init_addSeconds = __esm({
+  "node_modules/date-fns/addSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/addWeeks.js
+var init_addWeeks = __esm({
+  "node_modules/date-fns/addWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/addYears.js
+var init_addYears = __esm({
+  "node_modules/date-fns/addYears.js"() {
+  }
+});
+
+// node_modules/date-fns/areIntervalsOverlapping.js
+var init_areIntervalsOverlapping = __esm({
+  "node_modules/date-fns/areIntervalsOverlapping.js"() {
+  }
+});
+
+// node_modules/date-fns/max.js
+var init_max = __esm({
+  "node_modules/date-fns/max.js"() {
+  }
+});
+
+// node_modules/date-fns/min.js
+var init_min = __esm({
+  "node_modules/date-fns/min.js"() {
+  }
+});
+
+// node_modules/date-fns/clamp.js
+var init_clamp = __esm({
+  "node_modules/date-fns/clamp.js"() {
+  }
+});
+
+// node_modules/date-fns/closestIndexTo.js
+var init_closestIndexTo = __esm({
+  "node_modules/date-fns/closestIndexTo.js"() {
+  }
+});
+
+// node_modules/date-fns/closestTo.js
+var init_closestTo = __esm({
+  "node_modules/date-fns/closestTo.js"() {
+  }
+});
+
+// node_modules/date-fns/compareAsc.js
+var init_compareAsc = __esm({
+  "node_modules/date-fns/compareAsc.js"() {
+  }
+});
+
+// node_modules/date-fns/compareDesc.js
+var init_compareDesc = __esm({
+  "node_modules/date-fns/compareDesc.js"() {
+  }
+});
+
+// node_modules/date-fns/constructNow.js
+function constructNow(date3) {
+  return constructFrom(date3, Date.now());
+}
+var init_constructNow = __esm({
+  "node_modules/date-fns/constructNow.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/daysToWeeks.js
+var init_daysToWeeks = __esm({
+  "node_modules/date-fns/daysToWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameDay.js
+function isSameDay(laterDate, earlierDate, options) {
+  const [dateLeft_, dateRight_] = normalizeDates(
+    options?.in,
+    laterDate,
+    earlierDate
+  );
+  return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
+}
+var init_isSameDay = __esm({
+  "node_modules/date-fns/isSameDay.js"() {
+    init_normalizeDates();
+    init_startOfDay();
+  }
+});
+
+// node_modules/date-fns/isDate.js
+var init_isDate = __esm({
+  "node_modules/date-fns/isDate.js"() {
+  }
+});
+
+// node_modules/date-fns/isValid.js
+var init_isValid = __esm({
+  "node_modules/date-fns/isValid.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInBusinessDays.js
+var init_differenceInBusinessDays = __esm({
+  "node_modules/date-fns/differenceInBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarISOWeekYears.js
+var init_differenceInCalendarISOWeekYears = __esm({
+  "node_modules/date-fns/differenceInCalendarISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarISOWeeks.js
+var init_differenceInCalendarISOWeeks = __esm({
+  "node_modules/date-fns/differenceInCalendarISOWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarMonths.js
+var init_differenceInCalendarMonths = __esm({
+  "node_modules/date-fns/differenceInCalendarMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/getQuarter.js
+var init_getQuarter = __esm({
+  "node_modules/date-fns/getQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarQuarters.js
+var init_differenceInCalendarQuarters = __esm({
+  "node_modules/date-fns/differenceInCalendarQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarWeeks.js
+var init_differenceInCalendarWeeks = __esm({
+  "node_modules/date-fns/differenceInCalendarWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarYears.js
+var init_differenceInCalendarYears = __esm({
+  "node_modules/date-fns/differenceInCalendarYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInDays.js
+var init_differenceInDays = __esm({
+  "node_modules/date-fns/differenceInDays.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInHours.js
+var init_differenceInHours = __esm({
+  "node_modules/date-fns/differenceInHours.js"() {
+  }
+});
+
+// node_modules/date-fns/subISOWeekYears.js
+var init_subISOWeekYears = __esm({
+  "node_modules/date-fns/subISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInISOWeekYears.js
+var init_differenceInISOWeekYears = __esm({
+  "node_modules/date-fns/differenceInISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMilliseconds.js
+var init_differenceInMilliseconds = __esm({
+  "node_modules/date-fns/differenceInMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMinutes.js
+var init_differenceInMinutes = __esm({
+  "node_modules/date-fns/differenceInMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfDay.js
+var init_endOfDay = __esm({
+  "node_modules/date-fns/endOfDay.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfMonth.js
+var init_endOfMonth = __esm({
+  "node_modules/date-fns/endOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isLastDayOfMonth.js
+var init_isLastDayOfMonth = __esm({
+  "node_modules/date-fns/isLastDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMonths.js
+var init_differenceInMonths = __esm({
+  "node_modules/date-fns/differenceInMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInQuarters.js
+var init_differenceInQuarters = __esm({
+  "node_modules/date-fns/differenceInQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInSeconds.js
+var init_differenceInSeconds = __esm({
+  "node_modules/date-fns/differenceInSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInWeeks.js
+var init_differenceInWeeks = __esm({
+  "node_modules/date-fns/differenceInWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInYears.js
+var init_differenceInYears = __esm({
+  "node_modules/date-fns/differenceInYears.js"() {
+  }
+});
+
+// node_modules/date-fns/eachDayOfInterval.js
+var init_eachDayOfInterval = __esm({
+  "node_modules/date-fns/eachDayOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachHourOfInterval.js
+var init_eachHourOfInterval = __esm({
+  "node_modules/date-fns/eachHourOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachMinuteOfInterval.js
+var init_eachMinuteOfInterval = __esm({
+  "node_modules/date-fns/eachMinuteOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachMonthOfInterval.js
+var init_eachMonthOfInterval = __esm({
+  "node_modules/date-fns/eachMonthOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfQuarter.js
+var init_startOfQuarter = __esm({
+  "node_modules/date-fns/startOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/eachQuarterOfInterval.js
+var init_eachQuarterOfInterval = __esm({
+  "node_modules/date-fns/eachQuarterOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekOfInterval.js
+var init_eachWeekOfInterval = __esm({
+  "node_modules/date-fns/eachWeekOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfInterval.js
+var init_eachWeekendOfInterval = __esm({
+  "node_modules/date-fns/eachWeekendOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfMonth.js
+var init_startOfMonth = __esm({
+  "node_modules/date-fns/startOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfMonth.js
+var init_eachWeekendOfMonth = __esm({
+  "node_modules/date-fns/eachWeekendOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfYear.js
+var init_endOfYear = __esm({
+  "node_modules/date-fns/endOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfYear.js
+var init_startOfYear = __esm({
+  "node_modules/date-fns/startOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfYear.js
+var init_eachWeekendOfYear = __esm({
+  "node_modules/date-fns/eachWeekendOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/eachYearOfInterval.js
+var init_eachYearOfInterval = __esm({
+  "node_modules/date-fns/eachYearOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfDecade.js
+var init_endOfDecade = __esm({
+  "node_modules/date-fns/endOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfHour.js
+var init_endOfHour = __esm({
+  "node_modules/date-fns/endOfHour.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfWeek.js
+var init_endOfWeek = __esm({
+  "node_modules/date-fns/endOfWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfISOWeek.js
+var init_endOfISOWeek = __esm({
+  "node_modules/date-fns/endOfISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfISOWeekYear.js
+var init_endOfISOWeekYear = __esm({
+  "node_modules/date-fns/endOfISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfMinute.js
+var init_endOfMinute = __esm({
+  "node_modules/date-fns/endOfMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfQuarter.js
+var init_endOfQuarter = __esm({
+  "node_modules/date-fns/endOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfSecond.js
+var init_endOfSecond = __esm({
+  "node_modules/date-fns/endOfSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfToday.js
+var init_endOfToday = __esm({
+  "node_modules/date-fns/endOfToday.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfTomorrow.js
+var init_endOfTomorrow = __esm({
+  "node_modules/date-fns/endOfTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfYesterday.js
+var init_endOfYesterday = __esm({
+  "node_modules/date-fns/endOfYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/getDayOfYear.js
+var init_getDayOfYear = __esm({
+  "node_modules/date-fns/getDayOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getISOWeek.js
+var init_getISOWeek = __esm({
+  "node_modules/date-fns/getISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeekYear.js
+var init_getWeekYear = __esm({
+  "node_modules/date-fns/getWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfWeekYear.js
+var init_startOfWeekYear = __esm({
+  "node_modules/date-fns/startOfWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeek.js
+var init_getWeek = __esm({
+  "node_modules/date-fns/getWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/format.js
+var init_format = __esm({
+  "node_modules/date-fns/format.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistance.js
+var init_formatDistance = __esm({
+  "node_modules/date-fns/formatDistance.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceStrict.js
+var init_formatDistanceStrict = __esm({
+  "node_modules/date-fns/formatDistanceStrict.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceToNow.js
+var init_formatDistanceToNow = __esm({
+  "node_modules/date-fns/formatDistanceToNow.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceToNowStrict.js
+var init_formatDistanceToNowStrict = __esm({
+  "node_modules/date-fns/formatDistanceToNowStrict.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDuration.js
+var init_formatDuration = __esm({
+  "node_modules/date-fns/formatDuration.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISO.js
+var init_formatISO = __esm({
+  "node_modules/date-fns/formatISO.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISO9075.js
+var init_formatISO9075 = __esm({
+  "node_modules/date-fns/formatISO9075.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISODuration.js
+var init_formatISODuration = __esm({
+  "node_modules/date-fns/formatISODuration.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRFC3339.js
+var init_formatRFC3339 = __esm({
+  "node_modules/date-fns/formatRFC3339.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRFC7231.js
+var init_formatRFC7231 = __esm({
+  "node_modules/date-fns/formatRFC7231.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRelative.js
+var init_formatRelative = __esm({
+  "node_modules/date-fns/formatRelative.js"() {
+  }
+});
+
+// node_modules/date-fns/fromUnixTime.js
+var init_fromUnixTime = __esm({
+  "node_modules/date-fns/fromUnixTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getDate.js
+var init_getDate = __esm({
+  "node_modules/date-fns/getDate.js"() {
+  }
+});
+
+// node_modules/date-fns/getDay.js
+var init_getDay = __esm({
+  "node_modules/date-fns/getDay.js"() {
+  }
+});
+
+// node_modules/date-fns/getDaysInMonth.js
+var init_getDaysInMonth = __esm({
+  "node_modules/date-fns/getDaysInMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isLeapYear.js
+var init_isLeapYear = __esm({
+  "node_modules/date-fns/isLeapYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getDaysInYear.js
+var init_getDaysInYear = __esm({
+  "node_modules/date-fns/getDaysInYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getDecade.js
+var init_getDecade = __esm({
+  "node_modules/date-fns/getDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/getDefaultOptions.js
+var init_getDefaultOptions = __esm({
+  "node_modules/date-fns/getDefaultOptions.js"() {
+  }
+});
+
+// node_modules/date-fns/getHours.js
+var init_getHours = __esm({
+  "node_modules/date-fns/getHours.js"() {
+  }
+});
+
+// node_modules/date-fns/getISODay.js
+var init_getISODay = __esm({
+  "node_modules/date-fns/getISODay.js"() {
+  }
+});
+
+// node_modules/date-fns/getISOWeeksInYear.js
+var init_getISOWeeksInYear = __esm({
+  "node_modules/date-fns/getISOWeeksInYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getMilliseconds.js
+var init_getMilliseconds = __esm({
+  "node_modules/date-fns/getMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/getMinutes.js
+var init_getMinutes = __esm({
+  "node_modules/date-fns/getMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/getMonth.js
+var init_getMonth = __esm({
+  "node_modules/date-fns/getMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getOverlappingDaysInIntervals.js
+var init_getOverlappingDaysInIntervals = __esm({
+  "node_modules/date-fns/getOverlappingDaysInIntervals.js"() {
+  }
+});
+
+// node_modules/date-fns/getSeconds.js
+var init_getSeconds = __esm({
+  "node_modules/date-fns/getSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/getTime.js
+var init_getTime = __esm({
+  "node_modules/date-fns/getTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getUnixTime.js
+var init_getUnixTime = __esm({
+  "node_modules/date-fns/getUnixTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeekOfMonth.js
+var init_getWeekOfMonth = __esm({
+  "node_modules/date-fns/getWeekOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfMonth.js
+var init_lastDayOfMonth = __esm({
+  "node_modules/date-fns/lastDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeeksInMonth.js
+var init_getWeeksInMonth = __esm({
+  "node_modules/date-fns/getWeeksInMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getYear.js
+var init_getYear = __esm({
+  "node_modules/date-fns/getYear.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToMilliseconds.js
+var init_hoursToMilliseconds = __esm({
+  "node_modules/date-fns/hoursToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToMinutes.js
+var init_hoursToMinutes = __esm({
+  "node_modules/date-fns/hoursToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToSeconds.js
+var init_hoursToSeconds = __esm({
+  "node_modules/date-fns/hoursToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/interval.js
+var init_interval = __esm({
+  "node_modules/date-fns/interval.js"() {
+  }
+});
+
+// node_modules/date-fns/intervalToDuration.js
+var init_intervalToDuration = __esm({
+  "node_modules/date-fns/intervalToDuration.js"() {
+  }
+});
+
+// node_modules/date-fns/intlFormat.js
+var init_intlFormat = __esm({
+  "node_modules/date-fns/intlFormat.js"() {
+  }
+});
+
+// node_modules/date-fns/intlFormatDistance.js
+var init_intlFormatDistance = __esm({
+  "node_modules/date-fns/intlFormatDistance.js"() {
+  }
+});
+
+// node_modules/date-fns/isAfter.js
+var init_isAfter = __esm({
+  "node_modules/date-fns/isAfter.js"() {
+  }
+});
+
+// node_modules/date-fns/isBefore.js
+function isBefore(date3, dateToCompare) {
+  return +toDate(date3) < +toDate(dateToCompare);
+}
+var init_isBefore = __esm({
+  "node_modules/date-fns/isBefore.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/isEqual.js
+var init_isEqual = __esm({
+  "node_modules/date-fns/isEqual.js"() {
+  }
+});
+
+// node_modules/date-fns/isExists.js
+var init_isExists = __esm({
+  "node_modules/date-fns/isExists.js"() {
+  }
+});
+
+// node_modules/date-fns/isFirstDayOfMonth.js
+var init_isFirstDayOfMonth = __esm({
+  "node_modules/date-fns/isFirstDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isFriday.js
+var init_isFriday = __esm({
+  "node_modules/date-fns/isFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/isFuture.js
+var init_isFuture = __esm({
+  "node_modules/date-fns/isFuture.js"() {
+  }
+});
+
+// node_modules/date-fns/transpose.js
+var init_transpose = __esm({
+  "node_modules/date-fns/transpose.js"() {
+  }
+});
+
+// node_modules/date-fns/setWeek.js
+var init_setWeek = __esm({
+  "node_modules/date-fns/setWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/setISOWeek.js
+var init_setISOWeek = __esm({
+  "node_modules/date-fns/setISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/setDay.js
+var init_setDay = __esm({
+  "node_modules/date-fns/setDay.js"() {
+  }
+});
+
+// node_modules/date-fns/setISODay.js
+var init_setISODay = __esm({
+  "node_modules/date-fns/setISODay.js"() {
+  }
+});
+
+// node_modules/date-fns/parse.js
+var init_parse5 = __esm({
+  "node_modules/date-fns/parse.js"() {
+  }
+});
+
+// node_modules/date-fns/isMatch.js
+var init_isMatch = __esm({
+  "node_modules/date-fns/isMatch.js"() {
+  }
+});
+
+// node_modules/date-fns/isMonday.js
+var init_isMonday = __esm({
+  "node_modules/date-fns/isMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/isPast.js
+var init_isPast = __esm({
+  "node_modules/date-fns/isPast.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfHour.js
+var init_startOfHour = __esm({
+  "node_modules/date-fns/startOfHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameHour.js
+var init_isSameHour = __esm({
+  "node_modules/date-fns/isSameHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameWeek.js
+var init_isSameWeek = __esm({
+  "node_modules/date-fns/isSameWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameISOWeek.js
+var init_isSameISOWeek = __esm({
+  "node_modules/date-fns/isSameISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameISOWeekYear.js
+var init_isSameISOWeekYear = __esm({
+  "node_modules/date-fns/isSameISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfMinute.js
+var init_startOfMinute = __esm({
+  "node_modules/date-fns/startOfMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameMinute.js
+var init_isSameMinute = __esm({
+  "node_modules/date-fns/isSameMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameMonth.js
+var init_isSameMonth = __esm({
+  "node_modules/date-fns/isSameMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameQuarter.js
+var init_isSameQuarter = __esm({
+  "node_modules/date-fns/isSameQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfSecond.js
+var init_startOfSecond = __esm({
+  "node_modules/date-fns/startOfSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameSecond.js
+var init_isSameSecond = __esm({
+  "node_modules/date-fns/isSameSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameYear.js
+var init_isSameYear = __esm({
+  "node_modules/date-fns/isSameYear.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisHour.js
+var init_isThisHour = __esm({
+  "node_modules/date-fns/isThisHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisISOWeek.js
+var init_isThisISOWeek = __esm({
+  "node_modules/date-fns/isThisISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisMinute.js
+var init_isThisMinute = __esm({
+  "node_modules/date-fns/isThisMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisMonth.js
+var init_isThisMonth = __esm({
+  "node_modules/date-fns/isThisMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisQuarter.js
+var init_isThisQuarter = __esm({
+  "node_modules/date-fns/isThisQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisSecond.js
+var init_isThisSecond = __esm({
+  "node_modules/date-fns/isThisSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisWeek.js
+var init_isThisWeek = __esm({
+  "node_modules/date-fns/isThisWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisYear.js
+var init_isThisYear = __esm({
+  "node_modules/date-fns/isThisYear.js"() {
+  }
+});
+
+// node_modules/date-fns/isThursday.js
+var init_isThursday = __esm({
+  "node_modules/date-fns/isThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/isToday.js
+function isToday(date3, options) {
+  return isSameDay(
+    constructFrom(options?.in || date3, date3),
+    constructNow(options?.in || date3)
+  );
+}
+var init_isToday = __esm({
+  "node_modules/date-fns/isToday.js"() {
+    init_constructFrom();
+    init_constructNow();
+    init_isSameDay();
+  }
+});
+
+// node_modules/date-fns/isTomorrow.js
+var init_isTomorrow = __esm({
+  "node_modules/date-fns/isTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/isTuesday.js
+var init_isTuesday = __esm({
+  "node_modules/date-fns/isTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWednesday.js
+var init_isWednesday = __esm({
+  "node_modules/date-fns/isWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWithinInterval.js
+var init_isWithinInterval = __esm({
+  "node_modules/date-fns/isWithinInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/subDays.js
+var init_subDays = __esm({
+  "node_modules/date-fns/subDays.js"() {
+  }
+});
+
+// node_modules/date-fns/isYesterday.js
+var init_isYesterday = __esm({
+  "node_modules/date-fns/isYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfDecade.js
+var init_lastDayOfDecade = __esm({
+  "node_modules/date-fns/lastDayOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfWeek.js
+var init_lastDayOfWeek = __esm({
+  "node_modules/date-fns/lastDayOfWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfISOWeek.js
+var init_lastDayOfISOWeek = __esm({
+  "node_modules/date-fns/lastDayOfISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfISOWeekYear.js
+var init_lastDayOfISOWeekYear = __esm({
+  "node_modules/date-fns/lastDayOfISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfQuarter.js
+var init_lastDayOfQuarter = __esm({
+  "node_modules/date-fns/lastDayOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfYear.js
+var init_lastDayOfYear = __esm({
+  "node_modules/date-fns/lastDayOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/lightFormat.js
+var init_lightFormat = __esm({
+  "node_modules/date-fns/lightFormat.js"() {
+  }
+});
+
+// node_modules/date-fns/milliseconds.js
+var init_milliseconds = __esm({
+  "node_modules/date-fns/milliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToHours.js
+var init_millisecondsToHours = __esm({
+  "node_modules/date-fns/millisecondsToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToMinutes.js
+var init_millisecondsToMinutes = __esm({
+  "node_modules/date-fns/millisecondsToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToSeconds.js
+var init_millisecondsToSeconds = __esm({
+  "node_modules/date-fns/millisecondsToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToHours.js
+var init_minutesToHours = __esm({
+  "node_modules/date-fns/minutesToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToMilliseconds.js
+var init_minutesToMilliseconds = __esm({
+  "node_modules/date-fns/minutesToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToSeconds.js
+var init_minutesToSeconds = __esm({
+  "node_modules/date-fns/minutesToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/monthsToQuarters.js
+var init_monthsToQuarters = __esm({
+  "node_modules/date-fns/monthsToQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/monthsToYears.js
+var init_monthsToYears = __esm({
+  "node_modules/date-fns/monthsToYears.js"() {
+  }
+});
+
+// node_modules/date-fns/nextDay.js
+var init_nextDay = __esm({
+  "node_modules/date-fns/nextDay.js"() {
+  }
+});
+
+// node_modules/date-fns/nextFriday.js
+var init_nextFriday = __esm({
+  "node_modules/date-fns/nextFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextMonday.js
+var init_nextMonday = __esm({
+  "node_modules/date-fns/nextMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextSaturday.js
+var init_nextSaturday = __esm({
+  "node_modules/date-fns/nextSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextSunday.js
+var init_nextSunday = __esm({
+  "node_modules/date-fns/nextSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextThursday.js
+var init_nextThursday = __esm({
+  "node_modules/date-fns/nextThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextTuesday.js
+var init_nextTuesday = __esm({
+  "node_modules/date-fns/nextTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextWednesday.js
+var init_nextWednesday = __esm({
+  "node_modules/date-fns/nextWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/parseISO.js
+var init_parseISO = __esm({
+  "node_modules/date-fns/parseISO.js"() {
+  }
+});
+
+// node_modules/date-fns/parseJSON.js
+var init_parseJSON = __esm({
+  "node_modules/date-fns/parseJSON.js"() {
+  }
+});
+
+// node_modules/date-fns/previousDay.js
+var init_previousDay = __esm({
+  "node_modules/date-fns/previousDay.js"() {
+  }
+});
+
+// node_modules/date-fns/previousFriday.js
+var init_previousFriday = __esm({
+  "node_modules/date-fns/previousFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousMonday.js
+var init_previousMonday = __esm({
+  "node_modules/date-fns/previousMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousSaturday.js
+var init_previousSaturday = __esm({
+  "node_modules/date-fns/previousSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousSunday.js
+var init_previousSunday = __esm({
+  "node_modules/date-fns/previousSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousThursday.js
+var init_previousThursday = __esm({
+  "node_modules/date-fns/previousThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousTuesday.js
+var init_previousTuesday = __esm({
+  "node_modules/date-fns/previousTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousWednesday.js
+var init_previousWednesday = __esm({
+  "node_modules/date-fns/previousWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/quartersToMonths.js
+var init_quartersToMonths = __esm({
+  "node_modules/date-fns/quartersToMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/quartersToYears.js
+var init_quartersToYears = __esm({
+  "node_modules/date-fns/quartersToYears.js"() {
+  }
+});
+
+// node_modules/date-fns/roundToNearestHours.js
+var init_roundToNearestHours = __esm({
+  "node_modules/date-fns/roundToNearestHours.js"() {
+  }
+});
+
+// node_modules/date-fns/roundToNearestMinutes.js
+var init_roundToNearestMinutes = __esm({
+  "node_modules/date-fns/roundToNearestMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToHours.js
+var init_secondsToHours = __esm({
+  "node_modules/date-fns/secondsToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToMilliseconds.js
+var init_secondsToMilliseconds = __esm({
+  "node_modules/date-fns/secondsToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToMinutes.js
+var init_secondsToMinutes = __esm({
+  "node_modules/date-fns/secondsToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/setMonth.js
+var init_setMonth = __esm({
+  "node_modules/date-fns/setMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/set.js
+var init_set2 = __esm({
+  "node_modules/date-fns/set.js"() {
+  }
+});
+
+// node_modules/date-fns/setDate.js
+var init_setDate = __esm({
+  "node_modules/date-fns/setDate.js"() {
+  }
+});
+
+// node_modules/date-fns/setDayOfYear.js
+var init_setDayOfYear = __esm({
+  "node_modules/date-fns/setDayOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/setDefaultOptions.js
+var init_setDefaultOptions = __esm({
+  "node_modules/date-fns/setDefaultOptions.js"() {
+  }
+});
+
+// node_modules/date-fns/setHours.js
+var init_setHours = __esm({
+  "node_modules/date-fns/setHours.js"() {
+  }
+});
+
+// node_modules/date-fns/setMilliseconds.js
+var init_setMilliseconds = __esm({
+  "node_modules/date-fns/setMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/setMinutes.js
+var init_setMinutes = __esm({
+  "node_modules/date-fns/setMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/setQuarter.js
+var init_setQuarter = __esm({
+  "node_modules/date-fns/setQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/setSeconds.js
+var init_setSeconds = __esm({
+  "node_modules/date-fns/setSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/setWeekYear.js
+var init_setWeekYear = __esm({
+  "node_modules/date-fns/setWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/setYear.js
+var init_setYear = __esm({
+  "node_modules/date-fns/setYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfDecade.js
+var init_startOfDecade = __esm({
+  "node_modules/date-fns/startOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfToday.js
+var init_startOfToday = __esm({
+  "node_modules/date-fns/startOfToday.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfTomorrow.js
+var init_startOfTomorrow = __esm({
+  "node_modules/date-fns/startOfTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfYesterday.js
+var init_startOfYesterday = __esm({
+  "node_modules/date-fns/startOfYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/subMonths.js
+var init_subMonths = __esm({
+  "node_modules/date-fns/subMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/sub.js
+var init_sub = __esm({
+  "node_modules/date-fns/sub.js"() {
+  }
+});
+
+// node_modules/date-fns/subBusinessDays.js
+var init_subBusinessDays = __esm({
+  "node_modules/date-fns/subBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/subHours.js
+var init_subHours = __esm({
+  "node_modules/date-fns/subHours.js"() {
+  }
+});
+
+// node_modules/date-fns/subMilliseconds.js
+var init_subMilliseconds = __esm({
+  "node_modules/date-fns/subMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/subMinutes.js
+var init_subMinutes = __esm({
+  "node_modules/date-fns/subMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/subQuarters.js
+var init_subQuarters = __esm({
+  "node_modules/date-fns/subQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/subSeconds.js
+var init_subSeconds = __esm({
+  "node_modules/date-fns/subSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/subWeeks.js
+var init_subWeeks = __esm({
+  "node_modules/date-fns/subWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/subYears.js
+var init_subYears = __esm({
+  "node_modules/date-fns/subYears.js"() {
+  }
+});
+
+// node_modules/date-fns/weeksToDays.js
+var init_weeksToDays = __esm({
+  "node_modules/date-fns/weeksToDays.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToDays.js
+var init_yearsToDays = __esm({
+  "node_modules/date-fns/yearsToDays.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToMonths.js
+var init_yearsToMonths = __esm({
+  "node_modules/date-fns/yearsToMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToQuarters.js
+var init_yearsToQuarters = __esm({
+  "node_modules/date-fns/yearsToQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/index.js
+var init_date_fns = __esm({
+  "node_modules/date-fns/index.js"() {
+    init_add();
+    init_addBusinessDays();
+    init_addDays();
+    init_addHours();
+    init_addISOWeekYears();
+    init_addMilliseconds();
+    init_addMinutes();
+    init_addMonths();
+    init_addQuarters();
+    init_addSeconds();
+    init_addWeeks();
+    init_addYears();
+    init_areIntervalsOverlapping();
+    init_clamp();
+    init_closestIndexTo();
+    init_closestTo();
+    init_compareAsc();
+    init_compareDesc();
+    init_constructFrom();
+    init_constructNow();
+    init_daysToWeeks();
+    init_differenceInBusinessDays();
+    init_differenceInCalendarDays();
+    init_differenceInCalendarISOWeekYears();
+    init_differenceInCalendarISOWeeks();
+    init_differenceInCalendarMonths();
+    init_differenceInCalendarQuarters();
+    init_differenceInCalendarWeeks();
+    init_differenceInCalendarYears();
+    init_differenceInDays();
+    init_differenceInHours();
+    init_differenceInISOWeekYears();
+    init_differenceInMilliseconds();
+    init_differenceInMinutes();
+    init_differenceInMonths();
+    init_differenceInQuarters();
+    init_differenceInSeconds();
+    init_differenceInWeeks();
+    init_differenceInYears();
+    init_eachDayOfInterval();
+    init_eachHourOfInterval();
+    init_eachMinuteOfInterval();
+    init_eachMonthOfInterval();
+    init_eachQuarterOfInterval();
+    init_eachWeekOfInterval();
+    init_eachWeekendOfInterval();
+    init_eachWeekendOfMonth();
+    init_eachWeekendOfYear();
+    init_eachYearOfInterval();
+    init_endOfDay();
+    init_endOfDecade();
+    init_endOfHour();
+    init_endOfISOWeek();
+    init_endOfISOWeekYear();
+    init_endOfMinute();
+    init_endOfMonth();
+    init_endOfQuarter();
+    init_endOfSecond();
+    init_endOfToday();
+    init_endOfTomorrow();
+    init_endOfWeek();
+    init_endOfYear();
+    init_endOfYesterday();
+    init_format();
+    init_formatDistance();
+    init_formatDistanceStrict();
+    init_formatDistanceToNow();
+    init_formatDistanceToNowStrict();
+    init_formatDuration();
+    init_formatISO();
+    init_formatISO9075();
+    init_formatISODuration();
+    init_formatRFC3339();
+    init_formatRFC7231();
+    init_formatRelative();
+    init_fromUnixTime();
+    init_getDate();
+    init_getDay();
+    init_getDayOfYear();
+    init_getDaysInMonth();
+    init_getDaysInYear();
+    init_getDecade();
+    init_getDefaultOptions();
+    init_getHours();
+    init_getISODay();
+    init_getISOWeek();
+    init_getISOWeekYear();
+    init_getISOWeeksInYear();
+    init_getMilliseconds();
+    init_getMinutes();
+    init_getMonth();
+    init_getOverlappingDaysInIntervals();
+    init_getQuarter();
+    init_getSeconds();
+    init_getTime();
+    init_getUnixTime();
+    init_getWeek();
+    init_getWeekOfMonth();
+    init_getWeekYear();
+    init_getWeeksInMonth();
+    init_getYear();
+    init_hoursToMilliseconds();
+    init_hoursToMinutes();
+    init_hoursToSeconds();
+    init_interval();
+    init_intervalToDuration();
+    init_intlFormat();
+    init_intlFormatDistance();
+    init_isAfter();
+    init_isBefore();
+    init_isDate();
+    init_isEqual();
+    init_isExists();
+    init_isFirstDayOfMonth();
+    init_isFriday();
+    init_isFuture();
+    init_isLastDayOfMonth();
+    init_isLeapYear();
+    init_isMatch();
+    init_isMonday();
+    init_isPast();
+    init_isSameDay();
+    init_isSameHour();
+    init_isSameISOWeek();
+    init_isSameISOWeekYear();
+    init_isSameMinute();
+    init_isSameMonth();
+    init_isSameQuarter();
+    init_isSameSecond();
+    init_isSameWeek();
+    init_isSameYear();
+    init_isSaturday();
+    init_isSunday();
+    init_isThisHour();
+    init_isThisISOWeek();
+    init_isThisMinute();
+    init_isThisMonth();
+    init_isThisQuarter();
+    init_isThisSecond();
+    init_isThisWeek();
+    init_isThisYear();
+    init_isThursday();
+    init_isToday();
+    init_isTomorrow();
+    init_isTuesday();
+    init_isValid();
+    init_isWednesday();
+    init_isWeekend();
+    init_isWithinInterval();
+    init_isYesterday();
+    init_lastDayOfDecade();
+    init_lastDayOfISOWeek();
+    init_lastDayOfISOWeekYear();
+    init_lastDayOfMonth();
+    init_lastDayOfQuarter();
+    init_lastDayOfWeek();
+    init_lastDayOfYear();
+    init_lightFormat();
+    init_max();
+    init_milliseconds();
+    init_millisecondsToHours();
+    init_millisecondsToMinutes();
+    init_millisecondsToSeconds();
+    init_min();
+    init_minutesToHours();
+    init_minutesToMilliseconds();
+    init_minutesToSeconds();
+    init_monthsToQuarters();
+    init_monthsToYears();
+    init_nextDay();
+    init_nextFriday();
+    init_nextMonday();
+    init_nextSaturday();
+    init_nextSunday();
+    init_nextThursday();
+    init_nextTuesday();
+    init_nextWednesday();
+    init_parse5();
+    init_parseISO();
+    init_parseJSON();
+    init_previousDay();
+    init_previousFriday();
+    init_previousMonday();
+    init_previousSaturday();
+    init_previousSunday();
+    init_previousThursday();
+    init_previousTuesday();
+    init_previousWednesday();
+    init_quartersToMonths();
+    init_quartersToYears();
+    init_roundToNearestHours();
+    init_roundToNearestMinutes();
+    init_secondsToHours();
+    init_secondsToMilliseconds();
+    init_secondsToMinutes();
+    init_set2();
+    init_setDate();
+    init_setDay();
+    init_setDayOfYear();
+    init_setDefaultOptions();
+    init_setHours();
+    init_setISODay();
+    init_setISOWeek();
+    init_setISOWeekYear();
+    init_setMilliseconds();
+    init_setMinutes();
+    init_setMonth();
+    init_setQuarter();
+    init_setSeconds();
+    init_setWeek();
+    init_setWeekYear();
+    init_setYear();
+    init_startOfDay();
+    init_startOfDecade();
+    init_startOfHour();
+    init_startOfISOWeek();
+    init_startOfISOWeekYear();
+    init_startOfMinute();
+    init_startOfMonth();
+    init_startOfQuarter();
+    init_startOfSecond();
+    init_startOfToday();
+    init_startOfTomorrow();
+    init_startOfWeek();
+    init_startOfWeekYear();
+    init_startOfYear();
+    init_startOfYesterday();
+    init_sub();
+    init_subBusinessDays();
+    init_subDays();
+    init_subHours();
+    init_subISOWeekYears();
+    init_subMilliseconds();
+    init_subMinutes();
+    init_subMonths();
+    init_subQuarters();
+    init_subSeconds();
+    init_subWeeks();
+    init_subYears();
+    init_toDate();
+    init_transpose();
+    init_weeksToDays();
+    init_yearsToDays();
+    init_yearsToMonths();
+    init_yearsToQuarters();
+  }
+});
+
+// src/lib/utils.ts
+function toDate2(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  return null;
+}
+function isOverdue(due, status) {
+  if (!due || status === "done") return false;
+  return isBefore(due, startOfDay(/* @__PURE__ */ new Date()));
+}
+function isDueToday(due, status) {
+  if (!due || status === "done") return false;
+  return isToday(due);
+}
+function nameInitials(name4) {
+  const parts = name4.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function generateId() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+}
+function parseDateOnly(value) {
+  if (!value) return null;
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+var init_utils = __esm({
+  "src/lib/utils.ts"() {
+    init_clsx();
+    init_date_fns();
+  }
+});
+
+// src/features/project-detail/roadmap/metrics.ts
+function taskCompletion(task, doneSet) {
+  if (doneSet.has(task.status)) return 1;
+  const checklist = task.checklist ?? [];
+  if (checklist.length === 0) return 0;
+  return checklist.filter((item) => item.done).length / checklist.length;
+}
+function phaseMetrics(phase, tasks, doneSet, options = {}) {
+  const own = tasks.filter((t) => t.phaseId === phase.id);
+  const doneCount = own.filter((t) => doneSet.has(t.status)).length;
+  const pending = own.filter((t) => !doneSet.has(t.status));
+  const totalCount = own.length;
+  let progress;
+  let status;
+  if (totalCount === 0) {
+    progress = phase.progress;
+    status = phase.status;
+  } else {
+    const completed = options.weighted ? own.reduce((sum, t) => sum + taskCompletion(t, doneSet), 0) : doneCount;
+    const raw = completed / totalCount * 100;
+    const allDone = doneCount === totalCount;
+    progress = allDone ? 100 : raw > 0 ? Math.min(99, Math.max(1, Math.round(raw))) : 0;
+    status = allDone ? "done" : raw > 0 ? "doing" : "todo";
+  }
+  let overdueCount = 0;
+  let dueTodayCount = 0;
+  let nextDue = null;
+  let nextDueAt = null;
+  for (const task of pending) {
+    const due = toDate2(task.dueDate);
+    if (!due) continue;
+    if (isOverdue(due)) overdueCount += 1;
+    else if (isDueToday(due)) dueTodayCount += 1;
+    const at = due.getTime();
+    if (nextDueAt === null || at < nextDueAt) {
+      nextDueAt = at;
+      nextDue = task;
+    }
+  }
+  let health;
+  if (overdueCount > 0) health = "overdue";
+  else if (dueTodayCount > 0) health = "today";
+  else if (nextDue) health = "ontrack";
+  else if (totalCount > 0 && doneCount === totalCount) health = "ontrack";
+  else health = "nodates";
+  return { progress, status, doneCount, totalCount, overdueCount, dueTodayCount, nextDue, health };
+}
+function metricsOptionsFor(roadmapType) {
+  return { weighted: (roadmapType ?? "sequencial") !== "paralelo" };
+}
+function buildRoadmapItems(phases, tasks, doneSet, roadmapType) {
+  const options = metricsOptionsFor(roadmapType);
+  return phases.map((phase) => {
+    const metrics = phaseMetrics(phase, tasks, doneSet, options);
+    return {
+      phase: { ...phase, progress: metrics.progress, status: metrics.status },
+      metrics
+    };
+  });
+}
+var init_metrics = __esm({
+  "src/features/project-detail/roadmap/metrics.ts"() {
+    init_utils();
+  }
+});
+
+// src/features/project-detail/roadmap/labels.ts
+function roadmapNouns(type) {
+  return ROADMAP_NOUNS[type ?? "sequencial"];
+}
+var ROADMAP_NOUNS;
+var init_labels = __esm({
+  "src/features/project-detail/roadmap/labels.ts"() {
+    ROADMAP_NOUNS = {
+      sequencial: {
+        singular: "fase",
+        plural: "fases",
+        newAction: "Nova fase",
+        nameLabel: "Nome da fase",
+        namePlaceholder: "Descoberta, MVP, Lan\xE7amento\u2026",
+        descPlaceholder: "O que essa fase representa?",
+        dialogNew: "Nova fase",
+        dialogEdit: "Editar fase",
+        submitNew: "Criar fase",
+        createdToast: "Fase criada",
+        updatedToast: "Fase atualizada",
+        removedToast: "Fase removida",
+        removeTitle: "Remover fase?",
+        removeBody: (name4) => `A fase "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Comece a jornada",
+        emptyBody: "Divida este projeto em fases sequenciais \u2014 pesquisa, MVP, lan\xE7amento\u2026 \u2014 e acompanhe a trilha rumo ao cume.",
+        emptyAction: "Criar primeira fase",
+        orderAction: "Organizar fases",
+        orderTitle: "Organizar fases",
+        orderBody: "Arraste para definir a sequ\xEAncia. A primeira da lista \xE9 a primeira montanha da trilha.",
+        orderSavedToast: "Ordem das fases salva"
+      },
+      paralelo: {
+        singular: "frente",
+        plural: "frentes",
+        newAction: "Nova frente",
+        nameLabel: "Nome da frente",
+        namePlaceholder: "Ingest\xE3o de dados, Modelagem, Visual\u2026",
+        descPlaceholder: "O que essa frente cobre?",
+        dialogNew: "Nova frente",
+        dialogEdit: "Editar frente",
+        submitNew: "Criar frente",
+        createdToast: "Frente criada",
+        updatedToast: "Frente atualizada",
+        removedToast: "Frente removida",
+        removeTitle: "Remover frente?",
+        removeBody: (name4) => `A frente "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Abra as frentes",
+        emptyBody: "Separe o projeto nas frentes que rodam em paralelo. Cada uma segue no seu ritmo, medida pelas atividades pendentes.",
+        emptyAction: "Criar primeira frente",
+        orderAction: "Organizar frentes",
+        orderTitle: "Organizar frentes",
+        orderBody: "Arraste para definir em que ordem as frentes aparecem no roadmap.",
+        orderSavedToast: "Ordem das frentes salva"
+      }
+    };
   }
 });
 
@@ -34051,6 +36172,37 @@ async function fetchProjects(wsId, status = "active") {
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
+async function createProject(wsId, input) {
+  const ref = await addDoc(wsProjectsCol(wsId), {
+    name: input.name.trim(),
+    description: input.description.trim(),
+    color: input.color,
+    status: "active",
+    phase: "planejando",
+    hasRoadmap: input.hasRoadmap ?? false,
+    roadmapType: input.roadmapType ?? "sequencial",
+    // Projetos são sempre da equipe: sem memberUids, todos os membros da workspace veem.
+    visibility: input.visibility ?? "team",
+    createdBy: input.createdBy ?? "",
+    ...input.columns ? { columns: input.columns } : {},
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  await assignProjectCodes(wsId, ref.id).catch((err) => console.error("[task-code] sigla do projeto novo", err));
+  return ref.id;
+}
+async function updateProject(wsId, projectId, patch) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { ...patch, updatedAt: serverTimestamp() });
+}
+async function archiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
+}
+async function unarchiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
+}
+async function updateProjectPhase(wsId, projectId, phase) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
+}
 var init_queries5 = __esm({
   "src/features/projects/queries.ts"() {
     init_firestore();
@@ -34059,6 +36211,7 @@ var init_queries5 = __esm({
     init_queries();
     init_queries2();
     init_queries3();
+    init_codes();
   }
 });
 
@@ -34378,6 +36531,108 @@ async function resolveFase(ctx, projeto, ref) {
   if (!fase) throw new GliaToolError(`Fase "${alvo}" n\xE3o existe em ${projeto.name}. Fases: ${fases.map((f) => f.name).join(", ") || "nenhuma"}.`);
   return fase;
 }
+async function resolveDono(ctx, ref) {
+  const alvo = ref.trim().replace(/^@/, "");
+  const n = normalize(alvo);
+  const membros = await ctx.membros();
+  if (n === "eu" || n === "me") return nomeDe(ctx.eu);
+  const direto = membros.find((m) => m.uid === alvo || normalize(m.email) === n || normalize(m.displayName) === n);
+  if (direto) return direto.displayName || direto.email;
+  const parciais = membros.filter((m) => normalize(m.displayName).includes(n) || normalize(m.email).includes(n));
+  if (parciais.length === 1) return parciais[0].displayName || parciais[0].email;
+  if (parciais.length > 1) {
+    throw new GliaToolError(`"${alvo}" bate com mais de uma pessoa:
+${parciais.map((m) => `- ${m.displayName} <${m.email}>`).join("\n")}`);
+  }
+  return alvo;
+}
+function resolveEntregavel(fase, ref) {
+  const lista = fase.deliverables ?? [];
+  const alvo = ref.trim();
+  const porId = lista.find((d) => d.id === alvo);
+  if (porId) return porId;
+  const n = normalize(alvo);
+  const exatos = lista.filter((d) => normalize(d.text) === n);
+  if (exatos.length === 1) return exatos[0];
+  const parciais = lista.filter((d) => normalize(d.text).includes(n));
+  if (parciais.length === 1) return parciais[0];
+  if (parciais.length > 1) {
+    throw new GliaToolError(`"${alvo}" bate com mais de um entreg\xE1vel de ${fase.name}:
+${parciais.map((d) => `- [${d.id}] ${d.text}`).join("\n")}`);
+  }
+  throw new GliaToolError(`Entreg\xE1vel "${alvo}" n\xE3o encontrado em ${fase.name}. Entreg\xE1veis: ${lista.map((d) => `"${d.text}"`).join(", ") || "nenhum"}.`);
+}
+function lerData(valor, rotulo) {
+  if (valor === void 0) return void 0;
+  const v = valor.trim();
+  if (v === "") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new GliaToolError(`${rotulo} "${valor}" inv\xE1lido \u2014 use AAAA-MM-DD.`);
+  const d = parseDateOnly(v);
+  if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) {
+    throw new GliaToolError(`${rotulo} "${valor}" n\xE3o \xE9 uma data que existe.`);
+  }
+  return d;
+}
+function resolveCor(ref, projetos) {
+  if (ref?.trim()) {
+    const v = ref.trim().toLowerCase();
+    const porHex = PROJECT_COLORS.find((c) => c === v || c === `#${v}`);
+    if (porHex) return porHex;
+    const i = Number(v);
+    if (Number.isInteger(i) && i >= 1 && i <= PROJECT_COLORS.length) return PROJECT_COLORS[i - 1];
+    throw new GliaToolError(`Cor "${ref}" fora da paleta da Glia. Use 1\u2013${PROJECT_COLORS.length} ou um destes: ${PROJECT_COLORS.join(", ")}.`);
+  }
+  const uso = new Map(PROJECT_COLORS.map((c) => [c, 0]));
+  for (const p of projetos) if (uso.has(p.color)) uso.set(p.color, uso.get(p.color) + 1);
+  return [...uso.entries()].sort((a, b) => a[1] - b[1])[0][0];
+}
+function ordensQueMudaram(ordenadas, ordemDe = (i) => i) {
+  return ordenadas.flatMap((f, i) => f.order === ordemDe(i) ? [] : [{ id: f.id, order: ordemDe(i) }]);
+}
+async function inserirFases(ctx, projeto, novas, posicao) {
+  const tipo = projeto.roadmapType ?? "sequencial";
+  const nouns = roadmapNouns(tipo);
+  if (novas.length === 0) throw new GliaToolError(`Informe ao menos uma ${nouns.singular}.`);
+  const existentes = await fetchPhases(ctx.wsId, projeto.id);
+  const usados = new Set(existentes.map((f) => normalize(f.name.trim())));
+  const entradas = [];
+  for (const f of novas) {
+    const nome = f.nome.trim();
+    if (!nome) throw new GliaToolError(`Toda ${nouns.singular} precisa de nome.`);
+    if (usados.has(normalize(nome))) {
+      throw new GliaToolError(`J\xE1 existe a ${nouns.singular} "${nome}" em ${projeto.name} \u2014 nomes repetidos deixam o v\xEDnculo das tarefas amb\xEDguo. Use atualizar_fase ou outro nome.`);
+    }
+    usados.add(normalize(nome));
+    const inicio = lerData(f.inicio, "In\xEDcio");
+    const fim = lerData(f.fim, "T\xE9rmino");
+    if (tipo === "paralelo" && (inicio || fim)) {
+      throw new GliaToolError(`Frentes paralelas n\xE3o t\xEAm data pr\xF3pria na Glia (o prazo vem das tarefas vinculadas). Tire in\xEDcio/t\xE9rmino de "${nome}".`);
+    }
+    if (inicio && fim && fim < inicio) throw new GliaToolError(`"${nome}": o t\xE9rmino (${f.fim}) vem antes do in\xEDcio (${f.inicio}).`);
+    const dono = f.dono?.trim() ? await resolveDono(ctx, f.dono) : "";
+    entradas.push({
+      name: nome,
+      description: f.descricao ?? "",
+      startDate: inicio ?? null,
+      endDate: fim ?? null,
+      ownerName: dono,
+      ownerInitials: nameInitials(dono),
+      deliverables: (f.entregaveis ?? []).map((t) => t.trim()).filter(Boolean).map((text) => ({ id: generateId(), text, done: false }))
+    });
+  }
+  const idx = posicao === void 0 ? existentes.length : Math.min(Math.max(Math.trunc(posicao) - 1, 0), existentes.length);
+  await reorderPhases(ctx.wsId, projeto.id, ordensQueMudaram(existentes, (i) => i < idx ? i : i + entradas.length));
+  const ids = [];
+  for (const [k, entrada] of entradas.entries()) {
+    ids.push(await createPhase(ctx.wsId, projeto.id, { ...entrada, order: idx + k }));
+  }
+  const ligouPanorama = projeto.hasRoadmap === false;
+  if (ligouPanorama) {
+    await updateProject(ctx.wsId, projeto.id, { hasRoadmap: true });
+    esquecer(`projetos:${ctx.wsId}`);
+  }
+  return { ids, ligouPanorama };
+}
 async function moverTarefa(ctx, projeto, tarefa, colunaRef) {
   const coluna = resolveColuna(projeto, colunaRef);
   if (coluna.id === tarefa.status) {
@@ -34458,11 +36713,13 @@ var init_glia = __esm({
     init_queries7();
     init_queries8();
     init_queries();
+    init_labels();
     init_statusChange();
     init_queries5();
     init_codes();
     init_firestore_paths();
     init_task_code();
+    init_utils();
     init_models();
     init_session();
     init_context();
@@ -34560,7 +36817,8 @@ function listaProjetos(projetos, abertas) {
   return projetos.map((p) => {
     const partes = [
       p.code ? `sigla ${p.code}` : "sem sigla",
-      p.phase ? `fase ${p.phase}` : null,
+      p.phase ? `situa\xE7\xE3o: ${PROJECT_PHASE_LABELS[p.phase] ?? p.phase}` : null,
+      p.hasRoadmap !== false ? `panorama: ${ROADMAP_TYPE_LABELS[p.roadmapType ?? "sequencial"].toLowerCase()}` : null,
       p.status === "archived" ? "ARQUIVADO" : null,
       p.visibility === "personal" ? "pessoal" : null,
       abertas.has(p.id) ? `${abertas.get(p.id)} tarefa(s) aberta(s)` : null,
@@ -34573,17 +36831,25 @@ function listaProjetos(projetos, abertas) {
 function listaMembros(membros, meuUid) {
   return membros.map((m) => `- ${m.displayName || "(sem nome)"} <${m.email}> \xB7 ${m.role}${m.uid === meuUid ? " \xB7 **voc\xEA**" : ""} \xB7 uid ${m.uid}`).join("\n");
 }
-function listaFases(fases) {
-  if (fases.length === 0) return "(o projeto n\xE3o tem fases)";
-  return fases.map((f) => {
+function listaFases(itens, tipo) {
+  const nouns = roadmapNouns(tipo);
+  if (itens.length === 0) return `(o projeto n\xE3o tem ${nouns.plural})`;
+  return itens.map(({ phase: f, metrics: m }, i) => {
     const partes = [
-      `status ${f.status}`,
-      `${f.progress}%`,
+      PHASE_STATUS_LABELS[f.status] ?? f.status,
+      `${f.progress}%${m.totalCount ? "" : " (manual)"}`,
+      m.totalCount ? `${m.doneCount}/${m.totalCount} tarefa(s) conclu\xEDda(s)` : "sem tarefas vinculadas",
+      m.overdueCount ? `${m.overdueCount} atrasada(s)` : null,
       data(f.startDate) ? `de ${data(f.startDate)}` : null,
       data(f.endDate) ? `at\xE9 ${data(f.endDate)}` : null,
-      f.ownerName ? `dono ${f.ownerName}` : null
+      data(f.completedAt) ? `conclu\xEDda em ${data(f.completedAt)}` : null,
+      f.ownerName ? `dono ${f.ownerName}` : null,
+      f.deliverables.length ? `entreg\xE1veis ${f.deliverables.filter((d) => d.done).length}/${f.deliverables.length}` : null
     ].filter(Boolean);
-    return `- ${String(f.order + 1).padStart(2, "0")} **${f.name}** \u2014 ${partes.join(" \xB7 ")} (id ${f.id})`;
+    const linhas = [`- ${String(i + 1).padStart(2, "0")} **${f.name}** \u2014 ${partes.join(" \xB7 ")} (id ${f.id})`];
+    if (f.description.trim()) linhas.push(`  ${f.description.trim().split("\n")[0]}`);
+    for (const d of f.deliverables) linhas.push(`  - [${d.done ? "x" : " "}] ${d.text}  \`${d.id}\``);
+    return linhas.join("\n");
   }).join("\n");
 }
 function listaSugestoes(s) {
@@ -34606,9 +36872,10 @@ function abertasPorProjeto(projeto, tarefas) {
   return tarefas.filter((t) => !done.has(t.status)).length;
 }
 var PRIORIDADE;
-var init_format = __esm({
+var init_format2 = __esm({
   "mcp/src/format.ts"() {
     "use strict";
+    init_labels();
     init_models();
     init_glia();
     PRIORIDADE = { low: "baixa", med: "m\xE9dia", high: "alta" };
@@ -34645,13 +36912,56 @@ var init_comum = __esm({
   }
 });
 
+// src/features/settings/queries.ts
+async function fetchPreferences(uid) {
+  const snap = await getDoc(preferencesDoc(uid));
+  return snap.exists() ? snap.data() : {};
+}
+var init_queries9 = __esm({
+  "src/features/settings/queries.ts"() {
+    init_firestore();
+    init_firestore_paths();
+  }
+});
+
 // mcp/src/tools/projetos.ts
+function lerSituacao(texto) {
+  const n = normalize(texto.trim()).replace(/[_-]/g, " ");
+  const achada = PROJECT_PHASES.find((s) => normalize(PROJECT_PHASE_LABELS[s]) === n || s.replace("_", " ") === n);
+  if (!achada) throw new GliaToolError(`Situa\xE7\xE3o "${texto}" inv\xE1lida \u2014 use ${PROJECT_PHASES.map((s) => PROJECT_PHASE_LABELS[s].toLowerCase()).join(", ")}.`);
+  return achada;
+}
+async function garantirNomeLivre(ctx, nome, exceto) {
+  const todos = await ctx.projetos(true);
+  const igual = todos.find((p) => p.id !== exceto && normalize(p.name.trim()) === normalize(nome));
+  if (igual) {
+    throw new GliaToolError(
+      `J\xE1 existe o projeto "${igual.name}" (${igual.code ?? "sem sigla"}${igual.status === "archived" ? ", arquivado" : ""}). Use esse \u2014 atualizar_projeto muda o que precisar \u2014 ou escolha outro nome.`
+    );
+  }
+}
+function montarColunas(nomes2) {
+  const limpos = nomes2.map((n) => n.trim()).filter(Boolean);
+  if (limpos.length < 2) throw new GliaToolError('Informe ao menos duas colunas (ex. "A Fazer" e "Conclu\xEDdo") \u2014 a \xFAltima \xE9 a de conclus\xE3o.');
+  const vistos = /* @__PURE__ */ new Set();
+  for (const n of limpos) {
+    if (vistos.has(normalize(n))) throw new GliaToolError(`Coluna "${n}" repetida.`);
+    vistos.add(normalize(n));
+  }
+  const base2 = Date.now().toString(36);
+  return limpos.map((label, i) => ({
+    id: `col_${base2}${i}`,
+    label,
+    order: i,
+    ...i === limpos.length - 1 ? { isDone: true } : {}
+  }));
+}
 function registerProjetoTools(server) {
   server.registerTool(
     "listar_projetos",
     {
       title: "Listar projetos",
-      description: "Os projetos que o usu\xE1rio enxerga na workspace, com sigla, fase, colunas do Kanban e quantas tarefas est\xE3o abertas. Comece por aqui para achar o projeto certo.",
+      description: "Os projetos que o usu\xE1rio enxerga na workspace, com sigla, situa\xE7\xE3o, panorama (roadmap), colunas do Kanban e quantas tarefas est\xE3o abertas. Comece por aqui para achar o projeto certo.",
       inputSchema: {
         workspace: workspaceParam,
         incluir_arquivados: external_exports.boolean().optional().describe("Tamb\xE9m os projetos arquivados (padr\xE3o: n\xE3o).")
@@ -34669,33 +36979,398 @@ ${listaProjetos(projetos, abertas)}`;
     })
   );
   server.registerTool(
-    "listar_fases",
+    "criar_projeto",
     {
-      title: "Listar fases do roadmap",
-      description: "As fases (roadmap) de um projeto, em ordem, com status e progresso. Tarefas podem estar vinculadas a uma fase.",
-      inputSchema: { projeto: projetoParam, workspace: workspaceParam }
+      title: "Criar projeto",
+      description: "Cria um projeto da equipe na workspace e devolve a sigla (ex. IC) que vai prefixar os c\xF3digos das tarefas. Opcional: colunas do Kanban (sen\xE3o as padr\xE3o do usu\xE1rio), panorama sequencial/paralelo e as fases iniciais j\xE1 estruturadas. Confirme o nome com o usu\xE1rio antes \u2014 a sigla nasce dele e n\xE3o muda depois.",
+      inputSchema: {
+        nome: external_exports.string().min(1).describe("Nome do projeto."),
+        descricao: external_exports.string().optional().describe("Contexto, escopo ou objetivo."),
+        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta da Glia ou o hex dela. Padr\xE3o: a menos usada."),
+        colunas: external_exports.array(external_exports.string()).optional().describe("Nomes das colunas do Kanban, em ordem; a \xDALTIMA \xE9 a de conclus\xE3o. Padr\xE3o: as colunas padr\xE3o do usu\xE1rio (ou A Fazer \u2192 Em Andamento \u2192 Conclu\xEDdo)."),
+        roadmap: roadmapParam.optional().describe('Liga o panorama. Padr\xE3o: "sequencial" se houver `fases`, sen\xE3o desligado.'),
+        fases: external_exports.array(faseNovaSchema).optional().describe("Fases iniciais do roadmap, na ordem."),
+        workspace: workspaceParam
+      }
     },
-    ({ projeto, workspace }) => executar(async () => {
+    ({ nome, descricao, cor, colunas, roadmap: roadmap2, fases, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const limpo = nome.trim();
+      if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
+      await garantirNomeLivre(ctx, limpo);
+      const columns = colunas ? montarColunas(colunas) : (await fetchPreferences(ctx.eu.uid)).defaultColumns;
+      const tipo = roadmap2 ?? "sequencial";
+      const hasRoadmap = roadmap2 !== void 0 || (fases?.length ?? 0) > 0;
+      if (tipo === "paralelo" && fases?.some((f) => f.inicio || f.fim)) {
+        throw new GliaToolError('Frentes paralelas n\xE3o t\xEAm data pr\xF3pria na Glia (o prazo vem das tarefas vinculadas). Tire in\xEDcio/t\xE9rmino das fases ou use roadmap "sequencial".');
+      }
+      const id = await createProject(ctx.wsId, {
+        name: limpo,
+        description: descricao ?? "",
+        color: resolveCor(cor, await ctx.projetos()),
+        columns,
+        visibility: "team",
+        createdBy: ctx.eu.uid,
+        hasRoadmap,
+        roadmapType: tipo
+      });
+      esquecer(`projetos:${ctx.wsId}`);
+      const p = await fetchProject(ctx.wsId, id);
+      if (!p) throw new GliaToolError("O projeto foi criado mas n\xE3o consegui rel\xEA-lo. Confira em listar_projetos.");
+      const linhas = [
+        `Criado o projeto **${p.name}** \u2014 sigla **${p.code ?? "(ainda sem sigla)"}** (id ${p.id}).`,
+        `Colunas: ${colunasDe(p).map((c) => `${c.label}${c.isDone ? " \u2713" : ""}`).join(" \u2192 ")}`,
+        `Panorama: ${hasRoadmap ? tipo : "desligado"}`
+      ];
+      if (fases?.length) {
+        try {
+          await inserirFases(ctx, p, fases);
+          const criadas = await fetchPhases(ctx.wsId, p.id);
+          const rotulo = roadmapNouns(tipo).plural;
+          linhas.push(`${rotulo[0].toUpperCase()}${rotulo.slice(1)}: ${criadas.map((f, i) => `${i + 1}. ${f.name}`).join(" \xB7 ")}`);
+        } catch (err) {
+          const motivo = err instanceof Error ? err.message : String(err);
+          throw new GliaToolError(`${linhas[0]}
+Mas as fases N\xC3O foram criadas: ${motivo}
+Corrija e chame criar_fases no projeto ${p.code ?? p.id}.`);
+        }
+      }
+      linhas.push("", "Tarefas deste projeto ter\xE3o c\xF3digos " + (p.code ? `${p.code}-1, ${p.code}-2\u2026` : "quando a sigla for atribu\xEDda."));
+      return linhas.join("\n");
+    })
+  );
+  server.registerTool(
+    "atualizar_projeto",
+    {
+      title: "Atualizar projeto",
+      description: "Muda nome, descri\xE7\xE3o, cor, situa\xE7\xE3o (planejando / em andamento / pausado / conclu\xEDdo), o panorama (sequencial, paralelo ou desligado) ou arquiva/desarquiva o projeto. S\xF3 os campos informados mudam. A sigla n\xE3o muda com o nome: c\xF3digos de tarefa j\xE1 citados continuam valendo.",
+      inputSchema: {
+        projeto: projetoParam,
+        nome: external_exports.string().optional(),
+        descricao: external_exports.string().optional(),
+        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta ou o hex."),
+        situacao: external_exports.string().optional().describe("planejando | em andamento | pausado | conclu\xEDdo"),
+        roadmap: external_exports.enum(["sequencial", "paralelo", "desligado"]).optional().describe('Tipo do panorama, ou "desligado" para esconder (as fases ficam guardadas).'),
+        arquivado: external_exports.boolean().optional().describe("true arquiva (some das listas, nada \xE9 apagado); false traz de volta."),
+        workspace: workspaceParam
+      }
+    },
+    ({ projeto, nome, descricao, cor, situacao, roadmap: roadmap2, arquivado, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto, true);
-      const fases = await fetchPhases(ctx.wsId, p.id);
-      return `Fases de **${p.name}** (${p.roadmapType ?? "sequencial"}):
-${listaFases(fases)}`;
+      const patch = {};
+      const mudou = [];
+      if (nome !== void 0) {
+        const limpo = nome.trim();
+        if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
+        await garantirNomeLivre(ctx, limpo, p.id);
+        patch.name = limpo;
+        mudou.push("nome");
+      }
+      if (descricao !== void 0) {
+        patch.description = descricao.trim();
+        mudou.push("descri\xE7\xE3o");
+      }
+      if (cor !== void 0) {
+        patch.color = resolveCor(cor, []);
+        mudou.push("cor");
+      }
+      if (roadmap2 !== void 0) {
+        if (roadmap2 === "desligado") patch.hasRoadmap = false;
+        else {
+          patch.hasRoadmap = true;
+          patch.roadmapType = roadmap2;
+        }
+        mudou.push("panorama");
+      }
+      const novaSituacao = situacao !== void 0 ? lerSituacao(situacao) : void 0;
+      if (novaSituacao) mudou.push("situa\xE7\xE3o");
+      if (arquivado !== void 0 && arquivado !== (p.status === "archived")) mudou.push(arquivado ? "arquivado" : "desarquivado");
+      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo (ou o projeto j\xE1 estava assim).");
+      if (Object.keys(patch).length) await updateProject(ctx.wsId, p.id, patch);
+      if (novaSituacao) await updateProjectPhase(ctx.wsId, p.id, novaSituacao);
+      if (arquivado === true && p.status !== "archived") await archiveProject(ctx.wsId, p.id);
+      if (arquivado === false && p.status === "archived") await unarchiveProject(ctx.wsId, p.id);
+      esquecer(`projetos:${ctx.wsId}`);
+      const depois = await fetchProject(ctx.wsId, p.id);
+      const resumo = depois ? `
+${listaProjetos([depois], /* @__PURE__ */ new Map())}` : "";
+      const tipoMudou = roadmap2 && roadmap2 !== "desligado" && roadmap2 !== (p.roadmapType ?? "sequencial");
+      const aviso = tipoMudou ? `
+O panorama agora \xE9 ${roadmap2}: ${roadmap2 === "paralelo" ? "as datas pr\xF3prias das fases deixam de aparecer e o progresso passa a contar tarefas conclu\xEDdas." : "as fases viram uma trilha em ordem e o progresso pondera as subtarefas."}` : "";
+      return `Atualizei ${mudou.join(", ")} de **${depois?.name ?? p.name}**.${resumo}${aviso}`;
     })
   );
 }
-var workspaceParam, projetoParam;
+var workspaceParam, projetoParam, roadmapParam;
 var init_projetos = __esm({
   "mcp/src/tools/projetos.ts"() {
     "use strict";
     init_zod();
+    init_parse();
     init_queries();
+    init_labels();
+    init_queries5();
+    init_queries9();
+    init_models();
     init_context();
-    init_format();
+    init_format2();
     init_glia();
     init_comum();
+    init_fases();
     workspaceParam = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoParam = external_exports.string().describe("Nome, sigla (ex. IC) ou id do projeto.");
+    roadmapParam = external_exports.enum(["sequencial", "paralelo"]).describe('Como o panorama anda: "sequencial" = fases em ordem, uma destrava a pr\xF3xima (a Montanha); "paralelo" = frentes que rodam juntas.');
+  }
+});
+
+// mcp/src/tools/fases.ts
+async function roadmap(ctx, p) {
+  const [fases, tarefas] = await Promise.all([fetchPhases(ctx.wsId, p.id), fetchTasks(ctx.wsId, p.id)]);
+  return buildRoadmapItems(fases, tarefas, doneStatusIds(p.columns), p.roadmapType);
+}
+function registerFaseTools(server) {
+  server.registerTool(
+    "listar_fases",
+    {
+      title: "Listar fases do roadmap",
+      description: 'As fases (roadmap) de um projeto, em ordem, com status, progresso (calculado das tarefas vinculadas, como a Montanha mostra), datas, dono e entreg\xE1veis. Projetos de frentes paralelas chamam as fases de "frentes".',
+      inputSchema: { projeto: projetoParam, workspace: workspaceParam2 }
+    },
+    ({ projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto, true);
+      const itens = await roadmap(ctx, p);
+      const nouns = roadmapNouns(p.roadmapType);
+      const desligado = p.hasRoadmap === false ? "\n(o panorama est\xE1 desligado neste projeto \u2014 criar_fases liga de novo)" : "";
+      const titulo = nouns.plural.charAt(0).toUpperCase() + nouns.plural.slice(1);
+      return `${titulo} de **${p.name}** (${p.roadmapType ?? "sequencial"}):${desligado}
+${listaFases(itens, p.roadmapType)}`;
+    })
+  );
+  server.registerTool(
+    "criar_fases",
+    {
+      title: "Criar fases no roadmap",
+      description: "Cria uma ou v\xE1rias fases no roadmap do projeto, na ordem dada \u2014 \xE9 assim que se estrutura um projeto em etapas. Sem `posicao`, entram no fim; com ela, a partir dali, empurrando as seguintes. Liga o panorama do projeto se estava desligado. Depois vincule tarefas com criar_tarefa/atualizar_tarefa (campo `fase`): com tarefas vinculadas, o progresso da fase passa a ser calculado delas.",
+      inputSchema: {
+        projeto: projetoParam,
+        fases: external_exports.array(faseNovaSchema).min(1).describe("As fases, na ordem em que acontecem."),
+        posicao: external_exports.number().int().min(1).optional().describe("Onde inserir (1 = primeira). Padr\xE3o: no fim."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ projeto, fases, posicao, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto);
+      const { ids, ligouPanorama } = await inserirFases(ctx, p, fases, posicao);
+      const itens = await roadmap(ctx, p);
+      const nouns = roadmapNouns(p.roadmapType);
+      const panorama = ligouPanorama ? "\nO panorama do projeto estava desligado \u2014 liguei para as fases aparecerem." : "";
+      return `Criei ${ids.length} ${ids.length === 1 ? nouns.singular : nouns.plural} em **${p.name}**.${panorama}
+
+Roadmap agora:
+${listaFases(itens, p.roadmapType)}`;
+    })
+  );
+  server.registerTool(
+    "atualizar_fase",
+    {
+      title: "Atualizar fase do roadmap",
+      description: "Muda nome, descri\xE7\xE3o, datas, conclus\xE3o real, dono, posi\xE7\xE3o ou entreg\xE1veis de uma fase. S\xF3 os campos informados mudam; string vazia apaga datas/dono. `status`/`progresso` manuais s\xF3 valem para fase SEM tarefas vinculadas \u2014 com tarefas, eles saem das tarefas.",
+      inputSchema: {
+        projeto: projetoParam,
+        fase: faseParam,
+        nome: external_exports.string().optional(),
+        descricao: external_exports.string().optional(),
+        inicio: external_exports.string().optional().describe("AAAA-MM-DD; vazio apaga."),
+        fim: external_exports.string().optional().describe("AAAA-MM-DD; vazio apaga."),
+        conclusao: external_exports.string().optional().describe("Dia em que a fase REALMENTE fechou (AAAA-MM-DD; vazio apaga). Vai para o relat\xF3rio como fato."),
+        dono: external_exports.string().optional().describe('Membro (nome/e-mail/"eu") ou nome livre; vazio apaga.'),
+        posicao: external_exports.number().int().min(1).optional().describe("Nova posi\xE7\xE3o na sequ\xEAncia (1 = primeira)."),
+        status: external_exports.string().optional().describe("a fazer | em andamento | conclu\xEDdo \u2014 s\xF3 para fase sem tarefas."),
+        progresso: external_exports.number().min(0).max(100).optional().describe("0\u2013100 \u2014 s\xF3 para fase sem tarefas."),
+        adicionar_entregaveis: external_exports.array(external_exports.string()).optional(),
+        concluir_entregaveis: external_exports.array(external_exports.string()).optional().describe("Ids ou textos dos entreg\xE1veis a marcar como feitos."),
+        reabrir_entregaveis: external_exports.array(external_exports.string()).optional(),
+        remover_entregaveis: external_exports.array(external_exports.string()).optional(),
+        workspace: workspaceParam2
+      }
+    },
+    (args) => executar(async () => {
+      const ctx = await contexto(args.workspace);
+      const p = await resolveProjeto(ctx, args.projeto, true);
+      const f = await resolveFase(ctx, p, args.fase);
+      const tipo = p.roadmapType ?? "sequencial";
+      const nouns = roadmapNouns(tipo);
+      const patch = {};
+      const mudou = [];
+      if (args.nome !== void 0) {
+        const nome = args.nome.trim();
+        if (!nome) throw new GliaToolError(`A ${nouns.singular} precisa de nome.`);
+        const fases = await fetchPhases(ctx.wsId, p.id);
+        if (fases.some((x) => x.id !== f.id && normalize(x.name.trim()) === normalize(nome))) {
+          throw new GliaToolError(`J\xE1 existe a ${nouns.singular} "${nome}" em ${p.name}.`);
+        }
+        patch.name = nome;
+        mudou.push("nome");
+      }
+      if (args.descricao !== void 0) {
+        patch.description = args.descricao.trim();
+        mudou.push("descri\xE7\xE3o");
+      }
+      const inicio = lerData(args.inicio, "In\xEDcio");
+      const fim = lerData(args.fim, "T\xE9rmino");
+      const conclusao = lerData(args.conclusao, "Conclus\xE3o");
+      if (tipo === "paralelo" && (inicio || fim)) {
+        throw new GliaToolError("Frentes paralelas n\xE3o t\xEAm data pr\xF3pria na Glia (o prazo vem das tarefas vinculadas). A conclus\xE3o real, essa sim, pode ser informada.");
+      }
+      const inicioFinal = inicio !== void 0 ? inicio : toDate2(f.startDate);
+      const fimFinal = fim !== void 0 ? fim : toDate2(f.endDate);
+      const conclusaoFinal = conclusao !== void 0 ? conclusao : toDate2(f.completedAt ?? null);
+      if (inicioFinal && fimFinal && fimFinal < inicioFinal) throw new GliaToolError("O t\xE9rmino n\xE3o pode vir antes do in\xEDcio.");
+      if (inicioFinal && conclusaoFinal && conclusaoFinal < inicioFinal) throw new GliaToolError("A conclus\xE3o n\xE3o pode ser antes do in\xEDcio.");
+      if (inicio !== void 0) {
+        patch.startDate = inicio;
+        mudou.push("in\xEDcio");
+      }
+      if (fim !== void 0) {
+        patch.endDate = fim;
+        mudou.push("t\xE9rmino");
+      }
+      if (conclusao !== void 0) {
+        patch.completedAt = conclusao;
+        mudou.push("conclus\xE3o real");
+      }
+      if (args.dono !== void 0) {
+        const dono = args.dono.trim() ? await resolveDono(ctx, args.dono) : "";
+        patch.ownerName = dono;
+        patch.ownerInitials = nameInitials(dono);
+        mudou.push("dono");
+      }
+      if (args.status !== void 0 || args.progresso !== void 0) {
+        const tarefas = (await fetchTasks(ctx.wsId, p.id)).filter((t) => t.phaseId === f.id);
+        if (tarefas.length) {
+          throw new GliaToolError(
+            `"${f.name}" tem ${tarefas.length} tarefa(s) vinculada(s) (${tarefas.map((t) => codigo(p, t)).join(", ")}): status e progresso saem delas. Para avan\xE7ar a fase, mova as tarefas.`
+          );
+        }
+        if (args.status !== void 0) {
+          const st = STATUS[normalize(args.status.trim())];
+          if (!st) throw new GliaToolError(`Status "${args.status}" inv\xE1lido \u2014 use a fazer, em andamento ou conclu\xEDdo.`);
+          patch.status = st;
+          mudou.push("status");
+        }
+        if (args.progresso !== void 0) {
+          patch.progress = args.progresso;
+          mudou.push("progresso");
+        }
+      }
+      const temEntregaveis = [args.adicionar_entregaveis, args.concluir_entregaveis, args.reabrir_entregaveis, args.remover_entregaveis].some((l) => l?.length);
+      if (temEntregaveis) {
+        let lista = [...f.deliverables];
+        const marcar = (refs, done) => {
+          for (const ref of refs ?? []) {
+            const d = resolveEntregavel({ ...f, deliverables: lista }, ref);
+            lista = lista.map((x) => x.id === d.id ? { ...x, done } : x);
+          }
+        };
+        marcar(args.concluir_entregaveis, true);
+        marcar(args.reabrir_entregaveis, false);
+        for (const ref of args.remover_entregaveis ?? []) {
+          const d = resolveEntregavel({ ...f, deliverables: lista }, ref);
+          lista = lista.filter((x) => x.id !== d.id);
+        }
+        for (const texto of args.adicionar_entregaveis ?? []) {
+          if (texto.trim()) lista.push({ id: generateId(), text: texto.trim(), done: false });
+        }
+        patch.deliverables = lista;
+        mudou.push("entreg\xE1veis");
+      }
+      let reordenar = [];
+      if (args.posicao !== void 0) {
+        const fases = await fetchPhases(ctx.wsId, p.id);
+        const resto = fases.filter((x) => x.id !== f.id);
+        const idx = Math.min(args.posicao - 1, resto.length);
+        const nova = [...resto.slice(0, idx), f, ...resto.slice(idx)];
+        reordenar = ordensQueMudaram(nova);
+        mudou.push("posi\xE7\xE3o");
+      }
+      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo.");
+      if (Object.keys(patch).length) await updatePhase(ctx.wsId, p.id, f.id, patch);
+      await reorderPhases(ctx.wsId, p.id, reordenar);
+      const itens = await roadmap(ctx, p);
+      return `Atualizei ${mudou.join(", ")} de **${patch.name ?? f.name}**.
+
+Roadmap agora:
+${listaFases(itens, p.roadmapType)}`;
+    })
+  );
+  server.registerTool(
+    "excluir_fase",
+    {
+      title: "Excluir fase do roadmap",
+      description: "Remove uma fase do roadmap. Se houver tarefas vinculadas, recusa e lista quais \u2014 repita com `desvincular_tarefas: true` para solt\xE1-las (as tarefas continuam no Kanban, s\xF3 sem fase).",
+      inputSchema: {
+        projeto: projetoParam,
+        fase: faseParam,
+        desvincular_tarefas: external_exports.boolean().optional().describe("Soltar as tarefas vinculadas e excluir mesmo assim."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ projeto, fase, desvincular_tarefas, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto, true);
+      const f = await resolveFase(ctx, p, fase);
+      const vinculadas = (await fetchTasks(ctx.wsId, p.id)).filter((t) => t.phaseId === f.id);
+      if (vinculadas.length && !desvincular_tarefas) {
+        throw new GliaToolError(
+          `"${f.name}" tem ${vinculadas.length} tarefa(s) vinculada(s): ${vinculadas.map((t) => `${codigo(p, t)} ${t.title}`).join("; ")}. Confirme com o usu\xE1rio e repita com desvincular_tarefas: true, ou mova as tarefas para outra fase com atualizar_tarefa.`
+        );
+      }
+      await Promise.all(vinculadas.map((t) => updateTask(ctx.wsId, p.id, t.id, { phaseId: null })));
+      await deletePhase(ctx.wsId, p.id, f.id);
+      const soltas = vinculadas.length ? ` Soltei ${vinculadas.length} tarefa(s) (${vinculadas.map((t) => codigo(p, t)).join(", ")}).` : "";
+      return `Exclu\xED "${f.name}" de ${p.name}.${soltas}`;
+    })
+  );
+}
+var workspaceParam2, faseParam, faseNovaSchema, STATUS;
+var init_fases = __esm({
+  "mcp/src/tools/fases.ts"() {
+    "use strict";
+    init_zod();
+    init_queries();
+    init_metrics();
+    init_labels();
+    init_utils();
+    init_models();
+    init_parse();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    init_projetos();
+    workspaceParam2 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    faseParam = external_exports.string().describe("Nome (ou parte \xFAnica dele) ou id da fase.");
+    faseNovaSchema = external_exports.object({
+      nome: external_exports.string().min(1).describe('Nome da fase (ex. "Descoberta", "MVP", "Lan\xE7amento").'),
+      descricao: external_exports.string().optional().describe("O que a fase representa / o que precisa estar pronto para fechar."),
+      inicio: external_exports.string().optional().describe("In\xEDcio previsto, AAAA-MM-DD (s\xF3 no roadmap sequencial)."),
+      fim: external_exports.string().optional().describe("T\xE9rmino previsto, AAAA-MM-DD (s\xF3 no roadmap sequencial)."),
+      dono: external_exports.string().optional().describe('Respons\xE1vel pela fase: nome/e-mail de um membro, "eu", ou um nome livre.'),
+      entregaveis: external_exports.array(external_exports.string()).optional().describe("Entreg\xE1veis da fase (checklist da fase, separado das tarefas).")
+    });
+    STATUS = {
+      "a fazer": "todo",
+      todo: "todo",
+      "em andamento": "doing",
+      andamento: "doing",
+      doing: "doing",
+      concluido: "done",
+      concluida: "done",
+      done: "done"
+    };
   }
 });
 
@@ -34724,7 +37399,7 @@ function registerSugestaoTools(server) {
       inputSchema: {
         projeto: projetoParam,
         incluir_ocultas: external_exports.boolean().optional().describe("Tamb\xE9m as que o time ocultou do mural (padr\xE3o: n\xE3o)."),
-        workspace: workspaceParam2
+        workspace: workspaceParam3
       }
     },
     ({ projeto, incluir_ocultas, workspace }) => executar(async () => {
@@ -34745,7 +37420,7 @@ ${listaSugestoes(lista)}`;
         projeto: projetoParam,
         titulo: external_exports.string().min(1),
         descricao: external_exports.string().min(1).describe("O problema ou a ideia, com contexto suficiente para o time avaliar."),
-        workspace: workspaceParam2
+        workspace: workspaceParam3
       }
     },
     ({ projeto, titulo, descricao, workspace }) => executar(async () => {
@@ -34763,7 +37438,7 @@ ${listaSugestoes(lista)}`;
     })
   );
 }
-var workspaceParam2;
+var workspaceParam3;
 var init_sugestoes = __esm({
   "mcp/src/tools/sugestoes.ts"() {
     "use strict";
@@ -34771,11 +37446,11 @@ var init_sugestoes = __esm({
     init_queries3();
     init_session();
     init_context();
-    init_format();
+    init_format2();
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam2 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam3 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
   }
 });
 
@@ -34792,7 +37467,7 @@ function registerTarefaTools(server) {
         coluna: external_exports.string().optional().describe('Filtrar por coluna do Kanban (id ou nome, ex. "Em Andamento").'),
         minhas: external_exports.boolean().optional().describe("S\xF3 as tarefas em que o usu\xE1rio logado \xE9 respons\xE1vel."),
         fase: external_exports.string().optional().describe("S\xF3 as tarefas vinculadas a esta fase (nome ou id)."),
-        workspace: workspaceParam3
+        workspace: workspaceParam4
       }
     },
     ({ projeto, pendentes, coluna, minhas, fase, workspace }) => executar(async () => {
@@ -34832,7 +37507,7 @@ function registerTarefaTools(server) {
       inputSchema: {
         tarefa: tarefaParam,
         projeto: external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo."),
-        workspace: workspaceParam3
+        workspace: workspaceParam4
       }
     },
     ({ tarefa, projeto, workspace }) => executar(async () => {
@@ -34848,7 +37523,7 @@ function registerTarefaTools(server) {
     })
   );
 }
-var workspaceParam3, tarefaParam;
+var workspaceParam4, tarefaParam;
 var init_tarefas = __esm({
   "mcp/src/tools/tarefas.ts"() {
     "use strict";
@@ -34856,43 +37531,16 @@ var init_tarefas = __esm({
     init_queries();
     init_models();
     init_context();
-    init_format();
+    init_format2();
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam3 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam4 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     tarefaParam = external_exports.string().describe("C\xF3digo p\xFAblico da tarefa (ex. IC-25) ou o id do documento.");
   }
 });
 
-// node_modules/clsx/dist/clsx.mjs
-var init_clsx = __esm({
-  "node_modules/clsx/dist/clsx.mjs"() {
-  }
-});
-
-// src/lib/utils.ts
-function generateId() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-}
-function parseDateOnly(value) {
-  if (!value) return null;
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-}
-var init_utils = __esm({
-  "src/lib/utils.ts"() {
-    init_clsx();
-  }
-});
-
 // mcp/src/tools/tarefas-escrita.ts
-function lerPrazo(prazo) {
-  if (prazo === void 0) return void 0;
-  if (prazo.trim() === "") return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(prazo.trim())) throw new GliaToolError(`Prazo "${prazo}" inv\xE1lido \u2014 use AAAA-MM-DD.`);
-  return parseDateOnly(prazo.trim());
-}
 function novoItem(texto, responsavel) {
   const item = { id: generateId(), text: texto.trim(), done: false };
   if (responsavel) {
@@ -34919,7 +37567,7 @@ function registerTarefaEscritaTools(server) {
         subtarefas: external_exports.array(external_exports.string()).optional().describe("Textos das subtarefas iniciais."),
         responsaveis: responsaveisParam,
         fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id) a que a tarefa pertence."),
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ projeto, titulo, descricao, coluna, prioridade, prazo, tags, subtarefas, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
@@ -34965,7 +37613,7 @@ ${linhaTarefa(p, t)}${aviso}`;
         tags: external_exports.array(external_exports.string()).optional().describe("Substitui a lista inteira de tags."),
         fase: external_exports.string().optional().describe("Fase (nome ou id). String vazia desvincula."),
         responsaveis: responsaveisParam.describe("Substitui a lista inteira de respons\xE1veis."),
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ tarefa, projeto, titulo, descricao, prioridade, prazo, tags, fase, responsaveis: responsaveis2, workspace }) => executar(async () => {
@@ -35027,7 +37675,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         tarefa: tarefaParam,
         coluna: external_exports.string().describe('Coluna de destino (id ou nome, ex. "Conclu\xEDdo").'),
         projeto: projetoOpcional,
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ tarefa, coluna, projeto, workspace }) => executar(async () => {
@@ -35049,7 +37697,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         subtarefa: external_exports.string().describe("Id ou texto (ou parte \xFAnica do texto) da subtarefa."),
         feito: external_exports.boolean().optional().describe("true = feita (padr\xE3o), false = reabrir."),
         projeto: projetoOpcional,
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ tarefa, subtarefa, feito, projeto, workspace }) => executar(async () => {
@@ -35074,7 +37722,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         texto: external_exports.string().min(1),
         responsavel: external_exports.string().optional().describe("Nome, e-mail ou uid de quem fica com a subtarefa."),
         projeto: projetoOpcional,
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ tarefa, texto, responsavel, projeto, workspace }) => executar(async () => {
@@ -35098,7 +37746,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         tarefa: tarefaParam,
         texto: external_exports.string().min(1),
         projeto: projetoOpcional,
-        workspace: workspaceParam4
+        workspace: workspaceParam5
       }
     },
     ({ tarefa, texto, projeto, workspace }) => executar(async () => {
@@ -35119,7 +37767,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
     })
   );
 }
-var workspaceParam4, projetoOpcional, prazoParam, responsaveisParam;
+var workspaceParam5, projetoOpcional, prazoParam, responsaveisParam, lerPrazo;
 var init_tarefas_escrita = __esm({
   "mcp/src/tools/tarefas-escrita.ts"() {
     "use strict";
@@ -35131,15 +37779,16 @@ var init_tarefas_escrita = __esm({
     init_models();
     init_session();
     init_context();
-    init_format();
+    init_format2();
     init_glia();
     init_comum();
     init_projetos();
     init_tarefas();
-    workspaceParam4 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam5 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoOpcional = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
     prazoParam = external_exports.string().optional().describe("Prazo no formato AAAA-MM-DD. String vazia remove o prazo.");
     responsaveisParam = external_exports.array(external_exports.string()).optional().describe('Respons\xE1veis, por nome, e-mail ou uid (ver listar_membros). "eu" = o usu\xE1rio logado.');
+    lerPrazo = (prazo) => lerData(prazo, "Prazo");
   }
 });
 
@@ -35217,7 +37866,7 @@ ${descreverWorkspaces(lista)}`);
     {
       title: "Listar membros da workspace",
       description: "Quem est\xE1 na workspace (nome, e-mail, papel). Use para atribuir respons\xE1veis ou mencionar algu\xE9m com @Nome.",
-      inputSchema: { workspace: workspaceParam5 }
+      inputSchema: { workspace: workspaceParam6 }
     },
     ({ workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -35227,7 +37876,7 @@ ${listaMembros(membros, ctx.eu.uid)}`;
     })
   );
 }
-var workspaceParam5;
+var workspaceParam6;
 var init_workspace2 = __esm({
   "mcp/src/tools/workspace.ts"() {
     "use strict";
@@ -35236,9 +37885,9 @@ var init_workspace2 = __esm({
     init_session();
     init_workspace();
     init_context();
-    init_format();
+    init_format2();
     init_comum();
-    workspaceParam5 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
+    workspaceParam6 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
   }
 });
 
@@ -35246,6 +37895,7 @@ var init_workspace2 = __esm({
 function registerAll(server) {
   registerWorkspaceTools(server);
   registerProjetoTools(server);
+  registerFaseTools(server);
   registerTarefaTools(server);
   registerTarefaEscritaTools(server);
   registerSugestaoTools(server);
@@ -35253,6 +37903,7 @@ function registerAll(server) {
 var init_tools = __esm({
   "mcp/src/tools/index.ts"() {
     "use strict";
+    init_fases();
     init_projetos();
     init_sugestoes();
     init_tarefas();
@@ -35320,6 +37971,13 @@ async function relancarComSystemCa() {
 }
 async function main() {
   if (await relancarComSystemCa()) return;
+  if (comando === "--version" || comando === "-v") {
+    const { VERSION: VERSION2 } = await Promise.resolve().then(() => (init_config(), config_exports));
+    console.error(VERSION2);
+    return;
+  }
+  const { carregarFirebaseConfig: carregarFirebaseConfig2 } = await Promise.resolve().then(() => (init_config(), config_exports));
+  await carregarFirebaseConfig2();
   switch (comando) {
     case "login": {
       const { login: login2 } = await Promise.resolve().then(() => (init_login(), login_exports));
@@ -35353,12 +38011,6 @@ async function main() {
     case "serve": {
       const { serve: serve2 } = await Promise.resolve().then(() => (init_server3(), server_exports));
       await serve2();
-      return;
-    }
-    case "--version":
-    case "-v": {
-      const { VERSION: VERSION2 } = await Promise.resolve().then(() => (init_config(), config_exports));
-      console.error(VERSION2);
       return;
     }
     default:
