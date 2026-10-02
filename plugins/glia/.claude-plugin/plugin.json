@@ -1,7 +1,7 @@
 {
   "name": "glia",
-  "description": "Servidor MCP da Glia: o Claude Code lista, move, comenta e cria tarefas e sugestões como você, sem abrir o navegador.",
-  "version": "0.2.0",
+  "description": "Servidor MCP da Glia: o Claude opera a Glia inteira como você — tarefas, projetos, anotações, portal de sugestões, chat e equipe — sem abrir o navegador.",
+  "version": "0.3.0",
   "author": {
     "name": "Glia"
   },

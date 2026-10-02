@@ -113,7 +113,7 @@ var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
 var init_config = __esm({
   "mcp/src/config.ts"() {
     "use strict";
-    VERSION = "0.2.0";
+    VERSION = "0.3.0";
     HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
@@ -2246,11 +2246,11 @@ async function _performSignInRequest(auth2, method, path3, request, customErrorM
   return serverResponse;
 }
 function _getFinalTarget(auth2, host, path3, query2) {
-  const base2 = `${host}${path3}?${query2}`;
+  const base3 = `${host}${path3}?${query2}`;
   if (!auth2.config.emulator) {
-    return `${auth2.config.apiScheme}://${base2}`;
+    return `${auth2.config.apiScheme}://${base3}`;
   }
-  return _emulatorUrl(auth2.config, base2);
+  return _emulatorUrl(auth2.config, base3);
 }
 function _parseEnforcementState(enforcementStateStr) {
   switch (enforcementStateStr) {
@@ -2770,11 +2770,11 @@ function parseMode(mode) {
   }
 }
 function parseDeepLink(url) {
-  const link = querystringDecode(extractQuerystring(url))["link"];
-  const doubleDeepLink = link ? querystringDecode(extractQuerystring(link))["deep_link_id"] : null;
+  const link2 = querystringDecode(extractQuerystring(url))["link"];
+  const doubleDeepLink = link2 ? querystringDecode(extractQuerystring(link2))["deep_link_id"] : null;
   const iOSDeepLink = querystringDecode(extractQuerystring(url))["deep_link_id"];
   const iOSDoubleDeepLink = iOSDeepLink ? querystringDecode(extractQuerystring(iOSDeepLink))["link"] : null;
-  return iOSDoubleDeepLink || iOSDeepLink || doubleDeepLink || link || url;
+  return iOSDoubleDeepLink || iOSDeepLink || doubleDeepLink || link2 || url;
 }
 function providerIdForResponse(response) {
   if (response.providerId) {
@@ -4905,8 +4905,8 @@ var init_totp_219bb96f = __esm({
        *
        * @public
        */
-      static parseLink(link) {
-        const actionLink = parseDeepLink(link);
+      static parseLink(link2) {
+        const actionLink = parseDeepLink(link2);
         try {
           return new _ActionCodeURL(actionLink);
         } catch (_a) {
@@ -5721,6 +5721,11 @@ function cast(obj, constructor) {
   }
   return obj;
 }
+function validatePositiveNumber(functionName, n) {
+  if (n <= 0) {
+    throw new FirestoreError(Code.INVALID_ARGUMENT, `Function ${functionName}() requires a positive number, but it was: ${n}.`);
+  }
+}
 function longPollingOptionsEqual(options1, options2) {
   return options1.timeoutSeconds === options2.timeoutSeconds;
 }
@@ -6326,6 +6331,9 @@ function queryWithAddedFilter(query2, filter) {
 function queryWithAddedOrderBy(query2, orderBy2) {
   const newOrderBy = query2.explicitOrderBy.concat([orderBy2]);
   return new QueryImpl(query2.path, query2.collectionGroup, newOrderBy, query2.filters.slice(), query2.limit, query2.limitType, query2.startAt, query2.endAt);
+}
+function queryWithLimit(query2, limit2, limitType) {
+  return new QueryImpl(query2.path, query2.collectionGroup, query2.explicitOrderBy.slice(), query2.filters.slice(), limit2, limitType, query2.startAt, query2.endAt);
 }
 function toDouble(serializer, value) {
   if (serializer.useProto3Json) {
@@ -6937,6 +6945,14 @@ function parseSetData(userDataReader, methodName, targetDoc, input, hasConverter
   }
   return new ParsedSetData(new ObjectValue(updateData), fieldMask, fieldTransforms);
 }
+function createSentinelChildContext(fieldValue, context, arrayElement) {
+  return new ParseContextImpl({
+    dataSource: 3,
+    targetDoc: context.settings.targetDoc,
+    methodName: fieldValue._methodName,
+    arrayElement
+  }, context.databaseId, context.serializer, context.ignoreUndefinedProperties);
+}
 function parseUpdateData(userDataReader, methodName, targetDoc, input) {
   const context = userDataReader.createContext(1, methodName, targetDoc);
   validatePlainObject("Data must be an object, but it was:", context, input);
@@ -7245,6 +7261,15 @@ function orderBy(fieldPath, directionStr = "asc") {
   const path3 = fieldPathFromArgument("orderBy", fieldPath);
   return QueryOrderByConstraint._create(path3, direction);
 }
+function limit(limit2) {
+  validatePositiveNumber("limit", limit2);
+  return QueryLimitConstraint._create(
+    "limit",
+    limit2,
+    "F"
+    /* LimitType.First */
+  );
+}
 function newQueryFilter(query2, methodName, dataReader, databaseId, fieldPath, op, value) {
   let fieldValue;
   if (fieldPath.isKeyField()) {
@@ -7408,6 +7433,16 @@ function getDocs(query2) {
     return new QuerySnapshot(query2, docs);
   });
 }
+function setDoc(reference, data2, options) {
+  reference = cast(reference, DocumentReference);
+  const convertedValue = applyFirestoreDataConverter(reference.converter, data2, options);
+  const dataReader = newUserDataReader(reference.firestore);
+  const parsed = parseSetData(dataReader, "setDoc", reference._key, convertedValue, reference.converter !== null, options);
+  const datastore = getDatastore(reference.firestore);
+  return invokeCommitRpc(datastore, [
+    parsed.toMutation(reference._key, Precondition.none())
+  ]);
+}
 function updateDoc(reference, fieldOrUpdateData, value, ...moreFieldsAndValues) {
   reference = cast(reference, DocumentReference);
   const dataReader = newUserDataReader(reference.firestore);
@@ -7443,6 +7478,15 @@ function addDoc(reference, data2) {
 }
 function serverTimestamp() {
   return new ServerTimestampFieldValueImpl("serverTimestamp");
+}
+function arrayUnion(...elements) {
+  return new ArrayUnionFieldValueImpl("arrayUnion", elements);
+}
+function arrayRemove(...elements) {
+  return new ArrayRemoveFieldValueImpl("arrayRemove", elements);
+}
+function increment(n) {
+  return new NumericIncrementFieldValueImpl("increment", n);
 }
 function validateReference(documentRef, firestore) {
   documentRef = getModularInstance(documentRef);
@@ -7485,7 +7529,7 @@ function runTransaction(firestore, updateFunction, options) {
   new TransactionRunner(newAsyncQueue(), datastore, optionsWithDefaults, (internalTransaction) => updateFunction(new Transaction(firestore, internalTransaction)), deferred).run();
   return deferred.promise;
 }
-var version$12, User, version4, SDK_VERSION2, logClient2, Code, FirestoreError, Deferred2, OAuthToken, EmptyAuthCredentialsProvider, EmulatorAuthCredentialsProvider, LiteAuthCredentialsProvider, FirstPartyToken, FirstPartyAuthCredentialsProvider, AppCheckToken, LiteAppCheckTokenProvider, DatabaseInfo, DEFAULT_DATABASE_NAME, DatabaseId, DOCUMENT_KEY_NAME, BasePath, ResourcePath, identifierRegExp, FieldPath$1, DocumentKey, lastUniqueDebugId, LOG_TAG$3, RPC_NAME_URL_MAPPING, RPC_URL_VERSION, RestConnection, RpcCode, FetchConnection, AutoId, ByteString, ISO_TIMESTAMP_REG_EXP, MIN_SECONDS, MS_TO_NANOS, Timestamp, SERVER_TIMESTAMP_SENTINEL, TYPE_KEY$1, PREVIOUS_VALUE_KEY, LOCAL_WRITE_TIME_KEY, TYPE_KEY, MAX_VALUE_TYPE, MAX_VALUE, VECTOR_VALUE_SENTINEL, VECTOR_MAP_VECTORS_KEY, Bound, Filter, FieldFilter, CompositeFilter, KeyFieldFilter, KeyFieldInFilter, KeyFieldNotInFilter, ArrayContainsFilter, InFilter, NotInFilter, ArrayContainsAnyFilter, OrderBy, SnapshotVersion, SortedMap, SortedMapIterator, LLRBNode, LLRBEmptyNode, SortedSet, SortedSetIterator, FieldMask, ObjectValue, MutableDocument, TargetImpl, QueryImpl, TransformOperation, ServerTimestampTransform, ArrayUnionTransformOperation, ArrayRemoveTransformOperation, NumericIncrementTransformOperation, FieldTransform, Precondition, Mutation, SetMutation, PatchMutation, DeleteMutation, VerifyMutation, DIRECTIONS, OPERATORS, COMPOSITE_OPERATORS, JsonProtoSerializer, LOG_TAG$2, DEFAULT_BACKOFF_INITIAL_DELAY_MS, DEFAULT_BACKOFF_FACTOR, DEFAULT_BACKOFF_MAX_DELAY_MS, ExponentialBackoff, Datastore, DatastoreImpl, LOG_TAG$1, datastoreInstances, LRU_COLLECTION_DISABLED, LRU_DEFAULT_CACHE_SIZE_BYTES, LRU_MINIMUM_CACHE_SIZE_BYTES, DEFAULT_HOST, DEFAULT_SSL, MIN_LONG_POLLING_TIMEOUT_SECONDS, MAX_LONG_POLLING_TIMEOUT_SECONDS, DEFAULT_AUTO_DETECT_LONG_POLLING, FirestoreSettingsImpl, Firestore, Query, DocumentReference, CollectionReference, Bytes, FieldPath, FieldValue, GeoPoint, VectorValue, RESERVED_FIELD_REGEX, ParsedSetData, ParsedUpdateData, ParseContextImpl, UserDataReader, DeleteFieldValueImpl, ServerTimestampFieldValueImpl, FIELD_PATH_RESERVED, DocumentSnapshot, QueryDocumentSnapshot, QuerySnapshot, AppliableConstraint, QueryConstraint, QueryFieldFilterConstraint, QueryCompositeFilterConstraint, QueryOrderByConstraint, AbstractUserDataWriter, LiteUserDataWriter, WriteBatch, DEFAULT_TRANSACTION_OPTIONS, Transaction$1, TransactionRunner, DelayedOperation, LOG_TAG, AsyncQueueImpl, Transaction;
+var version$12, User, version4, SDK_VERSION2, logClient2, Code, FirestoreError, Deferred2, OAuthToken, EmptyAuthCredentialsProvider, EmulatorAuthCredentialsProvider, LiteAuthCredentialsProvider, FirstPartyToken, FirstPartyAuthCredentialsProvider, AppCheckToken, LiteAppCheckTokenProvider, DatabaseInfo, DEFAULT_DATABASE_NAME, DatabaseId, DOCUMENT_KEY_NAME, BasePath, ResourcePath, identifierRegExp, FieldPath$1, DocumentKey, lastUniqueDebugId, LOG_TAG$3, RPC_NAME_URL_MAPPING, RPC_URL_VERSION, RestConnection, RpcCode, FetchConnection, AutoId, ByteString, ISO_TIMESTAMP_REG_EXP, MIN_SECONDS, MS_TO_NANOS, Timestamp, SERVER_TIMESTAMP_SENTINEL, TYPE_KEY$1, PREVIOUS_VALUE_KEY, LOCAL_WRITE_TIME_KEY, TYPE_KEY, MAX_VALUE_TYPE, MAX_VALUE, VECTOR_VALUE_SENTINEL, VECTOR_MAP_VECTORS_KEY, Bound, Filter, FieldFilter, CompositeFilter, KeyFieldFilter, KeyFieldInFilter, KeyFieldNotInFilter, ArrayContainsFilter, InFilter, NotInFilter, ArrayContainsAnyFilter, OrderBy, SnapshotVersion, SortedMap, SortedMapIterator, LLRBNode, LLRBEmptyNode, SortedSet, SortedSetIterator, FieldMask, ObjectValue, MutableDocument, TargetImpl, QueryImpl, TransformOperation, ServerTimestampTransform, ArrayUnionTransformOperation, ArrayRemoveTransformOperation, NumericIncrementTransformOperation, FieldTransform, Precondition, Mutation, SetMutation, PatchMutation, DeleteMutation, VerifyMutation, DIRECTIONS, OPERATORS, COMPOSITE_OPERATORS, JsonProtoSerializer, LOG_TAG$2, DEFAULT_BACKOFF_INITIAL_DELAY_MS, DEFAULT_BACKOFF_FACTOR, DEFAULT_BACKOFF_MAX_DELAY_MS, ExponentialBackoff, Datastore, DatastoreImpl, LOG_TAG$1, datastoreInstances, LRU_COLLECTION_DISABLED, LRU_DEFAULT_CACHE_SIZE_BYTES, LRU_MINIMUM_CACHE_SIZE_BYTES, DEFAULT_HOST, DEFAULT_SSL, MIN_LONG_POLLING_TIMEOUT_SECONDS, MAX_LONG_POLLING_TIMEOUT_SECONDS, DEFAULT_AUTO_DETECT_LONG_POLLING, FirestoreSettingsImpl, Firestore, Query, DocumentReference, CollectionReference, Bytes, FieldPath, FieldValue, GeoPoint, VectorValue, RESERVED_FIELD_REGEX, ParsedSetData, ParsedUpdateData, ParseContextImpl, UserDataReader, DeleteFieldValueImpl, ServerTimestampFieldValueImpl, ArrayUnionFieldValueImpl, ArrayRemoveFieldValueImpl, NumericIncrementFieldValueImpl, FIELD_PATH_RESERVED, DocumentSnapshot, QueryDocumentSnapshot, QuerySnapshot, AppliableConstraint, QueryConstraint, QueryFieldFilterConstraint, QueryCompositeFilterConstraint, QueryOrderByConstraint, QueryLimitConstraint, AbstractUserDataWriter, LiteUserDataWriter, WriteBatch, DEFAULT_TRANSACTION_OPTIONS, Transaction$1, TransactionRunner, DelayedOperation, LOG_TAG, AsyncQueueImpl, Transaction;
 var init_index_node = __esm({
   "node_modules/@firebase/firestore/dist/lite/index.node.mjs"() {
     init_index_esm20173();
@@ -10412,6 +10456,59 @@ var init_index_node = __esm({
         return other instanceof _ServerTimestampFieldValueImpl;
       }
     };
+    ArrayUnionFieldValueImpl = class _ArrayUnionFieldValueImpl extends FieldValue {
+      constructor(methodName, _elements) {
+        super(methodName);
+        this._elements = _elements;
+      }
+      _toFieldTransform(context) {
+        const parseContext = createSentinelChildContext(
+          this,
+          context,
+          /*array=*/
+          true
+        );
+        const parsedElements = this._elements.map((element) => parseData(element, parseContext));
+        const arrayUnion2 = new ArrayUnionTransformOperation(parsedElements);
+        return new FieldTransform(context.path, arrayUnion2);
+      }
+      isEqual(other) {
+        return other instanceof _ArrayUnionFieldValueImpl && deepEqual(this._elements, other._elements);
+      }
+    };
+    ArrayRemoveFieldValueImpl = class _ArrayRemoveFieldValueImpl extends FieldValue {
+      constructor(methodName, _elements) {
+        super(methodName);
+        this._elements = _elements;
+      }
+      _toFieldTransform(context) {
+        const parseContext = createSentinelChildContext(
+          this,
+          context,
+          /*array=*/
+          true
+        );
+        const parsedElements = this._elements.map((element) => parseData(element, parseContext));
+        const arrayUnion2 = new ArrayRemoveTransformOperation(parsedElements);
+        return new FieldTransform(context.path, arrayUnion2);
+      }
+      isEqual(other) {
+        return other instanceof _ArrayRemoveFieldValueImpl && deepEqual(this._elements, other._elements);
+      }
+    };
+    NumericIncrementFieldValueImpl = class _NumericIncrementFieldValueImpl extends FieldValue {
+      constructor(methodName, _operand) {
+        super(methodName);
+        this._operand = _operand;
+      }
+      _toFieldTransform(context) {
+        const numericIncrement = new NumericIncrementTransformOperation(context.serializer, toNumber(context.serializer, this._operand));
+        return new FieldTransform(context.path, numericIncrement);
+      }
+      isEqual(other) {
+        return other instanceof _NumericIncrementFieldValueImpl && this._operand === other._operand;
+      }
+    };
     FIELD_PATH_RESERVED = new RegExp("[~\\*/\\[\\]]");
     DocumentSnapshot = class {
       // Note: This class is stripped down version of the DocumentSnapshot in
@@ -10610,6 +10707,23 @@ var init_index_node = __esm({
       _apply(query2) {
         const orderBy2 = newQueryOrderBy(query2._query, this._field, this._direction);
         return new Query(query2.firestore, query2.converter, queryWithAddedOrderBy(query2._query, orderBy2));
+      }
+    };
+    QueryLimitConstraint = class _QueryLimitConstraint extends QueryConstraint {
+      /**
+       * @internal
+       */
+      constructor(type, _limit, _limitType) {
+        super();
+        this.type = type;
+        this._limit = _limit;
+        this._limitType = _limitType;
+      }
+      static _create(type, _limit, _limitType) {
+        return new _QueryLimitConstraint(type, _limit, _limitType);
+      }
+      _apply(query2) {
+        return new Query(query2.firestore, query2.converter, queryWithLimit(query2._query, this._limit, this._limitType));
       }
     };
     AbstractUserDataWriter = class {
@@ -11478,6 +11592,37 @@ function resolveMentions(text, members) {
   }
   return [...found];
 }
+function resolveTaskRefs(text, options) {
+  const refs = [];
+  const seen = /* @__PURE__ */ new Set();
+  const upper = text.toUpperCase();
+  for (const o of options) {
+    if (!o.code || seen.has(o.taskId)) continue;
+    const re = new RegExp(`(^|[^A-Z0-9])#?${o.code}(?![0-9])`);
+    if (re.test(upper)) {
+      seen.add(o.taskId);
+      refs.push({ projectId: o.projectId, taskId: o.taskId, code: o.code, title: o.title });
+    }
+  }
+  return refs;
+}
+function excerpt(text, max = 120) {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > max ? `${clean.slice(0, max - 1)}\u2026` : clean;
+}
+function suggestTaskTitle(text, maxWords = 12) {
+  const clean = text.replace(/@[^\s@]+(\s[A-ZÁÂÃÀÉÊÍÓÔÕÚÇ][^\s@]*)?/g, " ").replace(/#?[A-Za-z]{1,6}\d{0,3}-\d{1,6}/g, " ").replace(/\s+/g, " ").trim();
+  const sentence = clean.split(/[.!?\n]/).map((s) => s.trim()).find(Boolean) ?? clean;
+  const withoutPreamble = sentence.replace(
+    /^(acho que|eu acho que|precisamos|precisa|precisava|temos que|tem que|seria bom|poderia|podemos|vamos|sugiro que|sugiro|acredito que)\s+/i,
+    ""
+  ).trim();
+  const base3 = withoutPreamble || sentence;
+  const words = base3.split(" ").filter(Boolean);
+  const cut = words.slice(0, maxWords).join(" ");
+  const title = words.length > maxWords ? `${cut}\u2026` : cut;
+  return title ? title.charAt(0).toUpperCase() + title.slice(1) : "";
+}
 var memberName, MENTION_ALL_RE;
 var init_parse = __esm({
   "src/features/chat/parse.ts"() {
@@ -11501,24 +11646,39 @@ var init_firestore = __esm({
 });
 
 // src/lib/firestore-paths.ts
-var preferencesDoc, membershipsCol, workspaceMembersCol, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, notificationsCol, wsPhasesCol, wsPhaseDoc, portalDoc, portalSugestoesCol, portalSugestaoImagemDoc;
+var preferencesDoc, membershipsCol, membershipDoc, workspaceDoc, workspaceMembersCol, workspaceMemberDoc, workspaceInvitesCol, workspaceInviteDoc, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, wsTaskMessageDoc, notificationsCol, notificationDoc, wsNotesCol, wsNoteDoc, wsPhasesCol, wsPhaseDoc, wsChatCol, wsChatDoc, wsProjectChatCol, wsProjectChatDoc, portalDoc, portalSugestoesCol, portalSugestaoDoc, portalSugestaoImagensCol, portalSugestaoImagemDoc;
 var init_firestore_paths = __esm({
   "src/lib/firestore-paths.ts"() {
     init_firestore();
     init_firebase();
     preferencesDoc = (uid) => doc(db, "users", uid, "settings", "preferences");
     membershipsCol = (uid) => collection(db, "users", uid, "memberships");
+    membershipDoc = (uid, wsId) => doc(db, "users", uid, "memberships", wsId);
+    workspaceDoc = (wsId) => doc(db, "workspaces", wsId);
     workspaceMembersCol = (wsId) => collection(db, "workspaces", wsId, "members");
+    workspaceMemberDoc = (wsId, uid) => doc(db, "workspaces", wsId, "members", uid);
+    workspaceInvitesCol = (wsId) => collection(db, "workspaces", wsId, "invites");
+    workspaceInviteDoc = (wsId, token) => doc(db, "workspaces", wsId, "invites", token);
     wsProjectsCol = (wsId) => collection(db, "workspaces", wsId, "projects");
     wsProjectDoc = (wsId, projectId) => doc(db, "workspaces", wsId, "projects", projectId);
     wsTasksCol = (wsId, projectId) => collection(db, "workspaces", wsId, "projects", projectId, "tasks");
     wsTaskDoc = (wsId, projectId, taskId) => doc(db, "workspaces", wsId, "projects", projectId, "tasks", taskId);
     wsTaskMessagesCol = (wsId, projectId, taskId) => collection(db, "workspaces", wsId, "projects", projectId, "tasks", taskId, "messages");
+    wsTaskMessageDoc = (wsId, projectId, taskId, messageId) => doc(db, "workspaces", wsId, "projects", projectId, "tasks", taskId, "messages", messageId);
     notificationsCol = (uid) => collection(db, "users", uid, "notifications");
+    notificationDoc = (uid, notifId) => doc(db, "users", uid, "notifications", notifId);
+    wsNotesCol = (wsId, projectId) => collection(db, "workspaces", wsId, "projects", projectId, "notes");
+    wsNoteDoc = (wsId, projectId, noteId = "main") => doc(db, "workspaces", wsId, "projects", projectId, "notes", noteId);
     wsPhasesCol = (wsId, projectId) => collection(db, "workspaces", wsId, "projects", projectId, "phases");
     wsPhaseDoc = (wsId, projectId, phaseId) => doc(db, "workspaces", wsId, "projects", projectId, "phases", phaseId);
+    wsChatCol = (wsId) => collection(db, "workspaces", wsId, "chat");
+    wsChatDoc = (wsId, messageId) => doc(db, "workspaces", wsId, "chat", messageId);
+    wsProjectChatCol = (wsId, projectId) => collection(db, "workspaces", wsId, "projects", projectId, "chat");
+    wsProjectChatDoc = (wsId, projectId, messageId) => doc(db, "workspaces", wsId, "projects", projectId, "chat", messageId);
     portalDoc = (portalId) => doc(db, "portais", portalId);
     portalSugestoesCol = (portalId) => collection(db, "portais", portalId, "sugestoes");
+    portalSugestaoDoc = (portalId, sugestaoId) => doc(db, "portais", portalId, "sugestoes", sugestaoId);
+    portalSugestaoImagensCol = (portalId, sugestaoId) => collection(db, "portais", portalId, "sugestoes", sugestaoId, "imagens");
     portalSugestaoImagemDoc = (portalId, sugestaoId, imagemId) => doc(db, "portais", portalId, "sugestoes", sugestaoId, "imagens", imagemId);
   }
 });
@@ -11536,13 +11696,13 @@ function deriveInitials(name4) {
   }
   return words.slice(0, 3).map((w) => w[0].toUpperCase()).join("");
 }
-function nextFreeCode(base2, taken) {
-  if (!taken.has(base2)) return base2;
+function nextFreeCode(base3, taken) {
+  if (!taken.has(base3)) return base3;
   for (let n = 2; n < 1e3; n++) {
-    const candidate = `${base2}${n}`;
+    const candidate = `${base3}${n}`;
     if (!taken.has(candidate)) return candidate;
   }
-  return `${base2}${taken.size + 1}`;
+  return `${base3}${taken.size + 1}`;
 }
 function planProjectCodes(projects) {
   const ordered = [...projects].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -11764,6 +11924,69 @@ async function updateTask(wsId, projectId, taskId, patch) {
   if (patch.assignees) Object.assign(data2, assigneeFields(patch.assignees));
   await updateDoc(wsTaskDoc(wsId, projectId, taskId), data2);
 }
+async function purgeTaskMessages(wsId, projectId, taskId) {
+  const snap = await getDocs(wsTaskMessagesCol(wsId, projectId, taskId));
+  for (const d of snap.docs) await deleteDoc(d.ref);
+}
+async function deleteTask(wsId, projectId, taskId) {
+  await deleteDoc(wsTaskDoc(wsId, projectId, taskId));
+  await purgeTaskMessages(wsId, projectId, taskId);
+}
+async function reorderTasks(wsId, projectId, updates) {
+  if (updates.length === 0) return;
+  const batch = writeBatch(db);
+  for (const u of updates) {
+    batch.update(wsTaskDoc(wsId, projectId, u.id), {
+      status: u.status,
+      order: u.order,
+      // Só a tarefa arrastada para a conclusão traz checklist (fechado) — ver `closeChecklistOnDone`.
+      ...u.checklist ? { checklist: u.checklist } : {},
+      updatedAt: serverTimestamp()
+    });
+  }
+  await batch.commit();
+}
+async function updateProjectColumns(wsId, projectId, columns) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { columns, updatedAt: serverTimestamp() });
+}
+async function fetchNotes(wsId, projectId) {
+  const snap = await getDocs(wsNotesCol(wsId, projectId));
+  const notes = snap.docs.map((d) => {
+    const raw = d.data();
+    return {
+      id: d.id,
+      title: raw.title ?? "",
+      content: raw.content ?? "",
+      color: raw.color ?? "yellow",
+      order: raw.order ?? 0,
+      createdAt: raw.createdAt,
+      updatedAt: raw.updatedAt
+    };
+  });
+  return notes.sort(
+    (a, b) => a.order - b.order || (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0)
+  );
+}
+async function createNote(wsId, projectId, color = "yellow", order = Date.now()) {
+  const ref = await addDoc(wsNotesCol(wsId, projectId), {
+    title: "",
+    content: "",
+    color,
+    order,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  return ref.id;
+}
+async function updateNote(wsId, projectId, noteId, updates) {
+  await updateDoc(wsNoteDoc(wsId, projectId, noteId), {
+    ...updates,
+    updatedAt: serverTimestamp()
+  });
+}
+async function deleteNote(wsId, projectId, noteId) {
+  await deleteDoc(wsNoteDoc(wsId, projectId, noteId));
+}
 async function fetchPhases(wsId, projectId) {
   const q = query(wsPhasesCol(wsId, projectId), orderBy("order", "asc"));
   const snap = await getDocs(q);
@@ -11865,6 +12088,20 @@ async function sendTaskMessage(wsId, projectId, taskId, input) {
   if (input.sticker) data2.sticker = input.sticker;
   await addDoc(wsTaskMessagesCol(wsId, projectId, taskId), data2);
 }
+async function deleteTaskMessage(wsId, projectId, taskId, messageId) {
+  await deleteDoc(wsTaskMessageDoc(wsId, projectId, taskId, messageId));
+}
+async function toggleMessageReaction(wsId, projectId, taskId, messageId, emocao, uid, reagindo) {
+  await updateDoc(wsTaskMessageDoc(wsId, projectId, taskId, messageId), {
+    [`reactions.${emocao}`]: reagindo ? arrayUnion(uid) : arrayRemove(uid)
+  });
+}
+async function toggleTaskReaction(wsId, projectId, taskId, emocao, uid, reagindo) {
+  await updateDoc(wsTaskDoc(wsId, projectId, taskId), {
+    [`reactions.${emocao}`]: reagindo ? arrayUnion(uid) : arrayRemove(uid),
+    updatedAt: serverTimestamp()
+  });
+}
 var init_queries = __esm({
   "src/features/project-detail/queries.ts"() {
     init_firestore();
@@ -11903,7 +12140,13 @@ function isTaskAssignedTo(task, uid) {
   if (!uid) return false;
   return taskAssignees(task).some((a) => a.uid === uid);
 }
-var PROJECT_PHASES, PROJECT_PHASE_LABELS, ROADMAP_TYPE_LABELS, DEFAULT_COLUMNS, PHASE_STATUS_LABELS, PROJECT_COLORS;
+function channelKey(channel) {
+  return channel.kind === "global" ? "global" : channel.projectId ?? "global";
+}
+function channelFromKey(key) {
+  return !key || key === "global" ? GLOBAL_CHANNEL : { kind: "project", projectId: key };
+}
+var PROJECT_PHASES, PROJECT_PHASE_LABELS, ROADMAP_TYPE_LABELS, DEFAULT_COLUMNS, STICKY_COLORS, PHASE_STATUS_LABELS, PROJECT_COLORS, GLOBAL_CHANNEL, SUGESTAO_STATUSES, SUGESTAO_STATUS_LABELS;
 var init_models = __esm({
   "src/types/models.ts"() {
     PROJECT_PHASES = ["planejando", "em_andamento", "pausado", "concluido"];
@@ -11922,6 +12165,14 @@ var init_models = __esm({
       { id: "doing", label: "Em Andamento", order: 1 },
       { id: "done", label: "Conclu\xEDdo", order: 2, isDone: true }
     ];
+    STICKY_COLORS = [
+      { value: "yellow", label: "Amarelo", dot: "#fde68a" },
+      { value: "sky", label: "Azul", dot: "#7dd3fc" },
+      { value: "green", label: "Verde", dot: "#86efac" },
+      { value: "pink", label: "Rosa", dot: "#f9a8d4" },
+      { value: "purple", label: "Roxo", dot: "#d8b4fe" },
+      { value: "sand", label: "Bege", dot: "#fcd34d" }
+    ];
     PHASE_STATUS_LABELS = {
       todo: "A fazer",
       doing: "Em andamento",
@@ -11937,16 +12188,166 @@ var init_models = __esm({
       "#6b5b95",
       "#4a6fa5"
     ];
+    GLOBAL_CHANNEL = { kind: "global" };
+    SUGESTAO_STATUSES = [
+      "recebida",
+      "em_analise",
+      "planejada",
+      "concluida",
+      "recusada"
+    ];
+    SUGESTAO_STATUS_LABELS = {
+      recebida: "Recebida",
+      em_analise: "Em an\xE1lise",
+      planejada: "Planejada",
+      concluida: "Conclu\xEDda",
+      recusada: "Recusada"
+    };
   }
 });
 
 // src/features/chat/queries.ts
+function chatCol(wsId, channel) {
+  return channel.kind === "project" && channel.projectId ? wsProjectChatCol(wsId, channel.projectId) : wsChatCol(wsId);
+}
+function chatDoc(wsId, channel, messageId) {
+  return channel.kind === "project" && channel.projectId ? wsProjectChatDoc(wsId, channel.projectId, messageId) : wsChatDoc(wsId, messageId);
+}
+function mapMessages(docs) {
+  return docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+async function fetchChatMessage(wsId, channel, messageId) {
+  const snap = await getDoc(chatDoc(wsId, channel, messageId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+async function sendChatMessage(wsId, channel, input) {
+  const ref = doc(chatCol(wsId, channel));
+  const parentId = input.parentId ?? null;
+  const taskRefs = input.taskRefs ?? [];
+  const data2 = {
+    authorUid: input.authorUid,
+    authorName: input.authorName,
+    authorPhoto: input.authorPhoto,
+    text: input.text.trim(),
+    mentions: input.mentions,
+    taskRefs,
+    taskRefIds: taskRefs.map((t) => t.taskId),
+    parentId,
+    createdAt: serverTimestamp()
+  };
+  if (input.authorAvatar) data2.authorAvatar = input.authorAvatar;
+  if (input.replyTo) data2.replyTo = input.replyTo;
+  if (input.kind) data2.kind = input.kind;
+  if (input.sticker) data2.sticker = input.sticker;
+  if (!parentId) {
+    data2.replyCount = 0;
+    data2.threadParticipants = [input.authorUid];
+  }
+  const batch = writeBatch(db);
+  batch.set(ref, data2);
+  if (parentId) {
+    batch.update(chatDoc(wsId, channel, parentId), {
+      replyCount: increment(1),
+      lastReplyAt: serverTimestamp(),
+      threadParticipants: arrayUnion(input.authorUid)
+    });
+  }
+  await batch.commit();
+  return ref.id;
+}
+async function editChatMessage(wsId, channel, messageId, input) {
+  const taskRefs = input.taskRefs ?? [];
+  await updateDoc(chatDoc(wsId, channel, messageId), {
+    text: input.text.trim(),
+    mentions: input.mentions,
+    taskRefs,
+    taskRefIds: taskRefs.map((t) => t.taskId),
+    editedAt: serverTimestamp()
+  });
+}
+async function deleteChatMessage(wsId, channel, message) {
+  if (message.parentId) {
+    const batch2 = writeBatch(db);
+    batch2.delete(chatDoc(wsId, channel, message.id));
+    batch2.update(chatDoc(wsId, channel, message.parentId), { replyCount: increment(-1) });
+    await batch2.commit();
+    return;
+  }
+  const replies = await getDocs(query(chatCol(wsId, channel), where("parentId", "==", message.id)));
+  const batch = writeBatch(db);
+  replies.docs.forEach((d) => batch.delete(d.ref));
+  batch.delete(chatDoc(wsId, channel, message.id));
+  await batch.commit();
+}
+async function toggleChatReaction(wsId, channel, messageId, emocao, uid, reacting) {
+  await updateDoc(chatDoc(wsId, channel, messageId), {
+    [`reactions.${emocao}`]: reacting ? arrayUnion(uid) : arrayRemove(uid)
+  });
+}
+async function linkMessageToTask(wsId, channel, messageId, task) {
+  await updateDoc(chatDoc(wsId, channel, messageId), {
+    createdTaskId: task.id,
+    createdTaskProjectId: task.projectId,
+    createdTaskCode: task.code ?? null
+  });
+}
+async function fetchTaskDiscussions(wsId, projectId, taskId) {
+  const channels = [{ kind: "project", projectId }, { kind: "global" }];
+  const results = await Promise.all(
+    channels.map(async (channel) => {
+      try {
+        const snap = await getDocs(
+          query(
+            chatCol(wsId, channel),
+            where("taskRefIds", "array-contains", taskId),
+            orderBy("createdAt", "desc")
+          )
+        );
+        return mapMessages(snap.docs).map((message) => ({ message, channel }));
+      } catch {
+        return [];
+      }
+    })
+  );
+  return results.flat().sort((a, b) => millis(b.message) - millis(a.message));
+}
+async function fetchMessagesForSearch(wsId, channels, perChannel = 120) {
+  const results = await Promise.all(
+    channels.map(async (channel) => {
+      try {
+        const snap = await getDocs(
+          query(chatCol(wsId, channel), orderBy("createdAt", "desc"), limit(perChannel))
+        );
+        return mapMessages(snap.docs).map((message) => ({ message, channel }));
+      } catch {
+        return [];
+      }
+    })
+  );
+  return results.flat().sort((a, b) => millis(b.message) - millis(a.message));
+}
+async function purgeCol(col) {
+  const snap = await getDocs(col);
+  if (snap.empty) return;
+  const CHUNK = 450;
+  for (let i = 0; i < snap.docs.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + CHUNK).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+async function purgeProjectChat(wsId, projectId) {
+  await purgeCol(wsProjectChatCol(wsId, projectId));
+}
+var millis;
 var init_queries2 = __esm({
   "src/features/chat/queries.ts"() {
     init_firestore();
     init_firebase();
     init_firestore_paths();
     init_models();
+    millis = (m) => m.createdAt?.toMillis?.() ?? 0;
   }
 });
 
@@ -11973,6 +12374,9 @@ async function createPortalForProject(wsId, projectId, projectName, uid) {
 }
 async function setPortalAtivo(portalId, ativo) {
   await updateDoc(portalDoc(portalId), { ativo });
+}
+async function syncPortalProjectName(portalId, projectName) {
+  await setDoc(portalDoc(portalId), { projectName }, { merge: true });
 }
 function ordenarSugestoes(list) {
   return [...list].sort((a, b) => {
@@ -12020,6 +12424,105 @@ async function createSugestao(portalId, input) {
   await batch.commit();
   return ref.id;
 }
+async function updateSugestaoTexto(portalId, sugestao, patch) {
+  const finais = patch.imagens ?? (sugestao.miniaturas ?? []).map((m) => ({
+    id: m.id,
+    miniatura: m.dataUrl,
+    largura: m.largura,
+    altura: m.altura
+  }));
+  const idsFinais = new Set(finais.map((i) => i.id));
+  const removidas = (sugestao.miniaturas ?? []).filter((m) => !idsFinais.has(m.id));
+  const batch = writeBatch(db);
+  batch.update(portalSugestaoDoc(portalId, sugestao.id), {
+    titulo: patch.titulo.trim(),
+    descricao: patch.descricao.trim(),
+    miniaturas: finais.map(miniaturaDe)
+  });
+  for (const img of finais) {
+    if (!img.dataUrl) continue;
+    batch.set(portalSugestaoImagemDoc(portalId, sugestao.id, img.id), {
+      dataUrl: img.dataUrl,
+      largura: img.largura,
+      altura: img.altura,
+      authorUid: sugestao.authorUid,
+      criadoEm: serverTimestamp()
+    });
+  }
+  for (const m of removidas) {
+    batch.delete(portalSugestaoImagemDoc(portalId, sugestao.id, m.id));
+  }
+  await batch.commit();
+}
+async function fetchSugestaoImagem(portalId, sugestaoId, imagemId) {
+  const snap = await getDoc(portalSugestaoImagemDoc(portalId, sugestaoId, imagemId));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() };
+}
+async function toggleVoto(portalId, sugestaoId, uid, jaVotou) {
+  await updateDoc(portalSugestaoDoc(portalId, sugestaoId), {
+    votos: jaVotou ? arrayRemove(uid) : arrayUnion(uid)
+  });
+}
+async function setSugestaoStatus(portalId, sugestaoId, status) {
+  await updateDoc(portalSugestaoDoc(portalId, sugestaoId), { status });
+}
+async function responderSugestao(portalId, sugestaoId, resposta, respondidoPorNome) {
+  const texto = resposta.trim();
+  await updateDoc(portalSugestaoDoc(portalId, sugestaoId), {
+    respostaDoTime: texto || null,
+    respondidoPorNome: texto ? respondidoPorNome : null,
+    respondidoEm: texto ? serverTimestamp() : null
+  });
+}
+async function setSugestaoOculta(portalId, sugestaoId, oculta) {
+  await updateDoc(portalSugestaoDoc(portalId, sugestaoId), { oculta });
+}
+async function deleteSugestao(portalId, sugestaoId) {
+  await deleteImagensDaSugestao(portalId, sugestaoId);
+  await deleteDoc(portalSugestaoDoc(portalId, sugestaoId));
+}
+async function deleteImagensDaSugestao(portalId, sugestaoId) {
+  const snap = await getDocs(portalSugestaoImagensCol(portalId, sugestaoId));
+  for (const d of snap.docs) await deleteDoc(d.ref);
+}
+async function vincularTarefa(portalId, sugestaoId, taskId, taskCode) {
+  await updateDoc(portalSugestaoDoc(portalId, sugestaoId), {
+    taskId,
+    taskCode,
+    status: "planejada"
+  });
+}
+function ponteiroDaSugestao(portalId, s) {
+  return {
+    portalId,
+    sugestaoId: s.id,
+    titulo: s.titulo,
+    authorName: s.authorName,
+    miniaturas: s.miniaturas ?? []
+  };
+}
+async function mesclarSugestoes(portalId, duplicada, alvo) {
+  const votosUniao = Array.from(
+    /* @__PURE__ */ new Set([...alvo.votos ?? [], ...duplicada.votos ?? [], duplicada.authorUid])
+  );
+  const batch = writeBatch(db);
+  batch.update(portalSugestaoDoc(portalId, alvo.id), { votos: votosUniao });
+  batch.update(portalSugestaoDoc(portalId, duplicada.id), {
+    mescladaComId: alvo.id,
+    mescladaComTitulo: alvo.titulo,
+    oculta: true
+  });
+  await batch.commit();
+}
+async function purgePortal(portalId) {
+  const snap = await getDocs(portalSugestoesCol(portalId));
+  for (const d of snap.docs) {
+    await deleteImagensDaSugestao(portalId, d.id);
+    await deleteDoc(d.ref);
+  }
+  await deleteDoc(portalDoc(portalId));
+}
 var miniaturaDe;
 var init_queries3 = __esm({
   "src/features/sugestoes/queries.ts"() {
@@ -12045,6 +12548,51 @@ async function fetchWorkspaceMembers(wsId) {
   const q = query(workspaceMembersCol(wsId), orderBy("joinedAt", "asc"));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+async function createInvite(wsId, wsName, role, invitedByUid, invitedByName) {
+  const token = crypto.randomUUID();
+  const expiresAt = /* @__PURE__ */ new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+  await setDoc(workspaceInviteDoc(wsId, token), {
+    role,
+    invitedByUid,
+    invitedByName,
+    workspaceId: wsId,
+    workspaceName: wsName,
+    status: "pending",
+    expiresAt: Timestamp.fromDate(expiresAt),
+    createdAt: serverTimestamp()
+  });
+  return token;
+}
+async function removeWorkspaceMember(wsId, uid, ownerUid) {
+  await deleteDoc(workspaceMemberDoc(wsId, uid));
+  await deleteDoc(membershipDoc(uid, wsId));
+  if (uid === ownerUid) {
+  }
+}
+async function updateMemberRole(wsId, uid, role) {
+  await updateDoc(workspaceMemberDoc(wsId, uid), { role });
+  await updateDoc(membershipDoc(uid, wsId), { role });
+}
+async function fetchPendingInvites(wsId) {
+  const snap = await getDocs(workspaceInvitesCol(wsId));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((inv) => inv.status === "pending");
+}
+async function revokeInvite(wsId, token) {
+  await deleteDoc(workspaceInviteDoc(wsId, token));
+}
+async function renameWorkspace(wsId, uid, name4) {
+  const batch = writeBatch(db);
+  batch.update(workspaceDoc(wsId), { name: name4 });
+  batch.update(membershipDoc(uid, wsId), { workspaceName: name4 });
+  await batch.commit();
+  const membersSnap = await getDocs(workspaceMembersCol(wsId));
+  const memberBatch = writeBatch(db);
+  for (const m of membersSnap.docs) {
+    memberBatch.update(membershipDoc(m.id, wsId), { workspaceName: name4 });
+  }
+  await memberBatch.commit();
 }
 var init_queries4 = __esm({
   "src/features/workspace/queries.ts"() {
@@ -15945,23 +16493,23 @@ var init_types = __esm({
         }
         if (effect.type === "transform") {
           if (ctx.common.async === false) {
-            const base2 = this._def.schema._parseSync({
+            const base3 = this._def.schema._parseSync({
               data: ctx.data,
               path: ctx.path,
               parent: ctx
             });
-            if (!isValid(base2))
+            if (!isValid(base3))
               return INVALID;
-            const result = effect.transform(base2.value, checkCtx);
+            const result = effect.transform(base3.value, checkCtx);
             if (result instanceof Promise) {
               throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
             }
             return { status: status.value, value: result };
           } else {
-            return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base2) => {
-              if (!isValid(base2))
+            return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base3) => {
+              if (!isValid(base3))
                 return INVALID;
-              return Promise.resolve(effect.transform(base2.value, checkCtx)).then((result) => ({
+              return Promise.resolve(effect.transform(base3.value, checkCtx)).then((result) => ({
                 status: status.value,
                 value: result
               }));
@@ -23929,19 +24477,19 @@ function parseNullableDef(def, refs) {
     };
   }
   if (refs.target === "openApi3") {
-    const base3 = parseDef(def.innerType._def, {
+    const base4 = parseDef(def.innerType._def, {
       ...refs,
       currentPath: [...refs.currentPath]
     });
-    if (base3 && "$ref" in base3)
-      return { allOf: [base3], nullable: true };
-    return base3 && { ...base3, nullable: true };
+    if (base4 && "$ref" in base4)
+      return { allOf: [base4], nullable: true };
+    return base4 && { ...base4, nullable: true };
   }
-  const base2 = parseDef(def.innerType._def, {
+  const base3 = parseDef(def.innerType._def, {
     ...refs,
     currentPath: [...refs.currentPath, "anyOf", "0"]
   });
-  return base2 && { anyOf: [base2, { type: "null" }] };
+  return base3 && { anyOf: [base3, { type: "null" }] };
 }
 var init_nullable = __esm({
   "node_modules/zod-to-json-schema/dist/esm/parsers/nullable.js"() {
@@ -24584,8 +25132,8 @@ var init_zod_json_schema_compat = __esm({
 function isPlainObject3(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function mergeCapabilities(base2, additional) {
-  const result = { ...base2 };
+function mergeCapabilities(base3, additional) {
+  const result = { ...base3 };
   for (const key in additional) {
     const k = key;
     const addValue = additional[k];
@@ -29158,10 +29706,10 @@ var require_fast_uri = __commonJS({
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    function resolveComponent(base2, relative, options, skipNormalization) {
+    function resolveComponent(base3, relative, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
-        base2 = parse3(serialize(base2, options), options);
+        base3 = parse3(serialize(base3, options), options);
         relative = parse3(serialize(relative, options), options);
       }
       options = options || {};
@@ -29181,32 +29729,32 @@ var require_fast_uri = __commonJS({
           target.query = relative.query;
         } else {
           if (!relative.path) {
-            target.path = base2.path;
+            target.path = base3.path;
             if (relative.query !== void 0) {
               target.query = relative.query;
             } else {
-              target.query = base2.query;
+              target.query = base3.query;
             }
           } else {
             if (relative.path[0] === "/") {
               target.path = removeDotSegments(relative.path);
             } else {
-              if ((base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0) && !base2.path) {
+              if ((base3.userinfo !== void 0 || base3.host !== void 0 || base3.port !== void 0) && !base3.path) {
                 target.path = "/" + relative.path;
-              } else if (!base2.path) {
+              } else if (!base3.path) {
                 target.path = relative.path;
               } else {
-                target.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative.path;
+                target.path = base3.path.slice(0, base3.path.lastIndexOf("/") + 1) + relative.path;
               }
               target.path = removeDotSegments(target.path);
             }
             target.query = relative.query;
           }
-          target.userinfo = base2.userinfo;
-          target.host = base2.host;
-          target.port = base2.port;
+          target.userinfo = base3.userinfo;
+          target.host = base3.host;
+          target.port = base3.port;
         }
-        target.scheme = base2.scheme;
+        target.scheme = base3.scheme;
       }
       target.fragment = relative.fragment;
       return target;
@@ -34199,7 +34747,357 @@ Como trabalhar em um projeto:
 
 Estruturar um projeto: \`criar_projeto\` (devolve a sigla; aceita colunas, panorama e as fases iniciais) e \`criar_fases\` para as etapas do roadmap, na ordem em que acontecem. Depois vincule as tarefas \xE0 fase (\`fase\` em criar_tarefa/atualizar_tarefa): com tarefas vinculadas, o progresso da fase sai delas \u2014 n\xE3o se edita \xE0 m\xE3o. \`atualizar_fase\` muda datas, dono, entreg\xE1veis e a posi\xE7\xE3o; \`atualizar_projeto\` muda nome, situa\xE7\xE3o, panorama e arquiva. Confirme o nome com o usu\xE1rio antes de criar um projeto (a sigla nasce dele e n\xE3o muda) e antes de excluir fase com tarefas.
 
+O resto da Glia tamb\xE9m est\xE1 aqui: anota\xE7\xF5es do projeto (\`listar_anotacoes\`, \`criar_anotacao\`, \`atualizar_anotacao\`\u2026), o portal de sugest\xF5es \u2014 a "esteira de melhorias" (\`portal_sugestoes\` devolve o link p\xFAblico; \`listar_sugestoes\`, \`ver_sugestao\` com os prints, \`atualizar_sugestao\`, \`converter_sugestao\`, \`mesclar_sugestoes\`), o chat da equipe (\`ler_chat\`, \`enviar_mensagem\`, \`criar_tarefa_da_mensagem\`), colunas do quadro (\`configurar_colunas\`), depend\xEAncias (\`conectar\`), rea\xE7\xF5es (\`reagir\`), notifica\xE7\xF5es (\`listar_notificacoes\`), equipe (\`convidar_pessoa\`, \`gerenciar_membro\`) e a busca geral (\`buscar\`, \`buscar_tarefas\`). As respostas trazem o link da Glia de cada coisa \u2014 repasse ao usu\xE1rio. Mensagem no chat fala com a equipe: confirme o texto antes de enviar. Excluir (tarefa, anota\xE7\xE3o, sugest\xE3o, mensagem, projeto) n\xE3o tem lixeira: confirme antes.
+
 Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.`;
+  }
+});
+
+// src/features/projects/queries.ts
+async function fetchProjects(wsId, status = "active") {
+  const q = query(wsProjectsCol(wsId), where("status", "==", status), orderBy("updatedAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+async function createProject(wsId, input) {
+  const ref = await addDoc(wsProjectsCol(wsId), {
+    name: input.name.trim(),
+    description: input.description.trim(),
+    color: input.color,
+    status: "active",
+    phase: "planejando",
+    hasRoadmap: input.hasRoadmap ?? false,
+    roadmapType: input.roadmapType ?? "sequencial",
+    // Projetos são sempre da equipe: sem memberUids, todos os membros da workspace veem.
+    visibility: input.visibility ?? "team",
+    createdBy: input.createdBy ?? "",
+    ...input.columns ? { columns: input.columns } : {},
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  await assignProjectCodes(wsId, ref.id).catch((err) => console.error("[task-code] sigla do projeto novo", err));
+  return ref.id;
+}
+async function updateProject(wsId, projectId, patch) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { ...patch, updatedAt: serverTimestamp() });
+}
+async function archiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
+}
+async function unarchiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
+}
+async function updateProjectPhase(wsId, projectId, phase) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
+}
+async function deleteProject(wsId, projectId) {
+  const projSnap = await getDoc(wsProjectDoc(wsId, projectId));
+  const portalId = projSnap.data()?.portalId;
+  if (portalId) await purgePortal(portalId);
+  const tasksSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, "tasks"));
+  for (const t of tasksSnap.docs) {
+    await deleteDoc(t.ref);
+    await purgeTaskMessages(wsId, projectId, t.id);
+  }
+  for (const sub of ["notes", "phases"]) {
+    const subSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, sub));
+    for (const d of subSnap.docs) await deleteDoc(d.ref);
+  }
+  await purgeProjectChat(wsId, projectId);
+  await deleteDoc(wsProjectDoc(wsId, projectId));
+}
+var init_queries5 = __esm({
+  "src/features/projects/queries.ts"() {
+    init_firestore();
+    init_firebase();
+    init_firestore_paths();
+    init_queries();
+    init_queries2();
+    init_queries3();
+    init_codes();
+  }
+});
+
+// mcp/src/context.ts
+async function lembrado(chave, carregar) {
+  const hit = cache2.get(chave);
+  if (hit && Date.now() - hit.em < TTL_MS) return hit.valor;
+  const valor = await carregar();
+  cache2.set(chave, { em: Date.now(), valor });
+  return valor;
+}
+function esquecer(prefixo) {
+  for (const k of cache2.keys()) if (k.startsWith(prefixo)) cache2.delete(k);
+}
+function descreverWorkspaces2(lista) {
+  return lista.map((m) => `- ${m.workspaceName} (id ${m.id})`).join("\n");
+}
+async function minhasWorkspaces(uid) {
+  return lembrado(`memberships:${uid}`, () => fetchMemberships(uid));
+}
+async function contexto(workspace) {
+  const eu = await ensureSignedIn();
+  const memberships = await minhasWorkspaces(eu.uid);
+  if (memberships.length === 0) {
+    throw new GliaToolError(
+      "Voc\xEA ainda n\xE3o tem workspace na Glia. Abra a Glia no navegador uma vez (ela cria a sua) e tente de novo."
+    );
+  }
+  const padrao = workspacePadrao();
+  const alvo = workspace?.trim() || flags.workspace || padrao?.id;
+  let ws;
+  if (alvo) {
+    ws = acharMembership(memberships, alvo);
+    if (!ws) {
+      const origem = workspace?.trim() ? "" : padrao && alvo === padrao.id ? " (era a padr\xE3o fixada \u2014 voc\xEA saiu dela?)" : "";
+      throw new GliaToolError(`Workspace "${alvo}" n\xE3o encontrada${origem}. Suas workspaces:
+${descreverWorkspaces2(memberships)}`);
+    }
+  } else if (memberships.length === 1) {
+    ws = memberships[0];
+  } else {
+    throw new GliaToolError(
+      `Ainda n\xE3o h\xE1 workspace padr\xE3o nesta m\xE1quina e voc\xEA est\xE1 em ${memberships.length}:
+${descreverWorkspaces2(memberships)}
+
+Pergunte ao usu\xE1rio qual usar e fixe com a tool \`usar_workspace\` \u2014 a escolha fica salva para as pr\xF3ximas vezes.`
+    );
+  }
+  const wsId = ws.id;
+  return {
+    eu,
+    wsId,
+    wsName: ws.workspaceName,
+    membros: () => lembrado(`membros:${wsId}`, () => fetchWorkspaceMembers(wsId)),
+    projetos: (incluirArquivados = false) => lembrado(`projetos:${wsId}:${incluirArquivados}`, async () => {
+      await ensureProjectCodes(wsId);
+      const ativos = await fetchProjects(wsId, "active");
+      const arquivados = incluirArquivados ? await fetchProjects(wsId, "archived") : [];
+      return [...ativos, ...arquivados].filter((p) => canAccessProject(p, eu.uid));
+    })
+  };
+}
+var GliaToolError, TTL_MS, cache2;
+var init_context = __esm({
+  "mcp/src/context.ts"() {
+    "use strict";
+    init_queries5();
+    init_codes();
+    init_queries4();
+    init_models();
+    init_session();
+    init_workspace();
+    init_config();
+    GliaToolError = class extends Error {
+      constructor(message) {
+        super(message);
+        this.name = "GliaToolError";
+      }
+    };
+    TTL_MS = 3e4;
+    cache2 = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/features/project-detail/roadmap/labels.ts
+function roadmapNouns(type) {
+  return ROADMAP_NOUNS[type ?? "sequencial"];
+}
+var ROADMAP_NOUNS;
+var init_labels = __esm({
+  "src/features/project-detail/roadmap/labels.ts"() {
+    ROADMAP_NOUNS = {
+      sequencial: {
+        singular: "fase",
+        plural: "fases",
+        newAction: "Nova fase",
+        nameLabel: "Nome da fase",
+        namePlaceholder: "Descoberta, MVP, Lan\xE7amento\u2026",
+        descPlaceholder: "O que essa fase representa?",
+        dialogNew: "Nova fase",
+        dialogEdit: "Editar fase",
+        submitNew: "Criar fase",
+        createdToast: "Fase criada",
+        updatedToast: "Fase atualizada",
+        removedToast: "Fase removida",
+        removeTitle: "Remover fase?",
+        removeBody: (name4) => `A fase "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Comece a jornada",
+        emptyBody: "Divida este projeto em fases sequenciais \u2014 pesquisa, MVP, lan\xE7amento\u2026 \u2014 e acompanhe a trilha rumo ao cume.",
+        emptyAction: "Criar primeira fase",
+        orderAction: "Organizar fases",
+        orderTitle: "Organizar fases",
+        orderBody: "Arraste para definir a sequ\xEAncia. A primeira da lista \xE9 a primeira montanha da trilha.",
+        orderSavedToast: "Ordem das fases salva"
+      },
+      paralelo: {
+        singular: "frente",
+        plural: "frentes",
+        newAction: "Nova frente",
+        nameLabel: "Nome da frente",
+        namePlaceholder: "Ingest\xE3o de dados, Modelagem, Visual\u2026",
+        descPlaceholder: "O que essa frente cobre?",
+        dialogNew: "Nova frente",
+        dialogEdit: "Editar frente",
+        submitNew: "Criar frente",
+        createdToast: "Frente criada",
+        updatedToast: "Frente atualizada",
+        removedToast: "Frente removida",
+        removeTitle: "Remover frente?",
+        removeBody: (name4) => `A frente "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Abra as frentes",
+        emptyBody: "Separe o projeto nas frentes que rodam em paralelo. Cada uma segue no seu ritmo, medida pelas atividades pendentes.",
+        emptyAction: "Criar primeira frente",
+        orderAction: "Organizar frentes",
+        orderTitle: "Organizar frentes",
+        orderBody: "Arraste para definir em que ordem as frentes aparecem no roadmap.",
+        orderSavedToast: "Ordem das frentes salva"
+      }
+    };
+  }
+});
+
+// src/features/calendar/queries.ts
+async function fetchAllTasks(wsId) {
+  const projectsSnap = await getDocs(query(wsProjectsCol(wsId), where("status", "==", "active")));
+  const projectIds = projectsSnap.docs.map((d) => d.id);
+  if (projectIds.length === 0) return [];
+  const taskArrays = await Promise.all(
+    projectIds.map(async (pid) => {
+      const snap = await getDocs(wsTasksCol(wsId, pid));
+      return snap.docs.map((d) => ({
+        id: d.id,
+        projectId: pid,
+        ...d.data()
+      }));
+    })
+  );
+  return taskArrays.flat();
+}
+var init_queries6 = __esm({
+  "src/features/calendar/queries.ts"() {
+    init_firestore();
+    init_firestore_paths();
+  }
+});
+
+// src/features/connections/queries.ts
+function resolveTitle(target, allTasks, allProjects) {
+  if (target.type === "task") {
+    const t = allTasks.find((x) => x.id === target.id);
+    return t ? t.title : null;
+  }
+  const p = allProjects.find((x) => x.id === target.id);
+  return p ? p.name : null;
+}
+function isTargetClosed(target, allTasks, allProjects) {
+  if (target.type === "task") {
+    const t = allTasks.find((x) => x.id === target.id);
+    if (!t) return true;
+    const proj = allProjects.find((p2) => p2.id === t.projectId);
+    return doneStatusIds(proj?.columns).has(t.status);
+  }
+  const p = allProjects.find((x) => x.id === target.id);
+  if (!p) return true;
+  return p.status === "archived" || p.phase === "concluido";
+}
+function getOpenDependencies(owner, allTasks, allProjects) {
+  const conns = owner.connections ?? [];
+  const out = [];
+  for (const c of conns) {
+    if (c.linkType !== "depends_on") continue;
+    if (isTargetClosed(c.target, allTasks, allProjects)) continue;
+    const title = resolveTitle(c.target, allTasks, allProjects);
+    if (!title) continue;
+    out.push({ target: c.target, title });
+  }
+  return out;
+}
+function wouldCreateCycle(ownerType, ownerId, target, allTasks, allProjects) {
+  const visited = /* @__PURE__ */ new Set();
+  const stack = [target];
+  const key = (t) => `${t.type}:${t.id}`;
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (cur.type === ownerType && cur.id === ownerId) return true;
+    const k = key(cur);
+    if (visited.has(k)) continue;
+    visited.add(k);
+    const node = cur.type === "task" ? allTasks.find((t) => t.id === cur.id) : allProjects.find((p) => p.id === cur.id);
+    if (!node) continue;
+    for (const c of node.connections ?? []) {
+      if (c.linkType !== "depends_on") continue;
+      stack.push(c.target);
+    }
+  }
+  return false;
+}
+function connectionKey(c) {
+  return `${c.linkType}:${c.target.type}:${c.target.id}`;
+}
+var init_queries7 = __esm({
+  "src/features/connections/queries.ts"() {
+    init_models();
+  }
+});
+
+// src/features/notifications/queries.ts
+async function createNotification(input) {
+  if (input.recipientUid === input.actorUid) return;
+  const { sticker, checklistItemId, channelKind, messageId, threadRootId, excerpt: excerpt2, ...resto } = input;
+  await addDoc(notificationsCol(input.recipientUid), {
+    ...resto,
+    projectId: input.projectId ?? "",
+    projectName: input.projectName ?? "",
+    taskId: input.taskId ?? "",
+    taskTitle: input.taskTitle ?? "",
+    ...sticker ? { sticker } : {},
+    ...checklistItemId ? { checklistItemId } : {},
+    ...channelKind ? { channelKind } : {},
+    ...messageId ? { messageId } : {},
+    ...threadRootId ? { threadRootId } : {},
+    ...excerpt2 ? { excerpt: excerpt2 } : {},
+    read: false,
+    createdAt: serverTimestamp()
+  });
+}
+async function markAsRead(uid, notifId) {
+  await updateDoc(notificationDoc(uid, notifId), { read: true });
+}
+async function markAllAsRead(uid) {
+  const snap = await getDocs(
+    query(notificationsCol(uid), orderBy("createdAt", "desc"), limit(50))
+  );
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    if (!d.data().read) batch.update(d.ref, { read: true });
+  });
+  await batch.commit();
+}
+var init_queries8 = __esm({
+  "src/features/notifications/queries.ts"() {
+    init_firestore();
+    init_firebase();
+    init_firestore_paths();
+    init_models();
+  }
+});
+
+// src/features/project-detail/statusChange.ts
+function blockedByDependenciesMessage(task, allTasks, projects) {
+  const open = getOpenDependencies(task, allTasks, projects);
+  if (open.length === 0) return null;
+  return `Bloqueada por: ${open.map((d) => d.title).join(", ")}`;
+}
+function closeChecklistOnDone(checklist) {
+  const list = checklist ?? [];
+  if (!list.some((item) => !item.done)) return null;
+  return list.map((item) => item.done ? item : { ...item, done: true });
+}
+var init_statusChange = __esm({
+  "src/features/project-detail/statusChange.ts"() {
+    init_queries7();
   }
 });
 
@@ -36042,368 +36940,6 @@ var init_utils = __esm({
   }
 });
 
-// src/features/project-detail/roadmap/metrics.ts
-function taskCompletion(task, doneSet) {
-  if (doneSet.has(task.status)) return 1;
-  const checklist = task.checklist ?? [];
-  if (checklist.length === 0) return 0;
-  return checklist.filter((item) => item.done).length / checklist.length;
-}
-function phaseMetrics(phase, tasks, doneSet, options = {}) {
-  const own = tasks.filter((t) => t.phaseId === phase.id);
-  const doneCount = own.filter((t) => doneSet.has(t.status)).length;
-  const pending = own.filter((t) => !doneSet.has(t.status));
-  const totalCount = own.length;
-  let progress;
-  let status;
-  if (totalCount === 0) {
-    progress = phase.progress;
-    status = phase.status;
-  } else {
-    const completed = options.weighted ? own.reduce((sum, t) => sum + taskCompletion(t, doneSet), 0) : doneCount;
-    const raw = completed / totalCount * 100;
-    const allDone = doneCount === totalCount;
-    progress = allDone ? 100 : raw > 0 ? Math.min(99, Math.max(1, Math.round(raw))) : 0;
-    status = allDone ? "done" : raw > 0 ? "doing" : "todo";
-  }
-  let overdueCount = 0;
-  let dueTodayCount = 0;
-  let nextDue = null;
-  let nextDueAt = null;
-  for (const task of pending) {
-    const due = toDate2(task.dueDate);
-    if (!due) continue;
-    if (isOverdue(due)) overdueCount += 1;
-    else if (isDueToday(due)) dueTodayCount += 1;
-    const at = due.getTime();
-    if (nextDueAt === null || at < nextDueAt) {
-      nextDueAt = at;
-      nextDue = task;
-    }
-  }
-  let health;
-  if (overdueCount > 0) health = "overdue";
-  else if (dueTodayCount > 0) health = "today";
-  else if (nextDue) health = "ontrack";
-  else if (totalCount > 0 && doneCount === totalCount) health = "ontrack";
-  else health = "nodates";
-  return { progress, status, doneCount, totalCount, overdueCount, dueTodayCount, nextDue, health };
-}
-function metricsOptionsFor(roadmapType) {
-  return { weighted: (roadmapType ?? "sequencial") !== "paralelo" };
-}
-function buildRoadmapItems(phases, tasks, doneSet, roadmapType) {
-  const options = metricsOptionsFor(roadmapType);
-  return phases.map((phase) => {
-    const metrics = phaseMetrics(phase, tasks, doneSet, options);
-    return {
-      phase: { ...phase, progress: metrics.progress, status: metrics.status },
-      metrics
-    };
-  });
-}
-var init_metrics = __esm({
-  "src/features/project-detail/roadmap/metrics.ts"() {
-    init_utils();
-  }
-});
-
-// src/features/project-detail/roadmap/labels.ts
-function roadmapNouns(type) {
-  return ROADMAP_NOUNS[type ?? "sequencial"];
-}
-var ROADMAP_NOUNS;
-var init_labels = __esm({
-  "src/features/project-detail/roadmap/labels.ts"() {
-    ROADMAP_NOUNS = {
-      sequencial: {
-        singular: "fase",
-        plural: "fases",
-        newAction: "Nova fase",
-        nameLabel: "Nome da fase",
-        namePlaceholder: "Descoberta, MVP, Lan\xE7amento\u2026",
-        descPlaceholder: "O que essa fase representa?",
-        dialogNew: "Nova fase",
-        dialogEdit: "Editar fase",
-        submitNew: "Criar fase",
-        createdToast: "Fase criada",
-        updatedToast: "Fase atualizada",
-        removedToast: "Fase removida",
-        removeTitle: "Remover fase?",
-        removeBody: (name4) => `A fase "${name4}" ser\xE1 removida do roadmap.`,
-        emptyTitle: "Comece a jornada",
-        emptyBody: "Divida este projeto em fases sequenciais \u2014 pesquisa, MVP, lan\xE7amento\u2026 \u2014 e acompanhe a trilha rumo ao cume.",
-        emptyAction: "Criar primeira fase",
-        orderAction: "Organizar fases",
-        orderTitle: "Organizar fases",
-        orderBody: "Arraste para definir a sequ\xEAncia. A primeira da lista \xE9 a primeira montanha da trilha.",
-        orderSavedToast: "Ordem das fases salva"
-      },
-      paralelo: {
-        singular: "frente",
-        plural: "frentes",
-        newAction: "Nova frente",
-        nameLabel: "Nome da frente",
-        namePlaceholder: "Ingest\xE3o de dados, Modelagem, Visual\u2026",
-        descPlaceholder: "O que essa frente cobre?",
-        dialogNew: "Nova frente",
-        dialogEdit: "Editar frente",
-        submitNew: "Criar frente",
-        createdToast: "Frente criada",
-        updatedToast: "Frente atualizada",
-        removedToast: "Frente removida",
-        removeTitle: "Remover frente?",
-        removeBody: (name4) => `A frente "${name4}" ser\xE1 removida do roadmap.`,
-        emptyTitle: "Abra as frentes",
-        emptyBody: "Separe o projeto nas frentes que rodam em paralelo. Cada uma segue no seu ritmo, medida pelas atividades pendentes.",
-        emptyAction: "Criar primeira frente",
-        orderAction: "Organizar frentes",
-        orderTitle: "Organizar frentes",
-        orderBody: "Arraste para definir em que ordem as frentes aparecem no roadmap.",
-        orderSavedToast: "Ordem das frentes salva"
-      }
-    };
-  }
-});
-
-// src/features/projects/queries.ts
-async function fetchProjects(wsId, status = "active") {
-  const q = query(wsProjectsCol(wsId), where("status", "==", status), orderBy("updatedAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-async function createProject(wsId, input) {
-  const ref = await addDoc(wsProjectsCol(wsId), {
-    name: input.name.trim(),
-    description: input.description.trim(),
-    color: input.color,
-    status: "active",
-    phase: "planejando",
-    hasRoadmap: input.hasRoadmap ?? false,
-    roadmapType: input.roadmapType ?? "sequencial",
-    // Projetos são sempre da equipe: sem memberUids, todos os membros da workspace veem.
-    visibility: input.visibility ?? "team",
-    createdBy: input.createdBy ?? "",
-    ...input.columns ? { columns: input.columns } : {},
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
-  await assignProjectCodes(wsId, ref.id).catch((err) => console.error("[task-code] sigla do projeto novo", err));
-  return ref.id;
-}
-async function updateProject(wsId, projectId, patch) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { ...patch, updatedAt: serverTimestamp() });
-}
-async function archiveProject(wsId, projectId) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
-}
-async function unarchiveProject(wsId, projectId) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
-}
-async function updateProjectPhase(wsId, projectId, phase) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
-}
-var init_queries5 = __esm({
-  "src/features/projects/queries.ts"() {
-    init_firestore();
-    init_firebase();
-    init_firestore_paths();
-    init_queries();
-    init_queries2();
-    init_queries3();
-    init_codes();
-  }
-});
-
-// mcp/src/context.ts
-async function lembrado(chave, carregar) {
-  const hit = cache2.get(chave);
-  if (hit && Date.now() - hit.em < TTL_MS) return hit.valor;
-  const valor = await carregar();
-  cache2.set(chave, { em: Date.now(), valor });
-  return valor;
-}
-function esquecer(prefixo) {
-  for (const k of cache2.keys()) if (k.startsWith(prefixo)) cache2.delete(k);
-}
-function descreverWorkspaces2(lista) {
-  return lista.map((m) => `- ${m.workspaceName} (id ${m.id})`).join("\n");
-}
-async function minhasWorkspaces(uid) {
-  return lembrado(`memberships:${uid}`, () => fetchMemberships(uid));
-}
-async function contexto(workspace) {
-  const eu = await ensureSignedIn();
-  const memberships = await minhasWorkspaces(eu.uid);
-  if (memberships.length === 0) {
-    throw new GliaToolError(
-      "Voc\xEA ainda n\xE3o tem workspace na Glia. Abra a Glia no navegador uma vez (ela cria a sua) e tente de novo."
-    );
-  }
-  const padrao = workspacePadrao();
-  const alvo = workspace?.trim() || flags.workspace || padrao?.id;
-  let ws;
-  if (alvo) {
-    ws = acharMembership(memberships, alvo);
-    if (!ws) {
-      const origem = workspace?.trim() ? "" : padrao && alvo === padrao.id ? " (era a padr\xE3o fixada \u2014 voc\xEA saiu dela?)" : "";
-      throw new GliaToolError(`Workspace "${alvo}" n\xE3o encontrada${origem}. Suas workspaces:
-${descreverWorkspaces2(memberships)}`);
-    }
-  } else if (memberships.length === 1) {
-    ws = memberships[0];
-  } else {
-    throw new GliaToolError(
-      `Ainda n\xE3o h\xE1 workspace padr\xE3o nesta m\xE1quina e voc\xEA est\xE1 em ${memberships.length}:
-${descreverWorkspaces2(memberships)}
-
-Pergunte ao usu\xE1rio qual usar e fixe com a tool \`usar_workspace\` \u2014 a escolha fica salva para as pr\xF3ximas vezes.`
-    );
-  }
-  const wsId = ws.id;
-  return {
-    eu,
-    wsId,
-    wsName: ws.workspaceName,
-    membros: () => lembrado(`membros:${wsId}`, () => fetchWorkspaceMembers(wsId)),
-    projetos: (incluirArquivados = false) => lembrado(`projetos:${wsId}:${incluirArquivados}`, async () => {
-      await ensureProjectCodes(wsId);
-      const ativos = await fetchProjects(wsId, "active");
-      const arquivados = incluirArquivados ? await fetchProjects(wsId, "archived") : [];
-      return [...ativos, ...arquivados].filter((p) => canAccessProject(p, eu.uid));
-    })
-  };
-}
-var GliaToolError, TTL_MS, cache2;
-var init_context = __esm({
-  "mcp/src/context.ts"() {
-    "use strict";
-    init_queries5();
-    init_codes();
-    init_queries4();
-    init_models();
-    init_session();
-    init_workspace();
-    init_config();
-    GliaToolError = class extends Error {
-      constructor(message) {
-        super(message);
-        this.name = "GliaToolError";
-      }
-    };
-    TTL_MS = 3e4;
-    cache2 = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/features/calendar/queries.ts
-async function fetchAllTasks(wsId) {
-  const projectsSnap = await getDocs(query(wsProjectsCol(wsId), where("status", "==", "active")));
-  const projectIds = projectsSnap.docs.map((d) => d.id);
-  if (projectIds.length === 0) return [];
-  const taskArrays = await Promise.all(
-    projectIds.map(async (pid) => {
-      const snap = await getDocs(wsTasksCol(wsId, pid));
-      return snap.docs.map((d) => ({
-        id: d.id,
-        projectId: pid,
-        ...d.data()
-      }));
-    })
-  );
-  return taskArrays.flat();
-}
-var init_queries6 = __esm({
-  "src/features/calendar/queries.ts"() {
-    init_firestore();
-    init_firestore_paths();
-  }
-});
-
-// src/features/connections/queries.ts
-function resolveTitle(target, allTasks, allProjects) {
-  if (target.type === "task") {
-    const t = allTasks.find((x) => x.id === target.id);
-    return t ? t.title : null;
-  }
-  const p = allProjects.find((x) => x.id === target.id);
-  return p ? p.name : null;
-}
-function isTargetClosed(target, allTasks, allProjects) {
-  if (target.type === "task") {
-    const t = allTasks.find((x) => x.id === target.id);
-    if (!t) return true;
-    const proj = allProjects.find((p2) => p2.id === t.projectId);
-    return doneStatusIds(proj?.columns).has(t.status);
-  }
-  const p = allProjects.find((x) => x.id === target.id);
-  if (!p) return true;
-  return p.status === "archived" || p.phase === "concluido";
-}
-function getOpenDependencies(owner, allTasks, allProjects) {
-  const conns = owner.connections ?? [];
-  const out = [];
-  for (const c of conns) {
-    if (c.linkType !== "depends_on") continue;
-    if (isTargetClosed(c.target, allTasks, allProjects)) continue;
-    const title = resolveTitle(c.target, allTasks, allProjects);
-    if (!title) continue;
-    out.push({ target: c.target, title });
-  }
-  return out;
-}
-var init_queries7 = __esm({
-  "src/features/connections/queries.ts"() {
-    init_models();
-  }
-});
-
-// src/features/notifications/queries.ts
-async function createNotification(input) {
-  if (input.recipientUid === input.actorUid) return;
-  const { sticker, checklistItemId, channelKind, messageId, threadRootId, excerpt, ...resto } = input;
-  await addDoc(notificationsCol(input.recipientUid), {
-    ...resto,
-    projectId: input.projectId ?? "",
-    projectName: input.projectName ?? "",
-    taskId: input.taskId ?? "",
-    taskTitle: input.taskTitle ?? "",
-    ...sticker ? { sticker } : {},
-    ...checklistItemId ? { checklistItemId } : {},
-    ...channelKind ? { channelKind } : {},
-    ...messageId ? { messageId } : {},
-    ...threadRootId ? { threadRootId } : {},
-    ...excerpt ? { excerpt } : {},
-    read: false,
-    createdAt: serverTimestamp()
-  });
-}
-var init_queries8 = __esm({
-  "src/features/notifications/queries.ts"() {
-    init_firestore();
-    init_firebase();
-    init_firestore_paths();
-    init_models();
-  }
-});
-
-// src/features/project-detail/statusChange.ts
-function blockedByDependenciesMessage(task, allTasks, projects) {
-  const open = getOpenDependencies(task, allTasks, projects);
-  if (open.length === 0) return null;
-  return `Bloqueada por: ${open.map((d) => d.title).join(", ")}`;
-}
-function closeChecklistOnDone(checklist) {
-  const list = checklist ?? [];
-  if (!list.some((item) => !item.done)) return null;
-  return list.map((item) => item.done ? item : { ...item, done: true });
-}
-var init_statusChange = __esm({
-  "src/features/project-detail/statusChange.ts"() {
-    init_queries7();
-  }
-});
-
 // mcp/src/glia.ts
 async function resolveProjeto(ctx, ref, incluirArquivados = false) {
   const alvo = ref.trim();
@@ -36633,10 +37169,11 @@ async function inserirFases(ctx, projeto, novas, posicao) {
   }
   return { ids, ligouPanorama };
 }
-async function moverTarefa(ctx, projeto, tarefa, colunaRef) {
+async function moverTarefa(ctx, projeto, tarefa, colunaRef, posicao) {
   const coluna = resolveColuna(projeto, colunaRef);
-  if (coluna.id === tarefa.status) {
-    throw new GliaToolError(`${codigo(projeto, tarefa)} j\xE1 est\xE1 em "${coluna.label}".`);
+  const mesmaColuna = coluna.id === tarefa.status;
+  if (mesmaColuna && posicao === void 0) {
+    throw new GliaToolError(`${codigo(projeto, tarefa)} j\xE1 est\xE1 em "${coluna.label}". Para reordenar dentro da coluna, informe \`posicao\`.`);
   }
   const done = doneStatusIds(projeto.columns);
   const entrouConclusao = done.has(coluna.id) && !done.has(tarefa.status);
@@ -36645,12 +37182,25 @@ async function moverTarefa(ctx, projeto, tarefa, colunaRef) {
     const bloqueio = blockedByDependenciesMessage(tarefa, todas, projetos);
     if (bloqueio) throw new GliaToolError(`A Glia recusou concluir ${codigo(projeto, tarefa)}: ${bloqueio}.`);
   }
-  const irmas = await fetchTasks(ctx.wsId, projeto.id);
-  const order = irmas.filter((t) => t.status === coluna.id).reduce((m, t) => Math.max(m, t.order), -1) + 1;
+  const irmas = (await fetchTasks(ctx.wsId, projeto.id)).filter((t) => t.status === coluna.id && t.id !== tarefa.id).sort((a, b) => a.order - b.order);
   const checklist = entrouConclusao ? closeChecklistOnDone(tarefa.checklist) : null;
-  await updateTask(ctx.wsId, projeto.id, tarefa.id, checklist ? { status: coluna.id, order, checklist } : { status: coluna.id, order });
   const fechouChecklist = checklist ? (tarefa.checklist ?? []).filter((i) => !i.done).length : 0;
-  return { coluna, entrouConclusao, fechouChecklist };
+  if (posicao === void 0) {
+    const order = irmas.reduce((m, t) => Math.max(m, t.order), -1) + 1;
+    await updateTask(ctx.wsId, projeto.id, tarefa.id, checklist ? { status: coluna.id, order, checklist } : { status: coluna.id, order });
+    return { coluna, entrouConclusao, fechouChecklist };
+  }
+  const idx = Math.min(Math.max(Math.trunc(posicao) - 1, 0), irmas.length);
+  const fila2 = [...irmas.slice(0, idx), tarefa, ...irmas.slice(idx)];
+  await reorderTasks(
+    ctx.wsId,
+    projeto.id,
+    fila2.flatMap((t, i) => {
+      if (t.id === tarefa.id) return [{ id: t.id, status: coluna.id, order: i, ...checklist ? { checklist } : {} }];
+      return t.order === i ? [] : [{ id: t.id, status: coluna.id, order: i }];
+    })
+  );
+  return { coluna, entrouConclusao, fechouChecklist, posicao: idx + 1 };
 }
 async function dependenciasAbertas(ctx, tarefa) {
   if (!tarefa.connections?.some((c) => c.linkType === "depends_on")) return [];
@@ -36684,10 +37234,14 @@ async function avisarMencoes(ctx, projeto, taskId, taskTitle, texto) {
   await disparar(uids.map((uid) => ({ ...base(ctx, projeto, taskId, taskTitle), recipientUid: uid, type: "task_mentioned" })));
   return uids;
 }
-async function avisarSubtarefa(ctx, projeto, taskId, taskTitle, item) {
+async function avisarSubtarefa(ctx, projeto, taskId, taskTitle, item, antes) {
   const membros = await ctx.membros();
   const alvos = new Set(resolveMentions(item.text, membros));
   if (item.assigneeUid) alvos.add(item.assigneeUid);
+  if (antes) {
+    for (const uid of resolveMentions(antes.text, membros)) alvos.delete(uid);
+    if (antes.assigneeUid) alvos.delete(antes.assigneeUid);
+  }
   alvos.delete(ctx.eu.uid);
   await disparar(
     [...alvos].map((uid) => ({
@@ -36704,25 +37258,161 @@ async function nomes(ctx, uids) {
   const membros = await ctx.membros();
   return uids.map((uid) => membros.find((m) => m.uid === uid)?.displayName ?? uid).join(", ");
 }
+async function todasAsTarefas(ctx, incluirArquivados = false) {
+  const projetos = await ctx.projetos(incluirArquivados);
+  const listas = await Promise.all(
+    projetos.map(async (projeto) => (await tarefasDoProjeto(ctx, projeto)).map((tarefa) => ({ projeto, tarefa })))
+  );
+  return listas.flat();
+}
+async function opcoesDeCitacao(ctx, canal) {
+  const todas = await todasAsTarefas(ctx);
+  return todas.filter(({ projeto }) => canal.kind === "global" || projeto.id === canal.projectId).map(({ projeto, tarefa }) => ({
+    taskId: tarefa.id,
+    projectId: projeto.id,
+    title: tarefa.title,
+    code: formatTaskCode(projeto.code, tarefa.seq),
+    statusLabel: rotuloColuna(projeto, tarefa.status),
+    done: doneStatusIds(projeto.columns).has(tarefa.status),
+    projectName: projeto.name,
+    projectColor: projeto.color
+  }));
+}
+async function resolveAnotacao(ctx, ref, projetoRef) {
+  const alvo = ref.trim();
+  if (!alvo) throw new GliaToolError("Informe a anota\xE7\xE3o (t\xEDtulo ou id).");
+  const projetos = projetoRef ? [await resolveProjeto(ctx, projetoRef, true)] : await ctx.projetos();
+  const todas = (await Promise.all(projetos.map(async (projeto) => (await fetchNotes(ctx.wsId, projeto.id)).map((nota) => ({ projeto, nota }))))).flat();
+  const porId = todas.find((a) => a.nota.id === alvo);
+  if (porId) return porId;
+  const n = normalize(alvo);
+  const exatas = todas.filter((a) => normalize(tituloDaNota(a.nota)) === n);
+  if (exatas.length === 1) return exatas[0];
+  const parciais = todas.filter((a) => normalize(tituloDaNota(a.nota)).includes(n));
+  if (parciais.length === 1 && exatas.length === 0) return parciais[0];
+  const candidatas = exatas.length > 1 ? exatas : parciais;
+  if (candidatas.length > 1) {
+    throw new GliaToolError(
+      `"${alvo}" bate com mais de uma anota\xE7\xE3o \u2014 use o id:
+${candidatas.map((a) => `- ${tituloDaNota(a.nota)} (${a.projeto.name}, id ${a.nota.id})`).join("\n")}`
+    );
+  }
+  throw new GliaToolError(`Anota\xE7\xE3o "${alvo}" n\xE3o encontrada${projetoRef ? ` em ${projetos[0].name}` : ""}. Use listar_anotacoes.`);
+}
+async function portalDoProjeto(ctx, projeto, opcoes = {}) {
+  if (!projeto.portalId) {
+    if (!opcoes.garantir) return null;
+    const id = await createPortalForProject(ctx.wsId, projeto.id, projeto.name, ctx.eu.uid);
+    esquecer(`projetos:${ctx.wsId}`);
+    const portal2 = await fetchPortal(id);
+    if (!portal2) throw new GliaToolError("Criei o portal mas n\xE3o consegui rel\xEA-lo. Confira na aba Melhorias.");
+    return { portal: portal2, criado: true, reativado: false };
+  }
+  const portal = await fetchPortal(projeto.portalId);
+  if (!portal) throw new GliaToolError(`O projeto ${projeto.name} aponta para um portal que n\xE3o existe mais. Pe\xE7a ao time para reativar na aba Melhorias.`);
+  if (!portal.ativo && opcoes.reativar) {
+    await setPortalAtivo(portal.id, true);
+    return { portal: { ...portal, ativo: true }, criado: false, reativado: true };
+  }
+  return { portal, criado: false, reativado: false };
+}
+async function sincronizarNomeDoPortal(p, nome) {
+  if (p.portalId) await syncPortalProjectName(p.portalId, nome).catch(() => {
+  });
+}
+function resolveSugestao(lista, ref) {
+  const alvo = ref.trim();
+  const porId = lista.find((s) => s.id === alvo);
+  if (porId) return porId;
+  const n = normalize(alvo);
+  const exatas = lista.filter((s) => normalize(s.titulo) === n);
+  if (exatas.length === 1) return exatas[0];
+  const parciais = lista.filter((s) => normalize(s.titulo).includes(n));
+  if (parciais.length === 1 && exatas.length === 0) return parciais[0];
+  const candidatas = exatas.length > 1 ? exatas : parciais;
+  if (candidatas.length > 1) {
+    throw new GliaToolError(`"${alvo}" bate com mais de uma sugest\xE3o \u2014 use o id:
+${candidatas.map((s) => `- ${s.titulo} (id ${s.id})`).join("\n")}`);
+  }
+  throw new GliaToolError(`Sugest\xE3o "${alvo}" n\xE3o encontrada. Use listar_sugestoes.`);
+}
+async function resolveCanal(ctx, ref) {
+  const alvo = ref?.trim() ?? "";
+  if (!alvo || ["geral", "global", "chat geral", "workspace"].includes(normalize(alvo))) {
+    return { canal: GLOBAL_CHANNEL, nome: "Chat geral", projeto: null };
+  }
+  const projeto = await resolveProjeto(ctx, alvo);
+  return { canal: { kind: "project", projectId: projeto.id }, nome: `#${projeto.name}`, projeto };
+}
+async function lerMensagem(ctx, c, messageId) {
+  const m = await fetchChatMessage(ctx.wsId, c.canal, messageId.trim());
+  if (!m) throw new GliaToolError(`Mensagem ${messageId} n\xE3o encontrada em ${c.nome}. Use ler_chat para ver os ids.`);
+  return m;
+}
+function contextoDoChat(ctx, c) {
+  return {
+    wsId: ctx.wsId,
+    channel: c.canal,
+    projectName: c.projeto?.name ?? "",
+    actor: { uid: ctx.eu.uid, name: nomeDe(ctx.eu), photo: fotoDe(ctx.eu) }
+  };
+}
+function lerFigurinha(ref) {
+  const n = normalize(ref.trim()).replace(/\s+/g, "");
+  const achada = Object.keys(FIGURINHAS).find((e) => e === n || normalize(FIGURINHAS[e]).replace(/\s+/g, "") === n);
+  if (!achada) throw new GliaToolError(`Figurinha "${ref}" n\xE3o existe. Use: ${Object.keys(FIGURINHAS).join(", ")}.`);
+  return achada;
+}
+function lerDiaLocal(valor, rotulo) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor.trim());
+  if (!m) throw new GliaToolError(`${rotulo} "${valor}" inv\xE1lido \u2014 use AAAA-MM-DD.`);
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+var link, tituloDaNota, FIGURINHAS;
 var init_glia = __esm({
   "mcp/src/glia.ts"() {
     "use strict";
     init_firestore();
     init_queries6();
     init_parse();
+    init_queries2();
     init_queries7();
     init_queries8();
     init_queries();
     init_labels();
     init_statusChange();
     init_queries5();
+    init_queries3();
     init_codes();
     init_firestore_paths();
     init_task_code();
     init_utils();
     init_models();
     init_session();
+    init_config();
     init_context();
+    link = {
+      projeto: (p) => `${HOSTING_ORIGIN}/projetos/${p.id}`,
+      aba: (p, aba) => `${HOSTING_ORIGIN}/projetos/${p.id}?tab=${aba}`,
+      tarefa: (p, t) => `${HOSTING_ORIGIN}/projetos/${p.id}?task=${t.id}`,
+      anotacao: (projectId, noteId) => `${HOSTING_ORIGIN}/projetos/${projectId}?tab=anotacoes&nota=${noteId}`,
+      relatorio: (p) => `${HOSTING_ORIGIN}/projetos/${p.id}/relatorio`,
+      portal: (portalId) => `${HOSTING_ORIGIN}/sugestoes/${portalId}`,
+      convite: (wsId, token) => `${HOSTING_ORIGIN}/entrar/${wsId}/${token}`,
+      chat: (canal, messageId) => `${HOSTING_ORIGIN}/chat?canal=${channelKey(canal)}${messageId ? `&msg=${messageId}` : ""}`,
+      calendario: () => `${HOSTING_ORIGIN}/calendario`
+    };
+    tituloDaNota = (n) => n.title.trim() || n.content.trim().split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 60) || "(sem t\xEDtulo)";
+    FIGURINHAS = {
+      joinha: "Joinha",
+      amei: "Amei",
+      haha: "Haha",
+      festa: "Festa",
+      uau: "Uau",
+      chorei: "Chorei",
+      nogas: "No g\xE1s",
+      feito: "Feito"
+    };
   }
 });
 
@@ -36738,9 +37428,16 @@ function data(ts) {
   if (!ts || typeof ts.toDate !== "function") return null;
   return ts.toDate().toISOString().slice(0, 10);
 }
+function dataHoraLocal(d) {
+  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())} ${dois(d.getHours())}:${dois(d.getMinutes())}`;
+}
 function dataHora(ts) {
   if (!ts || typeof ts.toDate !== "function") return "?";
-  return ts.toDate().toISOString().slice(0, 16).replace("T", " ");
+  return dataHoraLocal(ts.toDate());
+}
+function trecho(texto, max = 160) {
+  const limpo = texto.replace(/\s+/g, " ").trim();
+  return limpo.length > max ? `${limpo.slice(0, max - 1)}\u2026` : limpo;
 }
 function responsaveis(t) {
   const lista = taskAssignees(t).map((a) => a.name ?? a.uid);
@@ -36770,10 +37467,11 @@ function listaTarefas(projeto, tarefas, titulo) {
 
 ${tarefas.map((t) => linhaTarefa(projeto, t)).join("\n")}`;
 }
-function detalheTarefa(projeto, t, mensagens, dependenciasAbertas2, fase) {
+function detalheTarefa(projeto, t, mensagens, dependenciasAbertas2, fase, extras = {}) {
   const linhas = [];
   linhas.push(`# ${codigo(projeto, t)} \u2014 ${t.title}`);
   linhas.push(`Projeto: ${projeto.name}${projeto.code ? ` (${projeto.code})` : ""} \xB7 id da tarefa: ${t.id}`);
+  if (extras.link) linhas.push(`Abrir na Glia: ${extras.link}`);
   const meta = [
     `coluna: ${rotuloColuna(projeto, t.status)} (${t.status})`,
     `prioridade: ${PRIORIDADE[t.priority] ?? t.priority}`,
@@ -36797,18 +37495,34 @@ function detalheTarefa(projeto, t, mensagens, dependenciasAbertas2, fase) {
   if (dependenciasAbertas2.length) {
     linhas.push("", "## Depend\xEAncias abertas (bloqueiam a conclus\xE3o)", ...dependenciasAbertas2.map((d) => `- ${d}`));
   }
-  const relacionadas = (t.connections ?? []).filter((c) => c.linkType === "related_to").length;
-  if (relacionadas) linhas.push("", `(${relacionadas} item(ns) relacionado(s))`);
+  if (extras.conexoes?.length) {
+    linhas.push("", "## Conex\xF5es");
+    for (const c of extras.conexoes) {
+      linhas.push(`- ${c.tipo === "depends_on" ? "depende de" : "relacionada a"} ${c.rotulo}${c.tipo === "depends_on" ? c.aberta ? " (aberta)" : " (conclu\xEDda)" : ""}`);
+    }
+  }
+  const reacoes = Object.entries(t.reactions ?? {}).filter(([, uids]) => uids?.length);
+  if (reacoes.length) linhas.push("", `Rea\xE7\xF5es no cart\xE3o: ${reacoes.map(([e, uids]) => `${e} \xD7${uids.length}`).join(", ")}`);
   linhas.push("", `## Coment\xE1rios (${mensagens.length})`);
   if (mensagens.length === 0) linhas.push("(nenhum)");
   for (const m of mensagens) {
     if (m.kind === "sticker") {
-      linhas.push(`- ${dataHora(m.createdAt)} **${m.authorName}** enviou a figurinha "${m.sticker}"`);
+      linhas.push(`- ${dataHora(m.createdAt)} **${m.authorName}** enviou a figurinha "${m.sticker}"  \`${m.id}\``);
       continue;
     }
-    linhas.push(`- ${dataHora(m.createdAt)} **${m.authorName}**: ${m.text}`);
+    linhas.push(`- ${dataHora(m.createdAt)} **${m.authorName}**: ${m.text}  \`${m.id}\``);
   }
-  if (t.sourceSugestao) linhas.push("", `Origem: sugest\xE3o "${t.sourceSugestao.titulo}" de ${t.sourceSugestao.authorName} no portal.`);
+  if (extras.citacoes?.length) {
+    linhas.push("", `## Citada no chat (${extras.citacoes.length})`);
+    for (const c of extras.citacoes.slice(0, 10)) linhas.push(`- ${c.quando} ${c.canal} \xB7 **${c.autor}**: ${trecho(c.texto, 200)}`);
+  }
+  if (t.sourceSugestao) {
+    const prints = t.sourceSugestao.miniaturas?.length ?? 0;
+    linhas.push(
+      "",
+      `Origem: sugest\xE3o "${t.sourceSugestao.titulo}" de ${t.sourceSugestao.authorName} no portal (id ${t.sourceSugestao.sugestaoId})${prints ? ` \u2014 ${prints} print(s): ver_sugestao mostra as imagens` : ""}.`
+    );
+  }
   if (t.sourceMessage) linhas.push("", "Origem: uma mensagem do chat da workspace.");
   return linhas.join("\n");
 }
@@ -36871,7 +37585,7 @@ function abertasPorProjeto(projeto, tarefas) {
   const done = doneStatusIds(projeto.columns);
   return tarefas.filter((t) => !done.has(t.status)).length;
 }
-var PRIORIDADE;
+var PRIORIDADE, dois;
 var init_format2 = __esm({
   "mcp/src/format.ts"() {
     "use strict";
@@ -36879,13 +37593,24 @@ var init_format2 = __esm({
     init_models();
     init_glia();
     PRIORIDADE = { low: "baixa", med: "m\xE9dia", high: "alta" };
+    dois = (n) => String(n).padStart(2, "0");
   }
 });
 
 // mcp/src/tools/comum.ts
+function deDataUrl(dataUrl) {
+  const m = /^data:([^;,]+);base64,(.*)$/s.exec(dataUrl);
+  return m ? { mimeType: m[1], data: m[2] } : null;
+}
 async function executar(fn) {
   try {
-    return { content: [{ type: "text", text: await fn() }] };
+    const r = await fn();
+    if (typeof r === "string") return { content: [{ type: "text", text: r }] };
+    const imagens = (r.imagens ?? []).flatMap((i) => {
+      const img = deDataUrl(i.dataUrl);
+      return img ? [{ type: "image", ...img }] : [];
+    });
+    return { content: [{ type: "text", text: r.texto }, ...imagens] };
   } catch (err) {
     return { content: [{ type: "text", text: mensagemDeErro(err) }], isError: true };
   }
@@ -36924,203 +37649,69 @@ var init_queries9 = __esm({
   }
 });
 
-// mcp/src/tools/projetos.ts
-function lerSituacao(texto) {
-  const n = normalize(texto.trim()).replace(/[_-]/g, " ");
-  const achada = PROJECT_PHASES.find((s) => normalize(PROJECT_PHASE_LABELS[s]) === n || s.replace("_", " ") === n);
-  if (!achada) throw new GliaToolError(`Situa\xE7\xE3o "${texto}" inv\xE1lida \u2014 use ${PROJECT_PHASES.map((s) => PROJECT_PHASE_LABELS[s].toLowerCase()).join(", ")}.`);
-  return achada;
+// src/features/project-detail/roadmap/metrics.ts
+function taskCompletion(task, doneSet) {
+  if (doneSet.has(task.status)) return 1;
+  const checklist = task.checklist ?? [];
+  if (checklist.length === 0) return 0;
+  return checklist.filter((item) => item.done).length / checklist.length;
 }
-async function garantirNomeLivre(ctx, nome, exceto) {
-  const todos = await ctx.projetos(true);
-  const igual = todos.find((p) => p.id !== exceto && normalize(p.name.trim()) === normalize(nome));
-  if (igual) {
-    throw new GliaToolError(
-      `J\xE1 existe o projeto "${igual.name}" (${igual.code ?? "sem sigla"}${igual.status === "archived" ? ", arquivado" : ""}). Use esse \u2014 atualizar_projeto muda o que precisar \u2014 ou escolha outro nome.`
-    );
+function phaseMetrics(phase, tasks, doneSet, options = {}) {
+  const own = tasks.filter((t) => t.phaseId === phase.id);
+  const doneCount = own.filter((t) => doneSet.has(t.status)).length;
+  const pending = own.filter((t) => !doneSet.has(t.status));
+  const totalCount = own.length;
+  let progress;
+  let status;
+  if (totalCount === 0) {
+    progress = phase.progress;
+    status = phase.status;
+  } else {
+    const completed = options.weighted ? own.reduce((sum, t) => sum + taskCompletion(t, doneSet), 0) : doneCount;
+    const raw = completed / totalCount * 100;
+    const allDone = doneCount === totalCount;
+    progress = allDone ? 100 : raw > 0 ? Math.min(99, Math.max(1, Math.round(raw))) : 0;
+    status = allDone ? "done" : raw > 0 ? "doing" : "todo";
   }
-}
-function montarColunas(nomes2) {
-  const limpos = nomes2.map((n) => n.trim()).filter(Boolean);
-  if (limpos.length < 2) throw new GliaToolError('Informe ao menos duas colunas (ex. "A Fazer" e "Conclu\xEDdo") \u2014 a \xFAltima \xE9 a de conclus\xE3o.');
-  const vistos = /* @__PURE__ */ new Set();
-  for (const n of limpos) {
-    if (vistos.has(normalize(n))) throw new GliaToolError(`Coluna "${n}" repetida.`);
-    vistos.add(normalize(n));
+  let overdueCount = 0;
+  let dueTodayCount = 0;
+  let nextDue = null;
+  let nextDueAt = null;
+  for (const task of pending) {
+    const due = toDate2(task.dueDate);
+    if (!due) continue;
+    if (isOverdue(due)) overdueCount += 1;
+    else if (isDueToday(due)) dueTodayCount += 1;
+    const at = due.getTime();
+    if (nextDueAt === null || at < nextDueAt) {
+      nextDueAt = at;
+      nextDue = task;
+    }
   }
-  const base2 = Date.now().toString(36);
-  return limpos.map((label, i) => ({
-    id: `col_${base2}${i}`,
-    label,
-    order: i,
-    ...i === limpos.length - 1 ? { isDone: true } : {}
-  }));
+  let health;
+  if (overdueCount > 0) health = "overdue";
+  else if (dueTodayCount > 0) health = "today";
+  else if (nextDue) health = "ontrack";
+  else if (totalCount > 0 && doneCount === totalCount) health = "ontrack";
+  else health = "nodates";
+  return { progress, status, doneCount, totalCount, overdueCount, dueTodayCount, nextDue, health };
 }
-function registerProjetoTools(server) {
-  server.registerTool(
-    "listar_projetos",
-    {
-      title: "Listar projetos",
-      description: "Os projetos que o usu\xE1rio enxerga na workspace, com sigla, situa\xE7\xE3o, panorama (roadmap), colunas do Kanban e quantas tarefas est\xE3o abertas. Comece por aqui para achar o projeto certo.",
-      inputSchema: {
-        workspace: workspaceParam,
-        incluir_arquivados: external_exports.boolean().optional().describe("Tamb\xE9m os projetos arquivados (padr\xE3o: n\xE3o).")
-      }
-    },
-    ({ workspace, incluir_arquivados }) => executar(async () => {
-      const ctx = await contexto(workspace);
-      const projetos = await ctx.projetos(incluir_arquivados ?? false);
-      const abertas = /* @__PURE__ */ new Map();
-      await Promise.all(
-        projetos.filter((p) => p.status === "active").map(async (p) => abertas.set(p.id, abertasPorProjeto(p, await fetchTasks(ctx.wsId, p.id))))
-      );
-      return `Workspace **${ctx.wsName}** \u2014 ${projetos.length} projeto(s):
-${listaProjetos(projetos, abertas)}`;
-    })
-  );
-  server.registerTool(
-    "criar_projeto",
-    {
-      title: "Criar projeto",
-      description: "Cria um projeto da equipe na workspace e devolve a sigla (ex. IC) que vai prefixar os c\xF3digos das tarefas. Opcional: colunas do Kanban (sen\xE3o as padr\xE3o do usu\xE1rio), panorama sequencial/paralelo e as fases iniciais j\xE1 estruturadas. Confirme o nome com o usu\xE1rio antes \u2014 a sigla nasce dele e n\xE3o muda depois.",
-      inputSchema: {
-        nome: external_exports.string().min(1).describe("Nome do projeto."),
-        descricao: external_exports.string().optional().describe("Contexto, escopo ou objetivo."),
-        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta da Glia ou o hex dela. Padr\xE3o: a menos usada."),
-        colunas: external_exports.array(external_exports.string()).optional().describe("Nomes das colunas do Kanban, em ordem; a \xDALTIMA \xE9 a de conclus\xE3o. Padr\xE3o: as colunas padr\xE3o do usu\xE1rio (ou A Fazer \u2192 Em Andamento \u2192 Conclu\xEDdo)."),
-        roadmap: roadmapParam.optional().describe('Liga o panorama. Padr\xE3o: "sequencial" se houver `fases`, sen\xE3o desligado.'),
-        fases: external_exports.array(faseNovaSchema).optional().describe("Fases iniciais do roadmap, na ordem."),
-        workspace: workspaceParam
-      }
-    },
-    ({ nome, descricao, cor, colunas, roadmap: roadmap2, fases, workspace }) => executar(async () => {
-      const ctx = await contexto(workspace);
-      const limpo = nome.trim();
-      if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
-      await garantirNomeLivre(ctx, limpo);
-      const columns = colunas ? montarColunas(colunas) : (await fetchPreferences(ctx.eu.uid)).defaultColumns;
-      const tipo = roadmap2 ?? "sequencial";
-      const hasRoadmap = roadmap2 !== void 0 || (fases?.length ?? 0) > 0;
-      if (tipo === "paralelo" && fases?.some((f) => f.inicio || f.fim)) {
-        throw new GliaToolError('Frentes paralelas n\xE3o t\xEAm data pr\xF3pria na Glia (o prazo vem das tarefas vinculadas). Tire in\xEDcio/t\xE9rmino das fases ou use roadmap "sequencial".');
-      }
-      const id = await createProject(ctx.wsId, {
-        name: limpo,
-        description: descricao ?? "",
-        color: resolveCor(cor, await ctx.projetos()),
-        columns,
-        visibility: "team",
-        createdBy: ctx.eu.uid,
-        hasRoadmap,
-        roadmapType: tipo
-      });
-      esquecer(`projetos:${ctx.wsId}`);
-      const p = await fetchProject(ctx.wsId, id);
-      if (!p) throw new GliaToolError("O projeto foi criado mas n\xE3o consegui rel\xEA-lo. Confira em listar_projetos.");
-      const linhas = [
-        `Criado o projeto **${p.name}** \u2014 sigla **${p.code ?? "(ainda sem sigla)"}** (id ${p.id}).`,
-        `Colunas: ${colunasDe(p).map((c) => `${c.label}${c.isDone ? " \u2713" : ""}`).join(" \u2192 ")}`,
-        `Panorama: ${hasRoadmap ? tipo : "desligado"}`
-      ];
-      if (fases?.length) {
-        try {
-          await inserirFases(ctx, p, fases);
-          const criadas = await fetchPhases(ctx.wsId, p.id);
-          const rotulo = roadmapNouns(tipo).plural;
-          linhas.push(`${rotulo[0].toUpperCase()}${rotulo.slice(1)}: ${criadas.map((f, i) => `${i + 1}. ${f.name}`).join(" \xB7 ")}`);
-        } catch (err) {
-          const motivo = err instanceof Error ? err.message : String(err);
-          throw new GliaToolError(`${linhas[0]}
-Mas as fases N\xC3O foram criadas: ${motivo}
-Corrija e chame criar_fases no projeto ${p.code ?? p.id}.`);
-        }
-      }
-      linhas.push("", "Tarefas deste projeto ter\xE3o c\xF3digos " + (p.code ? `${p.code}-1, ${p.code}-2\u2026` : "quando a sigla for atribu\xEDda."));
-      return linhas.join("\n");
-    })
-  );
-  server.registerTool(
-    "atualizar_projeto",
-    {
-      title: "Atualizar projeto",
-      description: "Muda nome, descri\xE7\xE3o, cor, situa\xE7\xE3o (planejando / em andamento / pausado / conclu\xEDdo), o panorama (sequencial, paralelo ou desligado) ou arquiva/desarquiva o projeto. S\xF3 os campos informados mudam. A sigla n\xE3o muda com o nome: c\xF3digos de tarefa j\xE1 citados continuam valendo.",
-      inputSchema: {
-        projeto: projetoParam,
-        nome: external_exports.string().optional(),
-        descricao: external_exports.string().optional(),
-        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta ou o hex."),
-        situacao: external_exports.string().optional().describe("planejando | em andamento | pausado | conclu\xEDdo"),
-        roadmap: external_exports.enum(["sequencial", "paralelo", "desligado"]).optional().describe('Tipo do panorama, ou "desligado" para esconder (as fases ficam guardadas).'),
-        arquivado: external_exports.boolean().optional().describe("true arquiva (some das listas, nada \xE9 apagado); false traz de volta."),
-        workspace: workspaceParam
-      }
-    },
-    ({ projeto, nome, descricao, cor, situacao, roadmap: roadmap2, arquivado, workspace }) => executar(async () => {
-      const ctx = await contexto(workspace);
-      const p = await resolveProjeto(ctx, projeto, true);
-      const patch = {};
-      const mudou = [];
-      if (nome !== void 0) {
-        const limpo = nome.trim();
-        if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
-        await garantirNomeLivre(ctx, limpo, p.id);
-        patch.name = limpo;
-        mudou.push("nome");
-      }
-      if (descricao !== void 0) {
-        patch.description = descricao.trim();
-        mudou.push("descri\xE7\xE3o");
-      }
-      if (cor !== void 0) {
-        patch.color = resolveCor(cor, []);
-        mudou.push("cor");
-      }
-      if (roadmap2 !== void 0) {
-        if (roadmap2 === "desligado") patch.hasRoadmap = false;
-        else {
-          patch.hasRoadmap = true;
-          patch.roadmapType = roadmap2;
-        }
-        mudou.push("panorama");
-      }
-      const novaSituacao = situacao !== void 0 ? lerSituacao(situacao) : void 0;
-      if (novaSituacao) mudou.push("situa\xE7\xE3o");
-      if (arquivado !== void 0 && arquivado !== (p.status === "archived")) mudou.push(arquivado ? "arquivado" : "desarquivado");
-      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo (ou o projeto j\xE1 estava assim).");
-      if (Object.keys(patch).length) await updateProject(ctx.wsId, p.id, patch);
-      if (novaSituacao) await updateProjectPhase(ctx.wsId, p.id, novaSituacao);
-      if (arquivado === true && p.status !== "archived") await archiveProject(ctx.wsId, p.id);
-      if (arquivado === false && p.status === "archived") await unarchiveProject(ctx.wsId, p.id);
-      esquecer(`projetos:${ctx.wsId}`);
-      const depois = await fetchProject(ctx.wsId, p.id);
-      const resumo = depois ? `
-${listaProjetos([depois], /* @__PURE__ */ new Map())}` : "";
-      const tipoMudou = roadmap2 && roadmap2 !== "desligado" && roadmap2 !== (p.roadmapType ?? "sequencial");
-      const aviso = tipoMudou ? `
-O panorama agora \xE9 ${roadmap2}: ${roadmap2 === "paralelo" ? "as datas pr\xF3prias das fases deixam de aparecer e o progresso passa a contar tarefas conclu\xEDdas." : "as fases viram uma trilha em ordem e o progresso pondera as subtarefas."}` : "";
-      return `Atualizei ${mudou.join(", ")} de **${depois?.name ?? p.name}**.${resumo}${aviso}`;
-    })
-  );
+function metricsOptionsFor(roadmapType) {
+  return { weighted: (roadmapType ?? "sequencial") !== "paralelo" };
 }
-var workspaceParam, projetoParam, roadmapParam;
-var init_projetos = __esm({
-  "mcp/src/tools/projetos.ts"() {
-    "use strict";
-    init_zod();
-    init_parse();
-    init_queries();
-    init_labels();
-    init_queries5();
-    init_queries9();
-    init_models();
-    init_context();
-    init_format2();
-    init_glia();
-    init_comum();
-    init_fases();
-    workspaceParam = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
-    projetoParam = external_exports.string().describe("Nome, sigla (ex. IC) ou id do projeto.");
-    roadmapParam = external_exports.enum(["sequencial", "paralelo"]).describe('Como o panorama anda: "sequencial" = fases em ordem, uma destrava a pr\xF3xima (a Montanha); "paralelo" = frentes que rodam juntas.');
+function buildRoadmapItems(phases, tasks, doneSet, roadmapType) {
+  const options = metricsOptionsFor(roadmapType);
+  return phases.map((phase) => {
+    const metrics = phaseMetrics(phase, tasks, doneSet, options);
+    return {
+      phase: { ...phase, progress: metrics.progress, status: metrics.status },
+      metrics
+    };
+  });
+}
+var init_metrics = __esm({
+  "src/features/project-detail/roadmap/metrics.ts"() {
+    init_utils();
   }
 });
 
@@ -37135,7 +37726,7 @@ function registerFaseTools(server) {
     {
       title: "Listar fases do roadmap",
       description: 'As fases (roadmap) de um projeto, em ordem, com status, progresso (calculado das tarefas vinculadas, como a Montanha mostra), datas, dono e entreg\xE1veis. Projetos de frentes paralelas chamam as fases de "frentes".',
-      inputSchema: { projeto: projetoParam, workspace: workspaceParam2 }
+      inputSchema: { projeto: projetoParam, workspace: workspaceParam }
     },
     ({ projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -37157,7 +37748,7 @@ ${listaFases(itens, p.roadmapType)}`;
         projeto: projetoParam,
         fases: external_exports.array(faseNovaSchema).min(1).describe("As fases, na ordem em que acontecem."),
         posicao: external_exports.number().int().min(1).optional().describe("Onde inserir (1 = primeira). Padr\xE3o: no fim."),
-        workspace: workspaceParam2
+        workspace: workspaceParam
       }
     },
     ({ projeto, fases, posicao, workspace }) => executar(async () => {
@@ -37194,7 +37785,7 @@ ${listaFases(itens, p.roadmapType)}`;
         concluir_entregaveis: external_exports.array(external_exports.string()).optional().describe("Ids ou textos dos entreg\xE1veis a marcar como feitos."),
         reabrir_entregaveis: external_exports.array(external_exports.string()).optional(),
         remover_entregaveis: external_exports.array(external_exports.string()).optional(),
-        workspace: workspaceParam2
+        workspace: workspaceParam
       }
     },
     (args) => executar(async () => {
@@ -37315,7 +37906,7 @@ ${listaFases(itens, p.roadmapType)}`;
         projeto: projetoParam,
         fase: faseParam,
         desvincular_tarefas: external_exports.boolean().optional().describe("Soltar as tarefas vinculadas e excluir mesmo assim."),
-        workspace: workspaceParam2
+        workspace: workspaceParam
       }
     },
     ({ projeto, fase, desvincular_tarefas, workspace }) => executar(async () => {
@@ -37335,7 +37926,7 @@ ${listaFases(itens, p.roadmapType)}`;
     })
   );
 }
-var workspaceParam2, faseParam, faseNovaSchema, STATUS;
+var workspaceParam, faseParam, faseNovaSchema, STATUS;
 var init_fases = __esm({
   "mcp/src/tools/fases.ts"() {
     "use strict";
@@ -37351,7 +37942,7 @@ var init_fases = __esm({
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam2 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     faseParam = external_exports.string().describe("Nome (ou parte \xFAnica dele) ou id da fase.");
     faseNovaSchema = external_exports.object({
       nome: external_exports.string().min(1).describe('Nome da fase (ex. "Descoberta", "MVP", "Lan\xE7amento").'),
@@ -37374,41 +37965,1068 @@ var init_fases = __esm({
   }
 });
 
+// mcp/src/tools/projetos.ts
+function lerSituacao(texto) {
+  const n = normalize(texto.trim()).replace(/[_-]/g, " ");
+  const achada = PROJECT_PHASES.find((s) => normalize(PROJECT_PHASE_LABELS[s]) === n || s.replace("_", " ") === n);
+  if (!achada) throw new GliaToolError(`Situa\xE7\xE3o "${texto}" inv\xE1lida \u2014 use ${PROJECT_PHASES.map((s) => PROJECT_PHASE_LABELS[s].toLowerCase()).join(", ")}.`);
+  return achada;
+}
+async function garantirNomeLivre(ctx, nome, exceto) {
+  const todos = await ctx.projetos(true);
+  const igual = todos.find((p) => p.id !== exceto && normalize(p.name.trim()) === normalize(nome));
+  if (igual) {
+    throw new GliaToolError(
+      `J\xE1 existe o projeto "${igual.name}" (${igual.code ?? "sem sigla"}${igual.status === "archived" ? ", arquivado" : ""}). Use esse \u2014 atualizar_projeto muda o que precisar \u2014 ou escolha outro nome.`
+    );
+  }
+}
+function montarColunas(nomes2) {
+  const limpos = nomes2.map((n) => n.trim()).filter(Boolean);
+  if (limpos.length < 2) throw new GliaToolError('Informe ao menos duas colunas (ex. "A Fazer" e "Conclu\xEDdo") \u2014 a \xFAltima \xE9 a de conclus\xE3o.');
+  const vistos = /* @__PURE__ */ new Set();
+  for (const n of limpos) {
+    if (vistos.has(normalize(n))) throw new GliaToolError(`Coluna "${n}" repetida.`);
+    vistos.add(normalize(n));
+  }
+  const base3 = Date.now().toString(36);
+  return limpos.map((label, i) => ({
+    id: `col_${base3}${i}`,
+    label,
+    order: i,
+    ...i === limpos.length - 1 ? { isDone: true } : {}
+  }));
+}
+function registerProjetoTools(server) {
+  server.registerTool(
+    "listar_projetos",
+    {
+      title: "Listar projetos",
+      description: "Os projetos que o usu\xE1rio enxerga na workspace, com sigla, situa\xE7\xE3o, panorama (roadmap), colunas do Kanban e quantas tarefas est\xE3o abertas. Comece por aqui para achar o projeto certo.",
+      inputSchema: {
+        workspace: workspaceParam2,
+        incluir_arquivados: external_exports.boolean().optional().describe("Tamb\xE9m os projetos arquivados (padr\xE3o: n\xE3o).")
+      }
+    },
+    ({ workspace, incluir_arquivados }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const projetos = await ctx.projetos(incluir_arquivados ?? false);
+      const abertas = /* @__PURE__ */ new Map();
+      await Promise.all(
+        projetos.filter((p) => p.status === "active").map(async (p) => abertas.set(p.id, abertasPorProjeto(p, await fetchTasks(ctx.wsId, p.id))))
+      );
+      return `Workspace **${ctx.wsName}** \u2014 ${projetos.length} projeto(s):
+${listaProjetos(projetos, abertas)}`;
+    })
+  );
+  server.registerTool(
+    "criar_projeto",
+    {
+      title: "Criar projeto",
+      description: "Cria um projeto da equipe na workspace e devolve a sigla (ex. IC) que vai prefixar os c\xF3digos das tarefas. Opcional: colunas do Kanban (sen\xE3o as padr\xE3o do usu\xE1rio), panorama sequencial/paralelo e as fases iniciais j\xE1 estruturadas. Confirme o nome com o usu\xE1rio antes \u2014 a sigla nasce dele e n\xE3o muda depois.",
+      inputSchema: {
+        nome: external_exports.string().min(1).describe("Nome do projeto."),
+        descricao: external_exports.string().optional().describe("Contexto, escopo ou objetivo."),
+        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta da Glia ou o hex dela. Padr\xE3o: a menos usada."),
+        colunas: external_exports.array(external_exports.string()).optional().describe("Nomes das colunas do Kanban, em ordem; a \xDALTIMA \xE9 a de conclus\xE3o. Padr\xE3o: as colunas padr\xE3o do usu\xE1rio (ou A Fazer \u2192 Em Andamento \u2192 Conclu\xEDdo)."),
+        roadmap: roadmapParam.optional().describe('Liga o panorama. Padr\xE3o: "sequencial" se houver `fases`, sen\xE3o desligado.'),
+        fases: external_exports.array(faseNovaSchema).optional().describe("Fases iniciais do roadmap, na ordem."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ nome, descricao, cor, colunas, roadmap: roadmap2, fases, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const limpo = nome.trim();
+      if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
+      await garantirNomeLivre(ctx, limpo);
+      const columns = colunas ? montarColunas(colunas) : (await fetchPreferences(ctx.eu.uid)).defaultColumns;
+      const tipo = roadmap2 ?? "sequencial";
+      const hasRoadmap = roadmap2 !== void 0 || (fases?.length ?? 0) > 0;
+      if (tipo === "paralelo" && fases?.some((f) => f.inicio || f.fim)) {
+        throw new GliaToolError('Frentes paralelas n\xE3o t\xEAm data pr\xF3pria na Glia (o prazo vem das tarefas vinculadas). Tire in\xEDcio/t\xE9rmino das fases ou use roadmap "sequencial".');
+      }
+      const id = await createProject(ctx.wsId, {
+        name: limpo,
+        description: descricao ?? "",
+        color: resolveCor(cor, await ctx.projetos()),
+        columns,
+        visibility: "team",
+        createdBy: ctx.eu.uid,
+        hasRoadmap,
+        roadmapType: tipo
+      });
+      esquecer(`projetos:${ctx.wsId}`);
+      const p = await fetchProject(ctx.wsId, id);
+      if (!p) throw new GliaToolError("O projeto foi criado mas n\xE3o consegui rel\xEA-lo. Confira em listar_projetos.");
+      const linhas = [
+        `Criado o projeto **${p.name}** \u2014 sigla **${p.code ?? "(ainda sem sigla)"}** (id ${p.id}).`,
+        link.projeto(p),
+        `Colunas: ${colunasDe(p).map((c) => `${c.label}${c.isDone ? " \u2713" : ""}`).join(" \u2192 ")}`,
+        `Panorama: ${hasRoadmap ? tipo : "desligado"}`
+      ];
+      if (fases?.length) {
+        try {
+          await inserirFases(ctx, p, fases);
+          const criadas = await fetchPhases(ctx.wsId, p.id);
+          const rotulo = roadmapNouns(tipo).plural;
+          linhas.push(`${rotulo[0].toUpperCase()}${rotulo.slice(1)}: ${criadas.map((f, i) => `${i + 1}. ${f.name}`).join(" \xB7 ")}`);
+        } catch (err) {
+          const motivo = err instanceof Error ? err.message : String(err);
+          throw new GliaToolError(`${linhas[0]}
+Mas as fases N\xC3O foram criadas: ${motivo}
+Corrija e chame criar_fases no projeto ${p.code ?? p.id}.`);
+        }
+      }
+      linhas.push("", "Tarefas deste projeto ter\xE3o c\xF3digos " + (p.code ? `${p.code}-1, ${p.code}-2\u2026` : "quando a sigla for atribu\xEDda."));
+      return linhas.join("\n");
+    })
+  );
+  server.registerTool(
+    "atualizar_projeto",
+    {
+      title: "Atualizar projeto",
+      description: "Muda nome, descri\xE7\xE3o, cor, situa\xE7\xE3o (planejando / em andamento / pausado / conclu\xEDdo), o panorama (sequencial, paralelo ou desligado), quem acessa o projeto ou arquiva/desarquiva. S\xF3 os campos informados mudam. A sigla n\xE3o muda com o nome: c\xF3digos de tarefa j\xE1 citados continuam valendo. Colunas do Kanban: configurar_colunas.",
+      inputSchema: {
+        projeto: projetoParam,
+        nome: external_exports.string().optional(),
+        descricao: external_exports.string().optional(),
+        cor: external_exports.string().optional().describe("Posi\xE7\xE3o 1\u20138 na paleta ou o hex."),
+        situacao: external_exports.string().optional().describe("planejando | em andamento | pausado | conclu\xEDdo"),
+        roadmap: external_exports.enum(["sequencial", "paralelo", "desligado"]).optional().describe('Tipo do panorama, ou "desligado" para esconder (as fases ficam guardadas).'),
+        arquivado: external_exports.boolean().optional().describe("true arquiva (some das listas, nada \xE9 apagado); false traz de volta."),
+        acesso: external_exports.array(external_exports.string()).optional().describe("Restringe o projeto a estas pessoas (nomes/e-mails; voc\xEA fica inclu\xEDdo). Lista vazia = toda a workspace enxerga."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ projeto, nome, descricao, cor, situacao, roadmap: roadmap2, arquivado, acesso, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto, true);
+      const patch = {};
+      const mudou = [];
+      if (nome !== void 0) {
+        const limpo = nome.trim();
+        if (!limpo) throw new GliaToolError("O projeto precisa de nome.");
+        await garantirNomeLivre(ctx, limpo, p.id);
+        patch.name = limpo;
+        mudou.push("nome");
+      }
+      if (descricao !== void 0) {
+        patch.description = descricao.trim();
+        mudou.push("descri\xE7\xE3o");
+      }
+      if (cor !== void 0) {
+        patch.color = resolveCor(cor, []);
+        mudou.push("cor");
+      }
+      if (roadmap2 !== void 0) {
+        if (roadmap2 === "desligado") patch.hasRoadmap = false;
+        else {
+          patch.hasRoadmap = true;
+          patch.roadmapType = roadmap2;
+        }
+        mudou.push("panorama");
+      }
+      if (acesso !== void 0) {
+        const uids = new Set((await Promise.all(acesso.map((r) => resolveMembro(ctx, r)))).map((m) => m.uid));
+        if (uids.size) uids.add(ctx.eu.uid);
+        patch.memberUids = [...uids];
+        mudou.push(uids.size ? `acesso (${uids.size} pessoa(s))` : "acesso (toda a workspace)");
+      }
+      const novaSituacao = situacao !== void 0 ? lerSituacao(situacao) : void 0;
+      if (novaSituacao) mudou.push("situa\xE7\xE3o");
+      if (arquivado !== void 0 && arquivado !== (p.status === "archived")) mudou.push(arquivado ? "arquivado" : "desarquivado");
+      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo (ou o projeto j\xE1 estava assim).");
+      if (Object.keys(patch).length) await updateProject(ctx.wsId, p.id, patch);
+      if (patch.name) await sincronizarNomeDoPortal(p, patch.name);
+      if (novaSituacao) await updateProjectPhase(ctx.wsId, p.id, novaSituacao);
+      if (arquivado === true && p.status !== "archived") await archiveProject(ctx.wsId, p.id);
+      if (arquivado === false && p.status === "archived") await unarchiveProject(ctx.wsId, p.id);
+      esquecer(`projetos:${ctx.wsId}`);
+      const depois = await fetchProject(ctx.wsId, p.id);
+      const resumo = depois ? `
+${listaProjetos([depois], /* @__PURE__ */ new Map())}` : "";
+      const tipoMudou = roadmap2 && roadmap2 !== "desligado" && roadmap2 !== (p.roadmapType ?? "sequencial");
+      const aviso = tipoMudou ? `
+O panorama agora \xE9 ${roadmap2}: ${roadmap2 === "paralelo" ? "as datas pr\xF3prias das fases deixam de aparecer e o progresso passa a contar tarefas conclu\xEDdas." : "as fases viram uma trilha em ordem e o progresso pondera as subtarefas."}` : "";
+      return `Atualizei ${mudou.join(", ")} de **${depois?.name ?? p.name}**.${resumo}${aviso}`;
+    })
+  );
+  server.registerTool(
+    "configurar_colunas",
+    {
+      title: "Configurar colunas do Kanban",
+      description: "Adiciona, renomeia, remove e reordena as colunas do quadro do projeto, e define quais s\xE3o de conclus\xE3o (tarefa ali conta como feita). Coluna nova entra antes da primeira coluna de conclus\xE3o, salvo `ordem`. Remover s\xF3 coluna vazia \u2014 mova as tarefas antes.",
+      inputSchema: {
+        projeto: projetoParam,
+        adicionar: external_exports.array(external_exports.string()).optional().describe("Nomes das colunas novas."),
+        renomear: external_exports.array(external_exports.object({ coluna: external_exports.string(), nome: external_exports.string() })).optional().describe('[{coluna: "Revis\xE3o", nome: "Code review"}]'),
+        remover: external_exports.array(external_exports.string()).optional().describe("Colunas a remover (precisam estar vazias)."),
+        ordem: external_exports.array(external_exports.string()).optional().describe("A ordem final, da esquerda para a direita (todas as colunas, nomes ou ids \u2014 inclusive as novas)."),
+        conclusao: external_exports.array(external_exports.string()).optional().describe("Quais colunas s\xE3o de conclus\xE3o (substitui a marca\xE7\xE3o atual). Ao menos uma."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ projeto, adicionar, renomear, remover, ordem, conclusao, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto);
+      let cols = colunasDe(p).map((c) => ({ ...c }));
+      const mudou = [];
+      const achar = (ref) => resolveColuna({ ...p, columns: cols }, ref);
+      for (const r of renomear ?? []) {
+        const c = achar(r.coluna);
+        const nome = r.nome.trim();
+        if (!nome) throw new GliaToolError(`Nome vazio para a coluna "${c.label}".`);
+        if (cols.some((x) => x.id !== c.id && normalize(x.label) === normalize(nome))) throw new GliaToolError(`J\xE1 existe a coluna "${nome}".`);
+        cols = cols.map((x) => x.id === c.id ? { ...x, label: nome } : x);
+        mudou.push(`renomeei "${c.label}" \u2192 "${nome}"`);
+      }
+      if (remover?.length) {
+        const tarefas = await fetchTasks(ctx.wsId, p.id);
+        for (const ref of remover) {
+          const c = achar(ref);
+          const dentro = tarefas.filter((t) => t.status === c.id).length;
+          if (dentro) throw new GliaToolError(`"${c.label}" tem ${dentro} tarefa(s). Mova-as (mover_tarefa) antes de remover a coluna.`);
+          cols = cols.filter((x) => x.id !== c.id);
+          mudou.push(`removi "${c.label}"`);
+        }
+      }
+      const base3 = Date.now().toString(36);
+      for (const [i, nomeBruto] of (adicionar ?? []).entries()) {
+        const nome = nomeBruto.trim();
+        if (!nome) continue;
+        if (cols.some((x) => normalize(x.label) === normalize(nome))) throw new GliaToolError(`J\xE1 existe a coluna "${nome}".`);
+        const nova = { id: `col_${base3}${i}`, label: nome, order: 0 };
+        const primeiraConclusao = cols.findIndex((c) => c.isDone);
+        cols = primeiraConclusao < 0 ? [...cols, nova] : [...cols.slice(0, primeiraConclusao), nova, ...cols.slice(primeiraConclusao)];
+        mudou.push(`adicionei "${nome}"`);
+      }
+      if (ordem?.length) {
+        const ordenadas = ordem.map(achar);
+        const ids = new Set(ordenadas.map((c) => c.id));
+        if (ids.size !== ordenadas.length) throw new GliaToolError("`ordem` repete uma coluna.");
+        const faltam = cols.filter((c) => !ids.has(c.id));
+        if (faltam.length) throw new GliaToolError(`\`ordem\` precisa listar todas as colunas \u2014 faltou: ${faltam.map((c) => c.label).join(", ")}.`);
+        cols = ordenadas.map((c) => cols.find((x) => x.id === c.id));
+        mudou.push("reordenei");
+      }
+      if (conclusao) {
+        const ids = new Set(conclusao.map((r) => achar(r).id));
+        if (ids.size === 0) throw new GliaToolError("Ao menos uma coluna precisa ser de conclus\xE3o \u2014 sen\xE3o nenhuma tarefa conta como feita.");
+        cols = cols.map(({ isDone: _antes, ...c }) => ids.has(c.id) ? { ...c, isDone: true } : c);
+        mudou.push("marquei as colunas de conclus\xE3o");
+      }
+      if (mudou.length === 0) throw new GliaToolError("Nada para mudar: informe adicionar, renomear, remover, ordem ou conclusao.");
+      if (cols.length < 2) throw new GliaToolError("O quadro precisa de ao menos duas colunas.");
+      if (!cols.some((c) => c.isDone)) throw new GliaToolError("Sem coluna de conclus\xE3o o projeto nunca termina \u2014 marque uma com `conclusao`.");
+      await updateProjectColumns(ctx.wsId, p.id, cols.map((c, i) => ({ ...c, order: i })));
+      esquecer(`projetos:${ctx.wsId}`);
+      return `Colunas de **${p.name}**: ${mudou.join("; ")}.
+Agora: ${cols.map((c) => `${c.label}${c.isDone ? " \u2713" : ""}`).join(" \u2192 ")}`;
+    })
+  );
+  server.registerTool(
+    "excluir_projeto",
+    {
+      title: "Excluir projeto (definitivo)",
+      description: "Apaga o projeto com TUDO dentro \u2014 tarefas, coment\xE1rios, fases, anota\xE7\xF5es, chat do projeto e o portal de sugest\xF5es. N\xE3o tem volta. S\xF3 com pedido expl\xEDcito do usu\xE1rio; para tirar de vista, prefira atualizar_projeto com arquivado=true. Exige repetir o nome exato do projeto em `confirmar_nome`.",
+      inputSchema: {
+        projeto: projetoParam,
+        confirmar_nome: external_exports.string().describe("O nome do projeto, exatamente como aparece na Glia."),
+        workspace: workspaceParam2
+      }
+    },
+    ({ projeto, confirmar_nome, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto, true);
+      if (confirmar_nome.trim() !== p.name.trim()) {
+        throw new GliaToolError(`Para excluir, \`confirmar_nome\` precisa ser exatamente "${p.name}". Confirme com o usu\xE1rio \u2014 a exclus\xE3o apaga tudo e n\xE3o tem volta. Arquivar (atualizar_projeto arquivado=true) n\xE3o apaga nada.`);
+      }
+      const tarefas = await fetchTasks(ctx.wsId, p.id);
+      await deleteProject(ctx.wsId, p.id);
+      esquecer(`projetos:${ctx.wsId}`);
+      return `Exclu\xED o projeto **${p.name}** (${p.code ?? "sem sigla"}) com ${tarefas.length} tarefa(s) e tudo o que havia nele.`;
+    })
+  );
+}
+var workspaceParam2, projetoParam, roadmapParam;
+var init_projetos = __esm({
+  "mcp/src/tools/projetos.ts"() {
+    "use strict";
+    init_zod();
+    init_parse();
+    init_queries();
+    init_labels();
+    init_queries5();
+    init_queries9();
+    init_models();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    init_fases();
+    workspaceParam2 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    projetoParam = external_exports.string().describe("Nome, sigla (ex. IC) ou id do projeto.");
+    roadmapParam = external_exports.enum(["sequencial", "paralelo"]).describe('Como o panorama anda: "sequencial" = fases em ordem, uma destrava a pr\xF3xima (a Montanha); "paralelo" = frentes que rodam juntas.');
+  }
+});
+
+// mcp/src/tools/anotacoes.ts
+function lerCor(ref) {
+  const n = normalize(ref.trim());
+  const cor = STICKY_COLORS.find((c) => c.value === n || normalize(c.label) === n);
+  if (!cor) throw new GliaToolError(`Cor "${ref}" n\xE3o existe. Use: ${STICKY_COLORS.map((c) => c.label.toLowerCase()).join(", ")}.`);
+  return cor.value;
+}
+function linhaNota({ projeto, nota }, comProjeto) {
+  const partes = [comProjeto ? projeto.name : null, rotuloCor(nota.color), `atualizada ${dataHora(nota.updatedAt)}`].filter(Boolean);
+  const corpo = nota.content.trim() ? `
+  ${trecho(nota.content, 200)}` : "";
+  return `- **${tituloDaNota(nota)}** \u2014 ${partes.join(" \xB7 ")} (id ${nota.id})${corpo}`;
+}
+function notaInteira({ projeto, nota }) {
+  return [
+    `# ${tituloDaNota(nota)}`,
+    `Projeto: ${projeto.name} \xB7 cor: ${rotuloCor(nota.color)} \xB7 atualizada ${dataHora(nota.updatedAt)} \xB7 id ${nota.id}`,
+    `Abrir na Glia: ${link.anotacao(projeto.id, nota.id)}`,
+    "",
+    nota.content.trim() || "(vazia)"
+  ].join("\n");
+}
+function registerAnotacaoTools(server) {
+  server.registerTool(
+    "listar_anotacoes",
+    {
+      title: "Listar anota\xE7\xF5es",
+      description: "As anota\xE7\xF5es (post-its da aba Anota\xE7\xF5es) de um projeto \u2014 ou de todos, sem `projeto` \u2014 com t\xEDtulo, cor e o come\xE7o do texto. `busca` filtra por t\xEDtulo e conte\xFAdo.",
+      inputSchema: {
+        projeto: projetoOpcional,
+        busca: external_exports.string().optional().describe("Texto a procurar no t\xEDtulo ou no conte\xFAdo."),
+        workspace: workspaceParam3
+      }
+    },
+    ({ projeto, busca, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const projetos = projeto ? [await resolveProjeto(ctx, projeto, true)] : await ctx.projetos();
+      let todas = (await Promise.all(projetos.map(async (p) => (await fetchNotes(ctx.wsId, p.id)).map((nota) => ({ projeto: p, nota }))))).flat();
+      if (busca?.trim()) {
+        const n = normalize(busca.trim());
+        todas = todas.filter(({ nota }) => normalize(`${nota.title}
+${nota.content}`).includes(n));
+      }
+      const onde = projeto ? `de **${projetos[0].name}**` : `da workspace **${ctx.wsName}**`;
+      const filtro = busca?.trim() ? ` com "${busca.trim()}"` : "";
+      if (todas.length === 0) return `Nenhuma anota\xE7\xE3o ${onde}${filtro}.`;
+      return `Anota\xE7\xF5es ${onde}${filtro} \u2014 ${todas.length}:
+${todas.map((a) => linhaNota(a, !projeto)).join("\n")}`;
+    })
+  );
+  server.registerTool(
+    "ver_anotacao",
+    {
+      title: "Ler uma anota\xE7\xE3o inteira",
+      description: "O texto completo (Markdown) de uma anota\xE7\xE3o, com o link para abri-la na Glia.",
+      inputSchema: { anotacao: anotacaoParam, projeto: projetoOpcional, workspace: workspaceParam3 }
+    },
+    ({ anotacao, projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      return notaInteira(await resolveAnotacao(ctx, anotacao, projeto));
+    })
+  );
+  server.registerTool(
+    "criar_anotacao",
+    {
+      title: "Criar anota\xE7\xE3o",
+      description: "Cria um post-it na aba Anota\xE7\xF5es do projeto \u2014 atas, decis\xF5es, requisitos, links, rascunhos. O conte\xFAdo aceita Markdown (t\xEDtulos, listas, **negrito**).",
+      inputSchema: {
+        projeto: projetoParam,
+        titulo: external_exports.string().optional(),
+        conteudo: external_exports.string().describe("O texto da anota\xE7\xE3o, em Markdown."),
+        cor: corParam.describe("Cor do post-it (padr\xE3o: a pr\xF3xima da sequ\xEAncia, como na tela)."),
+        workspace: workspaceParam3
+      }
+    },
+    ({ projeto, titulo, conteudo, cor, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto);
+      if (!titulo?.trim() && !conteudo.trim()) throw new GliaToolError("A anota\xE7\xE3o precisa de t\xEDtulo ou conte\xFAdo.");
+      const existentes = await fetchNotes(ctx.wsId, p.id);
+      const order = existentes.length ? Math.max(...existentes.map((n) => n.order)) + 100 : 100;
+      const color = cor ? lerCor(cor) : STICKY_COLORS[existentes.length % STICKY_COLORS.length].value;
+      const id = await createNote(ctx.wsId, p.id, color, order);
+      await updateNote(ctx.wsId, p.id, id, { title: titulo?.trim() ?? "", content: conteudo.trim() });
+      return `Criei a anota\xE7\xE3o "${tituloDaNota({ title: titulo ?? "", content: conteudo })}" em ${p.name} (id ${id}).
+${link.anotacao(p.id, id)}`;
+    })
+  );
+  server.registerTool(
+    "atualizar_anotacao",
+    {
+      title: "Atualizar anota\xE7\xE3o",
+      description: "Muda t\xEDtulo, cor ou conte\xFAdo de uma anota\xE7\xE3o. `conteudo` substitui o texto inteiro; `acrescentar` adiciona ao fim (bom para atas e di\xE1rios). Leia antes com ver_anotacao se for reescrever.",
+      inputSchema: {
+        anotacao: anotacaoParam,
+        projeto: projetoOpcional,
+        titulo: external_exports.string().optional(),
+        conteudo: external_exports.string().optional().describe("Novo texto inteiro (Markdown)."),
+        acrescentar: external_exports.string().optional().describe("Texto a acrescentar no fim, num par\xE1grafo novo."),
+        cor: corParam,
+        workspace: workspaceParam3
+      }
+    },
+    ({ anotacao, projeto, titulo, conteudo, acrescentar, cor, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const alvo = await resolveAnotacao(ctx, anotacao, projeto);
+      if (conteudo !== void 0 && acrescentar !== void 0) {
+        throw new GliaToolError("Use `conteudo` (substitui) ou `acrescentar` (adiciona ao fim), n\xE3o os dois.");
+      }
+      const patch = {};
+      const mudou = [];
+      if (titulo !== void 0) {
+        patch.title = titulo.trim();
+        mudou.push("t\xEDtulo");
+      }
+      if (conteudo !== void 0) {
+        patch.content = conteudo.trim();
+        mudou.push("conte\xFAdo");
+      }
+      if (acrescentar?.trim()) {
+        const atual = alvo.nota.content.trimEnd();
+        patch.content = atual ? `${atual}
+
+${acrescentar.trim()}` : acrescentar.trim();
+        mudou.push("conte\xFAdo (acrescentado)");
+      }
+      if (cor !== void 0) {
+        patch.color = lerCor(cor);
+        mudou.push("cor");
+      }
+      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo.");
+      await updateNote(ctx.wsId, alvo.projeto.id, alvo.nota.id, patch);
+      const depois = { ...alvo.nota, ...patch };
+      return `Atualizei ${mudou.join(", ")} de "${tituloDaNota(depois)}" (${alvo.projeto.name}).
+${link.anotacao(alvo.projeto.id, alvo.nota.id)}`;
+    })
+  );
+  server.registerTool(
+    "excluir_anotacao",
+    {
+      title: "Excluir anota\xE7\xE3o",
+      description: "Apaga uma anota\xE7\xE3o de vez (n\xE3o h\xE1 lixeira). Confirme com o usu\xE1rio antes.",
+      inputSchema: { anotacao: anotacaoParam, projeto: projetoOpcional, workspace: workspaceParam3 }
+    },
+    ({ anotacao, projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const alvo = await resolveAnotacao(ctx, anotacao, projeto);
+      await deleteNote(ctx.wsId, alvo.projeto.id, alvo.nota.id);
+      return `Exclu\xED a anota\xE7\xE3o "${tituloDaNota(alvo.nota)}" de ${alvo.projeto.name}.`;
+    })
+  );
+}
+var workspaceParam3, anotacaoParam, projetoOpcional, corParam, rotuloCor;
+var init_anotacoes = __esm({
+  "mcp/src/tools/anotacoes.ts"() {
+    "use strict";
+    init_zod();
+    init_parse();
+    init_queries();
+    init_models();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    init_projetos();
+    workspaceParam3 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    anotacaoParam = external_exports.string().describe("T\xEDtulo (ou parte \xFAnica dele) ou id da anota\xE7\xE3o.");
+    projetoOpcional = external_exports.string().optional().describe("Projeto (nome/sigla/id). Sem ele, procura em todos os projetos.");
+    corParam = external_exports.string().optional().describe(`Cor do post-it: ${STICKY_COLORS.map((c) => c.label.toLowerCase()).join(", ")}.`);
+    rotuloCor = (c) => STICKY_COLORS.find((x) => x.value === c)?.label.toLowerCase() ?? c;
+  }
+});
+
+// mcp/src/tools/busca.ts
+function emVolta(texto, termo, raio = 70) {
+  const limpo = texto.replace(/\s+/g, " ").trim();
+  const i = normalize(limpo).indexOf(termo);
+  if (i < 0) return trecho(limpo, raio * 2);
+  const ini = Math.max(0, i - raio);
+  return `${ini > 0 ? "\u2026" : ""}${limpo.slice(ini, i + termo.length + raio)}${i + termo.length + raio < limpo.length ? "\u2026" : ""}`;
+}
+function registerBuscaTools(server) {
+  server.registerTool(
+    "buscar",
+    {
+      title: "Buscar em toda a Glia",
+      description: 'Procura um texto em projetos, tarefas, anota\xE7\xF5es, chat (mensagens recentes) e sugest\xF5es de uma vez \u2014 "onde falamos de X?". Devolve at\xE9 10 achados por tipo, com links. Para filtrar tarefas por prazo/respons\xE1vel, use buscar_tarefas.',
+      inputSchema: {
+        texto: external_exports.string().min(2),
+        onde: external_exports.array(external_exports.enum(ONDE)).optional().describe("Limitar a estes tipos (padr\xE3o: todos)."),
+        workspace: workspaceParam4
+      }
+    },
+    ({ texto, onde, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const termo = normalize(texto.trim());
+      const quer = (o) => !onde?.length || onde.includes(o);
+      const bate = (...partes) => normalize(partes.filter(Boolean).join("\n")).includes(termo);
+      const MAX = 10;
+      const projetos = await ctx.projetos();
+      const secoes = [];
+      const secao = (titulo, linhas) => {
+        if (linhas.length) secoes.push(`## ${titulo} (${linhas.length > MAX ? `${MAX} de ${linhas.length}` : linhas.length})
+${linhas.slice(0, MAX).join("\n")}`);
+      };
+      const [tarefas, notas, mensagens, sugestoes] = await Promise.all([
+        quer("tarefas") ? todasAsTarefas(ctx) : Promise.resolve([]),
+        quer("anotacoes") ? Promise.all(projetos.map(async (p) => (await fetchNotes(ctx.wsId, p.id)).map((nota) => ({ projeto: p, nota })))).then((l) => l.flat()) : Promise.resolve([]),
+        quer("chat") ? fetchMessagesForSearch(ctx.wsId, [GLOBAL_CHANNEL, ...projetos.map((p) => ({ kind: "project", projectId: p.id }))], 200) : Promise.resolve([]),
+        quer("sugestoes") ? Promise.all(
+          projetos.filter((p) => p.portalId).map(async (p) => (await fetchSugestoes(p.portalId).catch(() => [])).map((s) => ({ projeto: p, s })))
+        ).then((l) => l.flat()) : Promise.resolve([])
+      ]);
+      if (quer("projetos")) {
+        secao(
+          "Projetos",
+          projetos.filter((p) => bate(p.name, p.code, p.description)).map((p) => `- **${p.name}** (${p.code ?? "sem sigla"}) \u2014 ${link.projeto(p)}`)
+        );
+      }
+      secao(
+        "Tarefas",
+        tarefas.filter(({ projeto, tarefa }) => bate(codigo(projeto, tarefa), tarefa.title, tarefa.description, ...(tarefa.checklist ?? []).map((i) => i.text))).map(({ projeto, tarefa }) => `${linhaTarefa(projeto, tarefa)} \xB7 ${projeto.name}`)
+      );
+      secao(
+        "Anota\xE7\xF5es",
+        notas.filter(({ nota }) => bate(nota.title, nota.content)).map(({ projeto, nota }) => `- **${tituloDaNota(nota)}** (${projeto.name}) \u2014 ${emVolta(nota.content || nota.title, termo)} \xB7 id ${nota.id}`)
+      );
+      secao(
+        "Chat",
+        mensagens.filter(({ message }) => bate(message.text)).map(({ message, channel }) => {
+          const canal = channel.kind === "global" ? "Chat geral" : `#${projetos.find((p) => p.id === channel.projectId)?.name ?? "?"}`;
+          return `- ${dataHora(message.createdAt)} ${canal} \xB7 **${message.authorName}**: ${emVolta(message.text, termo)} \u2014 ${link.chat(channel, message.id)}`;
+        })
+      );
+      secao(
+        "Sugest\xF5es",
+        sugestoes.filter(({ s }) => bate(s.titulo, s.descricao)).map(({ projeto, s }) => `- **${s.titulo}** (${projeto.name}) \u2014 status ${s.status} \xB7 ${s.votos?.length ?? 0} voto(s) \xB7 id ${s.id}`)
+      );
+      if (secoes.length === 0) return `Nada encontrado para "${texto.trim()}" em ${ctx.wsName}.`;
+      return `Resultados para "${texto.trim()}" em **${ctx.wsName}**:
+
+${secoes.join("\n\n")}`;
+    })
+  );
+}
+var workspaceParam4, ONDE;
+var init_busca = __esm({
+  "mcp/src/tools/busca.ts"() {
+    "use strict";
+    init_zod();
+    init_parse();
+    init_queries2();
+    init_queries();
+    init_queries3();
+    init_models();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    workspaceParam4 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    ONDE = ["projetos", "tarefas", "anotacoes", "chat", "sugestoes"];
+  }
+});
+
+// src/features/chat/notify.ts
+async function notifyChatMessage(ctx, message, mentions, threadParticipants = []) {
+  const jaAvisados = /* @__PURE__ */ new Set([ctx.actor.uid]);
+  const payload = base2(ctx, message);
+  for (const uid of mentions) {
+    if (jaAvisados.has(uid)) continue;
+    jaAvisados.add(uid);
+    createNotification({ ...payload, recipientUid: uid, type: "chat_mentioned" }).catch(() => {
+    });
+  }
+  for (const uid of threadParticipants) {
+    if (jaAvisados.has(uid)) continue;
+    jaAvisados.add(uid);
+    createNotification({ ...payload, recipientUid: uid, type: "chat_replied" }).catch(() => {
+    });
+  }
+}
+async function notifyMessageBecameTask(ctx, message, task) {
+  await createNotification({
+    ...base2(ctx, message),
+    recipientUid: message.authorUid,
+    type: "chat_task_created",
+    /**
+     * A tarefa entra só como rótulo (`taskId`/`taskTitle`). `projectId` continua
+     * sendo o do CANAL, porque é ele que diz para onde o clique vai — sobrescrever
+     * com o projeto da tarefa mandaria uma notificação do chat geral para o canal
+     * de um projeto, e a mensagem não está lá.
+     */
+    taskId: task.id,
+    taskTitle: task.title
+  }).catch(() => {
+  });
+}
+async function notifyChatReaction(ctx, message, emocao) {
+  if (message.authorUid === ctx.actor.uid) return;
+  await createNotification({
+    ...base2(ctx, message),
+    recipientUid: message.authorUid,
+    type: "reaction",
+    sticker: emocao
+  }).catch(() => {
+  });
+}
+var base2;
+var init_notify = __esm({
+  "src/features/chat/notify.ts"() {
+    init_queries8();
+    init_parse();
+    base2 = (ctx, message) => ({
+      actorUid: ctx.actor.uid,
+      actorName: ctx.actor.name,
+      actorPhoto: ctx.actor.photo,
+      wsId: ctx.wsId,
+      projectId: ctx.channel.kind === "project" ? ctx.channel.projectId ?? "" : "",
+      projectName: ctx.channel.kind === "project" ? ctx.projectName : "",
+      channelKind: ctx.channel.kind,
+      messageId: message.id,
+      ...message.parentId ? { threadRootId: message.parentId } : {},
+      excerpt: excerpt(message.text, 140)
+    });
+  }
+});
+
+// mcp/src/tools/chat.ts
+function linhaMensagem(m, recuo = "") {
+  const fala = m.kind === "sticker" ? `[figurinha ${m.sticker}]` : m.text;
+  const extras = [
+    m.replyTo ? `respondendo ${m.replyTo.authorName}: "${m.replyTo.excerpt || "figurinha"}"` : null,
+    m.replyCount ? `${m.replyCount} resposta(s) na thread` : null,
+    m.createdTaskCode || m.createdTaskId ? `virou ${m.createdTaskCode ?? "tarefa"}` : null,
+    m.editedAt ? "editada" : null,
+    Object.entries(m.reactions ?? {}).filter(([, u]) => u?.length).map(([e, u]) => `${e}\xD7${u.length}`).join(" ") || null
+  ].filter(Boolean);
+  return `${recuo}- ${dataHora(m.createdAt)} **${m.authorName}**: ${fala}${extras.length ? `  _(${extras.join(" \xB7 ")})_` : ""}  \`${m.id}\``;
+}
+async function respostasDaThread(ctx, c, raizId) {
+  const snap = await getDocs(query(colecao(ctx.wsId, c.canal), where("parentId", "==", raizId)));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
+}
+function snapshotDeCitacao(m) {
+  return {
+    messageId: m.id,
+    authorUid: m.authorUid,
+    authorName: m.authorName,
+    excerpt: m.kind === "sticker" ? "" : excerpt(m.text, 120),
+    ...m.kind === "sticker" && m.sticker ? { sticker: m.sticker } : {}
+  };
+}
+function registerChatTools(server) {
+  server.registerTool(
+    "ler_chat",
+    {
+      title: "Ler o chat",
+      description: "As mensagens recentes do chat geral da workspace ou do canal de um projeto (mais antigas primeiro), com ids, respostas e tarefas geradas. Com `thread`, as respostas de uma mensagem. `busca` filtra por texto. Lista os canais dispon\xEDveis no fim.",
+      inputSchema: {
+        canal: canalParam,
+        limite: external_exports.number().int().min(1).max(200).optional().describe("Quantas mensagens (padr\xE3o 30)."),
+        thread: external_exports.string().optional().describe("Id de uma mensagem: mostra ela e as respostas."),
+        busca: external_exports.string().optional(),
+        workspace: workspaceParam5
+      }
+    },
+    ({ canal, limite, thread, busca, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const c = await resolveCanal(ctx, canal);
+      if (thread) {
+        const raiz = await lerMensagem(ctx, c, thread);
+        const respostas = await respostasDaThread(ctx, c, raiz.id);
+        return [`Thread em ${c.nome} \u2014 ${respostas.length} resposta(s):`, linhaMensagem(raiz), ...respostas.map((m) => linhaMensagem(m, "  "))].join("\n");
+      }
+      const n = limite ?? 30;
+      let msgs = (await fetchMessagesForSearch(ctx.wsId, [c.canal], busca ? 200 : n)).map((x) => x.message);
+      if (busca?.trim()) {
+        const alvo = normalize(busca.trim());
+        msgs = msgs.filter((m) => normalize(m.text).includes(alvo)).slice(0, n);
+      }
+      msgs.reverse();
+      const projetos = await ctx.projetos();
+      const canais = ["geral", ...projetos.map((p) => p.code ?? p.name)].join(", ");
+      const corpo = msgs.length ? msgs.map((m) => linhaMensagem(m, m.parentId ? "  \u21B3 " : "")).join("\n") : "(nenhuma mensagem)";
+      return `${c.nome}${busca ? ` (com "${busca.trim()}")` : ""} \u2014 ${msgs.length} mensagem(ns):
+${corpo}
+
+${link.chat(c.canal)}
+Canais: ${canais}`;
+    })
+  );
+  server.registerTool(
+    "enviar_mensagem",
+    {
+      title: "Enviar mensagem no chat",
+      description: "Escreve no chat geral ou no canal de um projeto, com o nome do usu\xE1rio logado. @Nome cita uma pessoa (@todos chama a workspace) e IC-25 no texto vira cita\xE7\xE3o da tarefa \u2014 os citados s\xE3o avisados. `responder_a` responde citando uma mensagem; `thread` responde dentro da thread dela.",
+      inputSchema: {
+        canal: canalParam,
+        texto: external_exports.string().min(1),
+        responder_a: external_exports.string().optional().describe("Id da mensagem a citar (resposta no fluxo do canal, estilo WhatsApp)."),
+        thread: external_exports.string().optional().describe("Id da mensagem raiz: a resposta entra na thread dela."),
+        workspace: workspaceParam5
+      }
+    },
+    ({ canal, texto, responder_a, thread, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const c = await resolveCanal(ctx, canal);
+      if (responder_a && thread) throw new GliaToolError("Use `responder_a` OU `thread`, n\xE3o os dois.");
+      const corpo = texto.trim();
+      const [membros, opcoes] = await Promise.all([ctx.membros(), opcoesDeCitacao(ctx, c.canal)]);
+      const mentions = resolveMentions(corpo, membros);
+      const taskRefs = resolveTaskRefs(corpo, opcoes);
+      const raiz = thread ? await lerMensagem(ctx, c, thread) : null;
+      if (raiz?.parentId) throw new GliaToolError("Essa mensagem j\xE1 \xE9 uma resposta \u2014 use o id da raiz da thread.");
+      const citada = responder_a ? await lerMensagem(ctx, c, responder_a) : null;
+      const id = await sendChatMessage(ctx.wsId, c.canal, {
+        authorUid: ctx.eu.uid,
+        authorName: nomeDe(ctx.eu),
+        authorPhoto: fotoDe(ctx.eu),
+        text: corpo,
+        mentions,
+        taskRefs,
+        parentId: raiz?.id ?? null,
+        ...citada ? { replyTo: snapshotDeCitacao(citada) } : {}
+      });
+      const participantes = raiz ? [raiz.authorUid, ...raiz.threadParticipants ?? []] : citada ? [citada.authorUid] : [];
+      await notifyChatMessage(contextoDoChat(ctx, c), { id, text: corpo, parentId: raiz?.id ?? null }, mentions, participantes);
+      const avisados = [.../* @__PURE__ */ new Set([...mentions, ...participantes])].filter((uid) => uid !== ctx.eu.uid);
+      const refs = taskRefs.length ? ` Citei: ${taskRefs.map((r) => r.code).join(", ")}.` : "";
+      const aviso = avisados.length ? ` Avisei: ${await nomes(ctx, avisados)}.` : "";
+      return `Enviei em ${c.nome}${raiz ? " (na thread)" : citada ? ` (respondendo ${citada.authorName})` : ""} como ${nomeDe(ctx.eu)} (id ${id}).${refs}${aviso}`;
+    })
+  );
+  server.registerTool(
+    "editar_mensagem",
+    {
+      title: "Editar mensagem do chat",
+      description: 'Reescreve uma mensagem SUA do chat (fica marcada como "editada"). Men\xE7\xF5es e cita\xE7\xF5es de tarefa s\xE3o recalculadas do texto novo.',
+      inputSchema: { canal: canalParam, mensagem: mensagemParam, texto: external_exports.string().min(1), workspace: workspaceParam5 }
+    },
+    ({ canal, mensagem, texto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const c = await resolveCanal(ctx, canal);
+      const m = await lerMensagem(ctx, c, mensagem);
+      if (m.authorUid !== ctx.eu.uid) throw new GliaToolError(`Essa mensagem \xE9 de ${m.authorName} \u2014 s\xF3 quem escreveu edita.`);
+      if (m.kind === "sticker") throw new GliaToolError("Figurinha n\xE3o se edita.");
+      const [membros, opcoes] = await Promise.all([ctx.membros(), opcoesDeCitacao(ctx, c.canal)]);
+      await editChatMessage(ctx.wsId, c.canal, m.id, {
+        text: texto,
+        mentions: resolveMentions(texto, membros),
+        taskRefs: resolveTaskRefs(texto, opcoes)
+      });
+      return `Editei sua mensagem em ${c.nome}.`;
+    })
+  );
+  server.registerTool(
+    "apagar_mensagem",
+    {
+      title: "Apagar mensagem do chat",
+      description: "Apaga uma mensagem SUA do chat. Numa mensagem raiz, as respostas da thread v\xE3o junto. Confirme com o usu\xE1rio.",
+      inputSchema: { canal: canalParam, mensagem: mensagemParam, workspace: workspaceParam5 }
+    },
+    ({ canal, mensagem, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const c = await resolveCanal(ctx, canal);
+      const m = await lerMensagem(ctx, c, mensagem);
+      if (m.authorUid !== ctx.eu.uid) throw new GliaToolError(`Essa mensagem \xE9 de ${m.authorName} \u2014 s\xF3 quem escreveu apaga.`);
+      await deleteChatMessage(ctx.wsId, c.canal, m);
+      const thread = !m.parentId && (m.replyCount ?? 0) > 0 ? ` e as ${m.replyCount} resposta(s) da thread` : "";
+      return `Apaguei sua mensagem${thread} em ${c.nome}.`;
+    })
+  );
+  server.registerTool(
+    "criar_tarefa_da_mensagem",
+    {
+      title: "Transformar mensagem do chat em tarefa",
+      description: 'Cria uma tarefa a partir de uma mensagem do chat (como o bot\xE3o "virar tarefa"): a mensagem passa a mostrar o c\xF3digo da tarefa e o autor dela \xE9 avisado. No canal de um projeto, a tarefa nasce nele; no chat geral, informe `projeto`.',
+      inputSchema: {
+        canal: canalParam,
+        mensagem: mensagemParam,
+        projeto: external_exports.string().optional().describe("Projeto da tarefa (padr\xE3o: o do canal)."),
+        titulo: external_exports.string().optional().describe("Padr\xE3o: as primeiras palavras da mensagem."),
+        descricao: external_exports.string().optional().describe("Padr\xE3o: o texto da mensagem."),
+        coluna: external_exports.string().optional(),
+        prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
+        prazo: external_exports.string().optional().describe("AAAA-MM-DD"),
+        responsaveis: external_exports.array(external_exports.string()).optional(),
+        fase: external_exports.string().optional(),
+        workspace: workspaceParam5
+      }
+    },
+    (args) => executar(async () => {
+      const ctx = await contexto(args.workspace);
+      const c = await resolveCanal(ctx, args.canal);
+      const m = await lerMensagem(ctx, c, args.mensagem);
+      if (m.createdTaskId) throw new GliaToolError(`Essa mensagem j\xE1 virou a tarefa ${m.createdTaskCode ?? m.createdTaskId}.`);
+      const p = args.projeto ? await resolveProjeto(ctx, args.projeto) : c.projeto;
+      if (!p) throw new GliaToolError("No chat geral, informe `projeto` para a tarefa.");
+      const col = args.coluna ? resolveColuna(p, args.coluna) : colunasDe(p)[0];
+      const assignees = args.responsaveis?.length ? await Promise.all(args.responsaveis.map(async (r) => comoResponsavel(await resolveMembro(ctx, r)))) : [];
+      const fase = args.fase ? await resolveFase(ctx, p, args.fase) : null;
+      const titulo = args.titulo?.trim() || suggestTaskTitle(m.text) || "Tarefa do chat";
+      const taskId = await createTask(ctx.wsId, {
+        projectId: p.id,
+        title: titulo,
+        description: (args.descricao ?? m.text).trim(),
+        status: col.id,
+        priority: args.prioridade ? lerPrioridade(args.prioridade) : "med",
+        dueDate: lerData(args.prazo, "Prazo") ?? null,
+        assignees,
+        phaseId: fase?.id ?? null,
+        sourceMessage: {
+          channelKind: c.canal.kind,
+          ...c.canal.kind === "project" && c.canal.projectId ? { projectId: c.canal.projectId } : {},
+          messageId: m.id,
+          parentId: m.parentId ?? null
+        }
+      });
+      const t = await lerTarefa(ctx, p, taskId);
+      await linkMessageToTask(ctx.wsId, c.canal, m.id, { id: taskId, projectId: p.id, code: formatTaskCode(p.code, t.seq) }).catch(() => {
+      });
+      await notifyMessageBecameTask(contextoDoChat(ctx, c), m, { id: taskId, title: t.title, projectId: p.id });
+      const avisados = await avisarResponsaveis(ctx, p, taskId, t.title, [], assignees);
+      const aviso = avisados.length ? `
+Avisei: ${await nomes(ctx, avisados)}.` : "";
+      return `A mensagem de ${m.authorName} virou **${codigo(p, t)}** em "${col.label}" de ${p.name}.
+${linhaTarefa(p, t)}
+${link.tarefa(p, t)}${aviso}`;
+    })
+  );
+}
+var workspaceParam5, canalParam, mensagemParam, colecao;
+var init_chat = __esm({
+  "mcp/src/tools/chat.ts"() {
+    "use strict";
+    init_firestore();
+    init_zod();
+    init_notify();
+    init_parse();
+    init_queries2();
+    init_queries();
+    init_firestore_paths();
+    init_task_code();
+    init_session();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    workspaceParam5 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    canalParam = external_exports.string().optional().describe('"geral" (o chat da workspace, padr\xE3o) ou o projeto (nome/sigla) para o canal dele.');
+    mensagemParam = external_exports.string().describe("Id da mensagem (ler_chat mostra).");
+    colecao = (wsId, c) => c.kind === "project" && c.projectId ? wsProjectChatCol(wsId, c.projectId) : wsChatCol(wsId);
+  }
+});
+
+// mcp/src/tools/notificacoes.ts
+function destino(n) {
+  if (n.channelKind) {
+    const canal = n.channelKind === "global" ? channelFromKey("global") : channelFromKey(n.projectId || "global");
+    return link.chat(canal, n.messageId);
+  }
+  if (n.projectId && n.taskId) return link.tarefa({ id: n.projectId }, { id: n.taskId });
+  return null;
+}
+function linhaNotificacao(n) {
+  const oque = O_QUE[n.type] ?? n.type;
+  const sobre = n.type === "reaction" ? ` com "${n.sticker ?? "?"}" em "${n.taskTitle || n.excerpt || "sua fala"}"` : n.channelKind ? `${n.channelKind === "global" ? " (chat geral)" : ` (#${n.projectName})`}${n.excerpt ? `: "${n.excerpt}"` : ""}${n.type === "chat_task_created" && n.taskTitle ? ` \u2192 ${n.taskTitle}` : ""}` : ` "${n.taskTitle}"${n.projectName ? ` (${n.projectName})` : ""}`;
+  const ir = destino(n);
+  return `- ${n.read ? "" : "[n\xE3o lida] "}${dataHora(n.createdAt)} **${n.actorName}** ${oque}${sobre}${ir ? ` \u2014 ${ir}` : ""}  \`${n.id}\``;
+}
+function registerNotificacaoTools(server) {
+  server.registerTool(
+    "listar_notificacoes",
+    {
+      title: "Ver minhas notifica\xE7\xF5es",
+      description: 'O sino da Glia: quem te atribuiu tarefa, te citou, reagiu ou respondeu no chat \u2014 mais recentes primeiro, com o link de cada uma. Por padr\xE3o s\xF3 as n\xE3o lidas. Bom ponto de partida para "o que preciso ver hoje?".',
+      inputSchema: {
+        todas: external_exports.boolean().optional().describe("Tamb\xE9m as j\xE1 lidas (padr\xE3o: s\xF3 n\xE3o lidas)."),
+        limite: external_exports.number().int().min(1).max(100).optional().describe("Padr\xE3o 20.")
+      }
+    },
+    ({ todas, limite }) => executar(async () => {
+      const eu = await ensureSignedIn();
+      const n = limite ?? 20;
+      const snap = await getDocs(query(notificationsCol(eu.uid), orderBy("createdAt", "desc"), limit(todas ? n : Math.max(n, 100))));
+      let lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      if (!todas) lista = lista.filter((x) => !x.read);
+      lista = lista.slice(0, n);
+      if (lista.length === 0) return todas ? "Nenhuma notifica\xE7\xE3o." : "Nenhuma notifica\xE7\xE3o n\xE3o lida.";
+      return `${todas ? "Notifica\xE7\xF5es" : "N\xE3o lidas"} \u2014 ${lista.length}:
+${lista.map(linhaNotificacao).join("\n")}`;
+    })
+  );
+  server.registerTool(
+    "marcar_notificacoes_lidas",
+    {
+      title: "Marcar notifica\xE7\xF5es como lidas",
+      description: "Marca notifica\xE7\xF5es como lidas (some o pontinho do sino). Informe os ids, ou `todas: true` para limpar as recentes.",
+      inputSchema: {
+        ids: external_exports.array(external_exports.string()).optional(),
+        todas: external_exports.boolean().optional()
+      }
+    },
+    ({ ids, todas }) => executar(async () => {
+      const eu = await ensureSignedIn();
+      if (todas) {
+        await markAllAsRead(eu.uid);
+        return "Marquei as notifica\xE7\xF5es recentes como lidas.";
+      }
+      if (!ids?.length) throw new GliaToolError("Informe `ids` ou `todas: true`.");
+      await Promise.all(ids.map((id) => markAsRead(eu.uid, id.trim())));
+      return `Marquei ${ids.length} notifica\xE7\xE3o(\xF5es) como lida(s).`;
+    })
+  );
+}
+var O_QUE;
+var init_notificacoes = __esm({
+  "mcp/src/tools/notificacoes.ts"() {
+    "use strict";
+    init_firestore();
+    init_zod();
+    init_queries8();
+    init_firestore_paths();
+    init_models();
+    init_session();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    O_QUE = {
+      task_assigned: "te colocou como respons\xE1vel em",
+      checklist_assigned: "te passou uma subtarefa em",
+      task_mentioned: "te citou num coment\xE1rio de",
+      reaction: "reagiu",
+      chat_mentioned: "te citou no chat",
+      chat_replied: "respondeu no chat",
+      chat_task_created: "transformou sua mensagem na tarefa"
+    };
+  }
+});
+
 // mcp/src/tools/sugestoes.ts
-async function garantirPortal(ctx, projetoRef) {
-  const p = await resolveProjeto(ctx, projetoRef);
-  if (!p.portalId) {
-    const portalId = await createPortalForProject(ctx.wsId, p.id, p.name, ctx.eu.uid);
-    esquecer(`projetos:${ctx.wsId}`);
-    return { portalId, nomeProjeto: p.name, criado: true, reativado: false };
-  }
-  const portal = await fetchPortal(p.portalId);
-  if (!portal) throw new GliaToolError(`O projeto ${p.name} aponta para um portal que n\xE3o existe mais. Pe\xE7a ao time para reativar na aba Melhorias.`);
-  if (!portal.ativo) {
-    await setPortalAtivo(p.portalId, true);
-    return { portalId: p.portalId, nomeProjeto: p.name, criado: false, reativado: true };
-  }
-  return { portalId: p.portalId, nomeProjeto: p.name, criado: false, reativado: false };
+function lerStatus(texto) {
+  const n = normalize(texto.trim()).replace(/[_-]/g, " ");
+  const s = SUGESTAO_STATUSES.find((x) => x.replace("_", " ") === n || normalize(SUGESTAO_STATUS_LABELS[x]) === n);
+  if (!s) throw new GliaToolError(`Status "${texto}" inv\xE1lido \u2014 use ${SUGESTAO_STATUSES.map((x) => SUGESTAO_STATUS_LABELS[x].toLowerCase()).join(", ")}.`);
+  return s;
+}
+function cabecalhoPortal(p, pp) {
+  const estado = pp.portal.ativo ? "ativo" : "DESATIVADO (o link n\xE3o abre para ningu\xE9m; portal_sugestoes com ativo=true religa)";
+  const nota = pp.criado ? " \u2014 criado agora" : pp.reativado ? " \u2014 reativado agora" : "";
+  return `Portal de sugest\xF5es de **${p.name}**: ${link.portal(pp.portal.id)} (${estado}${nota})`;
+}
+async function fila(ctx, projetoRef) {
+  const p = await resolveProjeto(ctx, projetoRef, true);
+  const pp = await portalDoProjeto(ctx, p);
+  if (!pp) throw new GliaToolError(`O projeto ${p.name} ainda n\xE3o tem portal de sugest\xF5es. Crie com portal_sugestoes.`);
+  return { p, pp, lista: await fetchSugestoes(pp.portal.id) };
+}
+function detalheSugestao(s, membrosNome) {
+  const linhas = [
+    `# ${s.titulo}`,
+    `status ${SUGESTAO_STATUS_LABELS[s.status] ?? s.status} \xB7 ${s.votos?.length ?? 0} voto(s) \xB7 por ${s.authorName} em ${dataHora(s.createdAt)} \xB7 id ${s.id}`
+  ];
+  if (s.oculta) linhas.push(s.mescladaComTitulo ? `Unida a "${s.mescladaComTitulo}" (fora do mural).` : "Oculta do mural (o time ainda v\xEA).");
+  if (s.taskCode || s.taskId) linhas.push(`Virou a tarefa ${s.taskCode ?? s.taskId}.`);
+  linhas.push("", s.descricao.trim() || "(sem descri\xE7\xE3o)");
+  if (s.respostaDoTime) linhas.push("", `Resposta do time (${s.respondidoPorNome ?? "?"}): ${s.respostaDoTime}`);
+  if (s.votos?.length) linhas.push("", `Votaram: ${s.votos.map(membrosNome).join(", ")}`);
+  const prints = s.miniaturas?.length ?? 0;
+  if (prints) linhas.push("", `${prints} print(s) anexado(s).`);
+  return linhas.join("\n");
 }
 function registerSugestaoTools(server) {
+  server.registerTool(
+    "portal_sugestoes",
+    {
+      title: "Link do portal de sugest\xF5es (esteira de melhorias)",
+      description: "O link p\xFAblico do portal de sugest\xF5es do projeto \u2014 o mural onde testadores sugerem melhorias e votam (aba Melhorias). Cria o portal se o projeto ainda n\xE3o tem. `ativo: false` desliga o link (a fila fica guardada); `ativo: true` religa.",
+      inputSchema: {
+        projeto: projetoParam,
+        ativo: external_exports.boolean().optional().describe("true liga/religa o link; false desliga. Omitido = s\xF3 consultar (criando se n\xE3o existir)."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, ativo, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto);
+      if (ativo === false && !p.portalId) return `${p.name} n\xE3o tem portal de sugest\xF5es \u2014 nada para desligar.`;
+      const pp = await portalDoProjeto(ctx, p, { garantir: true, reativar: ativo === true });
+      if (ativo === false && pp.portal.ativo) {
+        await setPortalAtivo(pp.portal.id, false);
+        pp.portal = { ...pp.portal, ativo: false };
+        return `Desliguei o link do portal de ${p.name}: ${link.portal(pp.portal.id)} n\xE3o abre mais para ningu\xE9m. As sugest\xF5es continuam na aba Melhorias; portal_sugestoes com ativo=true religa o MESMO link.`;
+      }
+      const lista = await fetchSugestoes(pp.portal.id);
+      const contagem = SUGESTAO_STATUSES.map((s) => [s, lista.filter((x) => x.status === s && !x.mescladaComId).length]).filter(([, n]) => n > 0).map(([s, n]) => `${n} ${SUGESTAO_STATUS_LABELS[s].toLowerCase()}`);
+      return [
+        cabecalhoPortal(p, pp),
+        `Quem tem o link entra com o Google e sugere/vota sem virar membro da workspace.`,
+        `Fila: ${lista.length ? contagem.join(" \xB7 ") : "vazia"}. Triagem na aba Melhorias: ${link.aba(p, "melhorias")}`
+      ].join("\n");
+    })
+  );
   server.registerTool(
     "listar_sugestoes",
     {
       title: "Listar sugest\xF5es de melhoria",
-      description: "As sugest\xF5es do portal de melhorias do projeto (aba Melhorias), com status, votos, resposta do time e tarefa vinculada.",
+      description: "As sugest\xF5es do portal de melhorias do projeto (aba Melhorias), na ordem do mural (mais votadas primeiro), com status, votos, resposta do time e tarefa vinculada \u2014 e o link p\xFAblico do portal.",
       inputSchema: {
         projeto: projetoParam,
-        incluir_ocultas: external_exports.boolean().optional().describe("Tamb\xE9m as que o time ocultou do mural (padr\xE3o: n\xE3o)."),
-        workspace: workspaceParam3
+        status: external_exports.string().optional().describe("Filtrar: recebida | em an\xE1lise | planejada | conclu\xEDda | recusada."),
+        incluir_ocultas: external_exports.boolean().optional().describe("Tamb\xE9m as que o time ocultou ou uniu a outra (padr\xE3o: n\xE3o)."),
+        workspace: workspaceParam6
       }
     },
-    ({ projeto, incluir_ocultas, workspace }) => executar(async () => {
+    ({ projeto, status, incluir_ocultas, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto, true);
-      if (!p.portalId) return `O projeto ${p.name} ainda n\xE3o tem portal de sugest\xF5es (nenhuma sugest\xE3o).`;
-      const lista = (await fetchSugestoes(p.portalId)).filter((s) => incluir_ocultas || !s.oculta);
-      return `Sugest\xF5es de **${p.name}** \u2014 ${lista.length}:
+      const pp = await portalDoProjeto(ctx, p);
+      if (!pp) return `O projeto ${p.name} ainda n\xE3o tem portal de sugest\xF5es (nenhuma sugest\xE3o). portal_sugestoes cria e devolve o link.`;
+      let lista = (await fetchSugestoes(pp.portal.id)).filter((s) => incluir_ocultas || !s.oculta);
+      const st = status ? lerStatus(status) : null;
+      if (st) lista = lista.filter((s) => s.status === st);
+      const filtro = st ? ` (${SUGESTAO_STATUS_LABELS[st].toLowerCase()})` : "";
+      return `${cabecalhoPortal(p, pp)}
+
+Sugest\xF5es${filtro} \u2014 ${lista.length}:
 ${listaSugestoes(lista)}`;
+    })
+  );
+  server.registerTool(
+    "ver_sugestao",
+    {
+      title: "Ver uma sugest\xE3o por inteiro",
+      description: "A sugest\xE3o completa: descri\xE7\xE3o, quem votou, resposta do time e os PRINTS anexados (como imagem, para voc\xEA ver o problema).",
+      inputSchema: {
+        projeto: projetoParam,
+        sugestao: sugestaoParam,
+        imagens: external_exports.boolean().optional().describe("Trazer os prints em tamanho cheio (padr\xE3o: sim)."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, sugestao, imagens, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { pp, lista } = await fila(ctx, projeto);
+      const s = resolveSugestao(lista, sugestao);
+      const membros = await ctx.membros();
+      const nome = (uid) => membros.find((m) => m.uid === uid)?.displayName ?? "algu\xE9m de fora da workspace";
+      const prints = [];
+      if (imagens ?? true) {
+        for (const m of s.miniaturas ?? []) {
+          const cheia = await fetchSugestaoImagem(pp.portal.id, s.id, m.id).catch(() => null);
+          prints.push({ dataUrl: cheia?.dataUrl ?? m.dataUrl });
+        }
+      }
+      return { texto: detalheSugestao(s, nome), imagens: prints };
     })
   );
   server.registerTool(
@@ -37420,54 +39038,238 @@ ${listaSugestoes(lista)}`;
         projeto: projetoParam,
         titulo: external_exports.string().min(1),
         descricao: external_exports.string().min(1).describe("O problema ou a ideia, com contexto suficiente para o time avaliar."),
-        workspace: workspaceParam3
+        workspace: workspaceParam6
       }
     },
     ({ projeto, titulo, descricao, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
-      const portal = await garantirPortal(ctx, projeto);
-      const id = await createSugestao(portal.portalId, {
+      const p = await resolveProjeto(ctx, projeto);
+      const pp = await portalDoProjeto(ctx, p, { garantir: true, reativar: true });
+      const id = await createSugestao(pp.portal.id, {
         titulo,
         descricao,
         authorUid: ctx.eu.uid,
         authorName: nomeDe(ctx.eu),
         authorPhoto: fotoDe(ctx.eu)
       });
-      const nota = portal.criado ? " (o portal de sugest\xF5es do projeto foi criado agora)" : portal.reativado ? " (o portal estava desativado e foi reativado)" : "";
-      return `Registrei a sugest\xE3o "${titulo.trim()}" em ${portal.nomeProjeto} com status "recebida" (id ${id})${nota}.`;
+      const nota = pp.criado ? " (o portal de sugest\xF5es do projeto foi criado agora)" : pp.reativado ? " (o portal estava desativado e foi reativado)" : "";
+      return `Registrei a sugest\xE3o "${titulo.trim()}" em ${p.name} com status "recebida" (id ${id})${nota}.
+Portal: ${link.portal(pp.portal.id)}`;
+    })
+  );
+  server.registerTool(
+    "atualizar_sugestao",
+    {
+      title: "Triar sugest\xE3o (status, resposta, ocultar)",
+      description: "A triagem da aba Melhorias: muda o status (recebida \u2192 em an\xE1lise \u2192 planejada \u2192 conclu\xEDda, ou recusada), escreve a resposta P\xDABLICA do time (quem sugeriu v\xEA no mural; vazio apaga) e oculta/reexibe no mural. T\xEDtulo/descri\xE7\xE3o s\xF3 o autor da sugest\xE3o edita.",
+      inputSchema: {
+        projeto: projetoParam,
+        sugestao: sugestaoParam,
+        status: external_exports.string().optional().describe("recebida | em an\xE1lise | planejada | conclu\xEDda | recusada"),
+        resposta: external_exports.string().optional().describe("Resposta p\xFAblica do time. String vazia apaga."),
+        oculta: external_exports.boolean().optional().describe("true tira do mural p\xFAblico (o time continua vendo); false reexibe."),
+        titulo: external_exports.string().optional().describe("S\xF3 se voc\xEA for o autor da sugest\xE3o."),
+        descricao: external_exports.string().optional().describe("S\xF3 se voc\xEA for o autor da sugest\xE3o."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, sugestao, status, resposta, oculta, titulo, descricao, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { p, pp, lista } = await fila(ctx, projeto);
+      const s = resolveSugestao(lista, sugestao);
+      const mudou = [];
+      if (titulo !== void 0 || descricao !== void 0) {
+        if (s.authorUid !== ctx.eu.uid) throw new GliaToolError(`S\xF3 ${s.authorName} (autor) edita o texto de "${s.titulo}". O time responde com \`resposta\`.`);
+        await updateSugestaoTexto(pp.portal.id, s, { titulo: titulo ?? s.titulo, descricao: descricao ?? s.descricao });
+        mudou.push("texto");
+      }
+      if (status !== void 0) {
+        const st = lerStatus(status);
+        await setSugestaoStatus(pp.portal.id, s.id, st);
+        mudou.push(`status \u2192 ${SUGESTAO_STATUS_LABELS[st].toLowerCase()}`);
+      }
+      if (resposta !== void 0) {
+        await responderSugestao(pp.portal.id, s.id, resposta, nomeDe(ctx.eu));
+        mudou.push(resposta.trim() ? "resposta p\xFAblica" : "resposta apagada");
+      }
+      if (oculta !== void 0 && oculta !== s.oculta) {
+        await setSugestaoOculta(pp.portal.id, s.id, oculta);
+        mudou.push(oculta ? "oculta do mural" : "reexibida no mural");
+      }
+      if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe status, resposta, oculta ou o texto.");
+      return `Atualizei "${s.titulo}" em ${p.name}: ${mudou.join(", ")}.`;
+    })
+  );
+  server.registerTool(
+    "converter_sugestao",
+    {
+      title: "Converter sugest\xE3o em tarefa",
+      description: 'Transforma a sugest\xE3o numa tarefa do Kanban (com os prints anexados indo junto) e marca a sugest\xE3o como "planejada" com o c\xF3digo da tarefa \u2014 quem sugeriu v\xEA "virou IC-31" no mural. Devolve o c\xF3digo.',
+      inputSchema: {
+        projeto: projetoParam,
+        sugestao: sugestaoParam,
+        titulo: external_exports.string().optional().describe("T\xEDtulo da tarefa (padr\xE3o: o da sugest\xE3o)."),
+        coluna: external_exports.string().optional().describe("Coluna inicial (padr\xE3o: a primeira)."),
+        prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
+        prazo: external_exports.string().optional().describe("AAAA-MM-DD"),
+        responsaveis: external_exports.array(external_exports.string()).optional().describe("Padr\xE3o: o usu\xE1rio logado."),
+        fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id)."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, sugestao, titulo, coluna, prioridade, prazo, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { p, pp, lista } = await fila(ctx, projeto);
+      const s = resolveSugestao(lista, sugestao);
+      if (s.taskId) throw new GliaToolError(`"${s.titulo}" j\xE1 virou a tarefa ${s.taskCode ?? s.taskId}.`);
+      const col = coluna ? resolveColuna(p, coluna) : colunasDe(p)[0];
+      const assignees = responsaveis2?.length ? await Promise.all(responsaveis2.map(async (r) => comoResponsavel(await resolveMembro(ctx, r)))) : [];
+      const faseDoc = fase ? await resolveFase(ctx, p, fase) : null;
+      const taskId = await createTask(ctx.wsId, {
+        projectId: p.id,
+        title: titulo?.trim() || s.titulo,
+        description: s.descricao,
+        status: col.id,
+        priority: prioridade ? lerPrioridade(prioridade) : "med",
+        dueDate: lerData(prazo, "Prazo") ?? null,
+        assignees,
+        phaseId: faseDoc?.id ?? null,
+        sourceSugestao: ponteiroDaSugestao(pp.portal.id, s)
+      });
+      const t = await lerTarefa(ctx, p, taskId);
+      await vincularTarefa(pp.portal.id, s.id, taskId, formatTaskCode(p.code, t.seq));
+      const avisados = await avisarResponsaveis(ctx, p, taskId, t.title, [], assignees);
+      const aviso = avisados.length ? `
+Avisei: ${await nomes(ctx, avisados)}.` : "";
+      return `"${s.titulo}" virou **${codigo(p, t)}** em "${col.label}" e a sugest\xE3o passou a "planejada".
+${linhaTarefa(p, t)}
+${link.tarefa(p, t)}${aviso}`;
+    })
+  );
+  server.registerTool(
+    "mesclar_sugestoes",
+    {
+      title: "Unir sugest\xE3o duplicada a outra",
+      description: "Une uma sugest\xE3o duplicada \xE0 principal: os votos (e o autor da duplicada) passam para a principal e a duplicada sai do mural \u2014 o autor dela \xE9 avisado no portal. N\xE3o d\xE1 para desfazer pela Glia.",
+      inputSchema: {
+        projeto: projetoParam,
+        duplicada: sugestaoParam.describe("A sugest\xE3o repetida (sai do mural)."),
+        principal: sugestaoParam.describe("A sugest\xE3o que fica e recebe os votos."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, duplicada, principal, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { p, pp, lista } = await fila(ctx, projeto);
+      const dup = resolveSugestao(lista, duplicada);
+      const alvo = resolveSugestao(lista, principal);
+      if (dup.id === alvo.id) throw new GliaToolError("A duplicada e a principal s\xE3o a mesma sugest\xE3o.");
+      if (dup.mescladaComId) throw new GliaToolError(`"${dup.titulo}" j\xE1 foi unida a "${dup.mescladaComTitulo}".`);
+      await mesclarSugestoes(pp.portal.id, dup, alvo);
+      const votos = (/* @__PURE__ */ new Set([...alvo.votos ?? [], ...dup.votos ?? [], dup.authorUid])).size;
+      return `Uni "${dup.titulo}" a "${alvo.titulo}" em ${p.name}: a principal agora tem ${votos} voto(s) e a duplicada saiu do mural.`;
+    })
+  );
+  server.registerTool(
+    "votar_sugestao",
+    {
+      title: "Votar numa sugest\xE3o",
+      description: "D\xE1 (ou tira) o voto do usu\xE1rio logado numa sugest\xE3o \u2014 os votos ordenam a fila do mural.",
+      inputSchema: {
+        projeto: projetoParam,
+        sugestao: sugestaoParam,
+        votar: external_exports.boolean().optional().describe("true = votar (padr\xE3o), false = tirar o voto."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, sugestao, votar, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { pp, lista } = await fila(ctx, projeto);
+      const s = resolveSugestao(lista, sugestao);
+      const quer = votar ?? true;
+      const jaVotou = (s.votos ?? []).includes(ctx.eu.uid);
+      if (quer === jaVotou) return `Seu voto em "${s.titulo}" j\xE1 estava ${quer ? "l\xE1" : "fora"} (${s.votos?.length ?? 0} voto(s)).`;
+      await toggleVoto(pp.portal.id, s.id, ctx.eu.uid, jaVotou);
+      const total = (s.votos?.length ?? 0) + (quer ? 1 : -1);
+      return `${quer ? "Votei" : "Tirei o voto"} em "${s.titulo}" \u2014 ${total} voto(s).`;
+    })
+  );
+  server.registerTool(
+    "excluir_sugestao",
+    {
+      title: "Excluir sugest\xE3o",
+      description: "Apaga a sugest\xE3o e os prints dela de vez. Para s\xF3 tirar do mural, prefira atualizar_sugestao com oculta=true. Confirme com o usu\xE1rio antes.",
+      inputSchema: { projeto: projetoParam, sugestao: sugestaoParam, workspace: workspaceParam6 }
+    },
+    ({ projeto, sugestao, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { p, pp, lista } = await fila(ctx, projeto);
+      const s = resolveSugestao(lista, sugestao);
+      await deleteSugestao(pp.portal.id, s.id);
+      return `Exclu\xED a sugest\xE3o "${s.titulo}" de ${p.name}.`;
     })
   );
 }
-var workspaceParam3;
+var workspaceParam6, sugestaoParam;
 var init_sugestoes = __esm({
   "mcp/src/tools/sugestoes.ts"() {
     "use strict";
     init_zod();
+    init_parse();
+    init_queries();
     init_queries3();
+    init_task_code();
+    init_models();
     init_session();
     init_context();
     init_format2();
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam3 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam6 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    sugestaoParam = external_exports.string().describe("T\xEDtulo (ou parte \xFAnica dele) ou id da sugest\xE3o (listar_sugestoes mostra).");
   }
 });
 
 // mcp/src/tools/tarefas.ts
+function conexoesLegiveis(conns, todas, projetos) {
+  return (conns ?? []).map((c) => {
+    if (c.target.type === "task") {
+      const hit = todas.find((x) => x.tarefa.id === c.target.id);
+      if (!hit) return { tipo: c.linkType, rotulo: "(tarefa removida ou sem acesso)", aberta: false };
+      return {
+        tipo: c.linkType,
+        rotulo: `${codigo(hit.projeto, hit.tarefa)} ${hit.tarefa.title}`,
+        aberta: !doneStatusIds(hit.projeto.columns).has(hit.tarefa.status)
+      };
+    }
+    const p = projetos.find((x) => x.id === c.target.id);
+    if (!p) return { tipo: c.linkType, rotulo: "(projeto removido ou sem acesso)", aberta: false };
+    return { tipo: c.linkType, rotulo: `projeto ${p.name}`, aberta: p.status !== "archived" && p.phase !== "concluido" };
+  });
+}
+async function citacoes(ctx, p, t) {
+  const achadas = await fetchTaskDiscussions(ctx.wsId, p.id, t.id).catch(() => []);
+  return achadas.map(({ message, channel }) => ({
+    canal: channel.kind === "global" ? "Chat geral" : `#${p.name}`,
+    autor: message.authorName,
+    quando: dataHora(message.createdAt),
+    texto: message.text
+  }));
+}
 function registerTarefaTools(server) {
   server.registerTool(
     "listar_tarefas",
     {
       title: "Listar tarefas de um projeto",
-      description: "As tarefas de um projeto, uma por linha, com c\xF3digo (IC-25), coluna, prioridade, prazo, respons\xE1veis e progresso das subtarefas. Por padr\xE3o s\xF3 as pendentes (fora da coluna de conclus\xE3o).",
+      description: "As tarefas de um projeto, uma por linha, com c\xF3digo (IC-25), coluna, prioridade, prazo, respons\xE1veis e progresso das subtarefas. Por padr\xE3o s\xF3 as pendentes (fora da coluna de conclus\xE3o). Para tarefas de v\xE1rios projetos, use buscar_tarefas.",
       inputSchema: {
         projeto: projetoParam,
         pendentes: external_exports.boolean().optional().describe("S\xF3 as tarefas fora de coluna de conclus\xE3o (padr\xE3o: true). false = todas."),
         coluna: external_exports.string().optional().describe('Filtrar por coluna do Kanban (id ou nome, ex. "Em Andamento").'),
         minhas: external_exports.boolean().optional().describe("S\xF3 as tarefas em que o usu\xE1rio logado \xE9 respons\xE1vel."),
         fase: external_exports.string().optional().describe("S\xF3 as tarefas vinculadas a esta fase (nome ou id)."),
-        workspace: workspaceParam4
+        workspace: workspaceParam7
       }
     },
     ({ projeto, pendentes, coluna, minhas, fase, workspace }) => executar(async () => {
@@ -37500,34 +39302,125 @@ function registerTarefaTools(server) {
     })
   );
   server.registerTool(
+    "buscar_tarefas",
+    {
+      title: "Buscar tarefas em todos os projetos",
+      description: 'Tarefas da workspace inteira (todos os projetos que o usu\xE1rio enxerga), com filtros: texto, respons\xE1vel, atrasadas, prazo at\xE9 uma data. Ex.: "minhas tarefas atrasadas", "o que vence esta semana", "tarefas do Bruno", "onde falamos de login".',
+      inputSchema: {
+        texto: external_exports.string().optional().describe("Procura no c\xF3digo, t\xEDtulo, descri\xE7\xE3o, tags e subtarefas."),
+        minhas: external_exports.boolean().optional().describe("S\xF3 as do usu\xE1rio logado."),
+        responsavel: external_exports.string().optional().describe("S\xF3 as desta pessoa (nome, e-mail ou uid)."),
+        atrasadas: external_exports.boolean().optional().describe("S\xF3 as com prazo vencido (e n\xE3o conclu\xEDdas)."),
+        prazo_ate: external_exports.string().optional().describe("S\xF3 as com prazo at\xE9 este dia (AAAA-MM-DD), inclusive."),
+        pendentes: external_exports.boolean().optional().describe("S\xF3 as n\xE3o conclu\xEDdas (padr\xE3o: true)."),
+        prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
+        tag: external_exports.string().optional(),
+        workspace: workspaceParam7
+      }
+    },
+    (args) => executar(async () => {
+      const ctx = await contexto(args.workspace);
+      let lista = await todasAsTarefas(ctx);
+      const filtros = [];
+      const hoje = /* @__PURE__ */ new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const dia = (t) => t.dueDate ? /* @__PURE__ */ new Date(`${data(t.dueDate)}T00:00:00`) : null;
+      if (args.pendentes ?? true) {
+        lista = lista.filter(({ projeto, tarefa }) => !doneStatusIds(projeto.columns).has(tarefa.status));
+        filtros.push("pendentes");
+      }
+      if (args.minhas) {
+        lista = lista.filter(({ tarefa }) => isTaskAssignedTo(tarefa, ctx.eu.uid));
+        filtros.push("minhas");
+      }
+      if (args.responsavel) {
+        const m = await resolveMembro(ctx, args.responsavel);
+        lista = lista.filter(({ tarefa }) => isTaskAssignedTo(tarefa, m.uid));
+        filtros.push(`de ${m.displayName}`);
+      }
+      if (args.atrasadas) {
+        lista = lista.filter(({ projeto, tarefa }) => {
+          const d = dia(tarefa);
+          return d !== null && d < hoje && !doneStatusIds(projeto.columns).has(tarefa.status);
+        });
+        filtros.push("atrasadas");
+      }
+      if (args.prazo_ate) {
+        const limite = lerDiaLocal(args.prazo_ate, "prazo_ate");
+        lista = lista.filter(({ tarefa }) => {
+          const d = dia(tarefa);
+          return d !== null && d <= limite;
+        });
+        filtros.push(`prazo at\xE9 ${args.prazo_ate}`);
+      }
+      if (args.prioridade) {
+        const pr = lerPrioridade(args.prioridade);
+        lista = lista.filter(({ tarefa }) => tarefa.priority === pr);
+        filtros.push(`prioridade ${args.prioridade}`);
+      }
+      if (args.tag?.trim()) {
+        const n = normalize(args.tag.trim());
+        lista = lista.filter(({ tarefa }) => (tarefa.tags ?? []).some((x) => normalize(x) === n));
+        filtros.push(`tag ${args.tag.trim()}`);
+      }
+      if (args.texto?.trim()) {
+        const n = normalize(args.texto.trim());
+        lista = lista.filter(
+          ({ projeto, tarefa }) => normalize(
+            [codigo(projeto, tarefa), tarefa.title, tarefa.description, ...tarefa.tags ?? [], ...(tarefa.checklist ?? []).map((i) => i.text)].join("\n")
+          ).includes(n)
+        );
+        filtros.push(`"${args.texto.trim()}"`);
+      }
+      lista.sort((a, b) => (dia(a.tarefa)?.getTime() ?? Infinity) - (dia(b.tarefa)?.getTime() ?? Infinity));
+      const titulo = `Tarefas da workspace **${ctx.wsName}**${filtros.length ? ` (${filtros.join(", ")})` : ""} \u2014 ${lista.length}:`;
+      if (lista.length === 0) return `${titulo}
+
+(nenhuma tarefa)`;
+      const MAX = 80;
+      const linhas = lista.slice(0, MAX).map(({ projeto, tarefa }) => `${linhaTarefa(projeto, tarefa)} \xB7 ${projeto.name}`);
+      const resto = lista.length > MAX ? `
+\u2026e mais ${lista.length - MAX}. Refine os filtros.` : "";
+      return `${titulo}
+
+${linhas.join("\n")}${resto}`;
+    })
+  );
+  server.registerTool(
     "ver_tarefa",
     {
       title: "Ver uma tarefa por inteiro",
-      description: "Tudo de uma tarefa: descri\xE7\xE3o, subtarefas (com ids), coment\xE1rios, depend\xEAncias abertas, fase, respons\xE1veis. Leia antes de mexer numa tarefa.",
+      description: "Tudo de uma tarefa: descri\xE7\xE3o, subtarefas (com ids), coment\xE1rios (com ids), depend\xEAncias e conex\xF5es, fase, respons\xE1veis, onde foi citada no chat e o link para abrir na Glia. Leia antes de mexer numa tarefa.",
       inputSchema: {
         tarefa: tarefaParam,
         projeto: external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo."),
-        workspace: workspaceParam4
+        workspace: workspaceParam7
       }
     },
     ({ tarefa, projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
-      const [mensagens, deps, fases] = await Promise.all([
+      const temConexoes = (t.connections?.length ?? 0) > 0;
+      const [mensagens, deps, fases, todas, citadas] = await Promise.all([
         fetchTaskMessages(ctx.wsId, p.id, t.id),
         dependenciasAbertas(ctx, t),
-        t.phaseId ? fetchPhases(ctx.wsId, p.id) : Promise.resolve([])
+        t.phaseId ? fetchPhases(ctx.wsId, p.id) : Promise.resolve([]),
+        temConexoes ? todasAsTarefas(ctx, true) : Promise.resolve([]),
+        citacoes(ctx, p, t)
       ]);
       const fase = t.phaseId ? fases.find((f) => f.id === t.phaseId) ?? null : null;
-      return detalheTarefa(p, t, mensagens, deps, fase);
+      const conexoes = temConexoes ? conexoesLegiveis(t.connections, todas, await ctx.projetos(true)) : [];
+      return detalheTarefa(p, t, mensagens, deps, fase, { link: link.tarefa(p, t), conexoes, citacoes: citadas });
     })
   );
 }
-var workspaceParam4, tarefaParam;
+var workspaceParam7, tarefaParam;
 var init_tarefas = __esm({
   "mcp/src/tools/tarefas.ts"() {
     "use strict";
     init_zod();
+    init_parse();
+    init_queries2();
     init_queries();
     init_models();
     init_context();
@@ -37535,7 +39428,7 @@ var init_tarefas = __esm({
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam4 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam7 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     tarefaParam = external_exports.string().describe("C\xF3digo p\xFAblico da tarefa (ex. IC-25) ou o id do documento.");
   }
 });
@@ -37563,14 +39456,15 @@ function registerTarefaEscritaTools(server) {
         coluna: external_exports.string().optional().describe("Coluna inicial (id ou nome). Padr\xE3o: a primeira do quadro."),
         prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta (padr\xE3o: m\xE9dia)."),
         prazo: prazoParam,
+        inicio: inicioParam,
         tags: external_exports.array(external_exports.string()).optional(),
         subtarefas: external_exports.array(external_exports.string()).optional().describe("Textos das subtarefas iniciais."),
         responsaveis: responsaveisParam,
         fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id) a que a tarefa pertence."),
-        workspace: workspaceParam5
+        workspace: workspaceParam8
       }
     },
-    ({ projeto, titulo, descricao, coluna, prioridade, prazo, tags, subtarefas, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
+    ({ projeto, titulo, descricao, coluna, prioridade, prazo, inicio, tags, subtarefas, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto);
       const col = coluna ? resolveColuna(p, coluna) : colunasDe(p)[0];
@@ -37585,6 +39479,7 @@ function registerTarefaEscritaTools(server) {
         status: col.id,
         priority: prioridade ? lerPrioridade(prioridade) : "med",
         dueDate: lerPrazo(prazo) ?? null,
+        startDate: lerData(inicio, "In\xEDcio") ?? null,
         tags: tags?.map((t2) => t2.trim()).filter(Boolean),
         checklist,
         assignees,
@@ -37595,28 +39490,30 @@ function registerTarefaEscritaTools(server) {
       const aviso = avisados.length ? `
 Avisei: ${await nomes(ctx, avisados)}.` : "";
       return `Criada **${codigo(p, t)}** em "${col.label}" de ${p.name}.
-${linhaTarefa(p, t)}${aviso}`;
+${linhaTarefa(p, t)}
+${link.tarefa(p, t)}${aviso}`;
     })
   );
   server.registerTool(
     "atualizar_tarefa",
     {
       title: "Atualizar campos da tarefa",
-      description: "Muda t\xEDtulo, descri\xE7\xE3o, prioridade, prazo, tags, fase ou respons\xE1veis de uma tarefa. S\xF3 os campos informados mudam. Para mudar de coluna use mover_tarefa.",
+      description: "Muda t\xEDtulo, descri\xE7\xE3o, prioridade, prazo, in\xEDcio, tags, fase ou respons\xE1veis de uma tarefa. S\xF3 os campos informados mudam. Para mudar de coluna use mover_tarefa; depend\xEAncias, conectar.",
       inputSchema: {
         tarefa: tarefaParam,
-        projeto: projetoOpcional,
+        projeto: projetoOpcional2,
         titulo: external_exports.string().optional(),
         descricao: external_exports.string().optional(),
         prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
         prazo: prazoParam,
+        inicio: inicioParam,
         tags: external_exports.array(external_exports.string()).optional().describe("Substitui a lista inteira de tags."),
         fase: external_exports.string().optional().describe("Fase (nome ou id). String vazia desvincula."),
         responsaveis: responsaveisParam.describe("Substitui a lista inteira de respons\xE1veis."),
-        workspace: workspaceParam5
+        workspace: workspaceParam8
       }
     },
-    ({ tarefa, projeto, titulo, descricao, prioridade, prazo, tags, fase, responsaveis: responsaveis2, workspace }) => executar(async () => {
+    ({ tarefa, projeto, titulo, descricao, prioridade, prazo, inicio, tags, fase, responsaveis: responsaveis2, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
       const patch = {};
@@ -37638,6 +39535,14 @@ ${linhaTarefa(p, t)}${aviso}`;
         patch.dueDate = due;
         mudou.push("prazo");
       }
+      const ini = lerData(inicio, "In\xEDcio");
+      if (ini !== void 0) {
+        patch.startDate = ini;
+        mudou.push("in\xEDcio");
+      }
+      const inicioFinal = ini !== void 0 ? ini : toDate2(t.startDate ?? null);
+      const prazoFinal = due !== void 0 ? due : toDate2(t.dueDate);
+      if (inicioFinal && prazoFinal && prazoFinal < inicioFinal) throw new GliaToolError("O prazo n\xE3o pode vir antes do in\xEDcio.");
       if (tags !== void 0) {
         patch.tags = tags.map((x) => x.trim()).filter(Boolean);
         mudou.push("tags");
@@ -37670,21 +39575,24 @@ ${linhaTarefa(p, depois)}${aviso}`;
     "mover_tarefa",
     {
       title: "Mover tarefa de coluna",
-      description: "Muda a coluna (status) da tarefa no Kanban. Entrar numa coluna de conclus\xE3o exige que n\xE3o haja depend\xEAncia aberta e fecha as subtarefas junto. Comente antes de concluir.",
+      description: "Muda a coluna (status) da tarefa no Kanban e, com `posicao`, o lugar dela na coluna (1 = topo; vale tamb\xE9m para reordenar na mesma coluna). Entrar numa coluna de conclus\xE3o exige que n\xE3o haja depend\xEAncia aberta e fecha as subtarefas junto. Comente antes de concluir.",
       inputSchema: {
         tarefa: tarefaParam,
-        coluna: external_exports.string().describe('Coluna de destino (id ou nome, ex. "Conclu\xEDdo").'),
-        projeto: projetoOpcional,
-        workspace: workspaceParam5
+        coluna: external_exports.string().describe('Coluna de destino (id ou nome, ex. "Conclu\xEDdo") \u2014 a atual, para s\xF3 reordenar.'),
+        posicao: external_exports.number().int().min(1).optional().describe("Posi\xE7\xE3o na coluna (1 = topo). Padr\xE3o: no fim."),
+        projeto: projetoOpcional2,
+        workspace: workspaceParam8
       }
     },
-    ({ tarefa, coluna, projeto, workspace }) => executar(async () => {
+    ({ tarefa, coluna, posicao, projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
       const de = colunasDe(p).find((c) => c.id === t.status)?.label ?? t.status;
-      const mov = await moverTarefa(ctx, p, t, coluna);
+      const mov = await moverTarefa(ctx, p, t, coluna, posicao);
       const extra = mov.fechouChecklist ? ` e fechei ${mov.fechouChecklist} subtarefa(s) aberta(s)` : "";
-      return `Movi **${codigo(p, t)}** de "${de}" para "${mov.coluna.label}"${extra}.${mov.entrouConclusao ? " Tarefa conclu\xEDda." : ""}`;
+      const onde = mov.posicao ? ` (posi\xE7\xE3o ${mov.posicao})` : "";
+      if (mov.coluna.id === t.status) return `Reordenei **${codigo(p, t)}** em "${mov.coluna.label}"${onde}.`;
+      return `Movi **${codigo(p, t)}** de "${de}" para "${mov.coluna.label}"${onde}${extra}.${mov.entrouConclusao ? " Tarefa conclu\xEDda." : ""}`;
     })
   );
   server.registerTool(
@@ -37696,8 +39604,8 @@ ${linhaTarefa(p, depois)}${aviso}`;
         tarefa: tarefaParam,
         subtarefa: external_exports.string().describe("Id ou texto (ou parte \xFAnica do texto) da subtarefa."),
         feito: external_exports.boolean().optional().describe("true = feita (padr\xE3o), false = reabrir."),
-        projeto: projetoOpcional,
-        workspace: workspaceParam5
+        projeto: projetoOpcional2,
+        workspace: workspaceParam8
       }
     },
     ({ tarefa, subtarefa, feito, projeto, workspace }) => executar(async () => {
@@ -37721,8 +39629,8 @@ ${linhaTarefa(p, depois)}${aviso}`;
         tarefa: tarefaParam,
         texto: external_exports.string().min(1),
         responsavel: external_exports.string().optional().describe("Nome, e-mail ou uid de quem fica com a subtarefa."),
-        projeto: projetoOpcional,
-        workspace: workspaceParam5
+        projeto: projetoOpcional2,
+        workspace: workspaceParam8
       }
     },
     ({ tarefa, texto, responsavel, projeto, workspace }) => executar(async () => {
@@ -37745,8 +39653,8 @@ ${linhaTarefa(p, depois)}${aviso}`;
       inputSchema: {
         tarefa: tarefaParam,
         texto: external_exports.string().min(1),
-        projeto: projetoOpcional,
-        workspace: workspaceParam5
+        projeto: projetoOpcional2,
+        workspace: workspaceParam8
       }
     },
     ({ tarefa, texto, projeto, workspace }) => executar(async () => {
@@ -37767,7 +39675,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
     })
   );
 }
-var workspaceParam5, projetoOpcional, prazoParam, responsaveisParam, lerPrazo;
+var workspaceParam8, projetoOpcional2, prazoParam, inicioParam, responsaveisParam, lerPrazo;
 var init_tarefas_escrita = __esm({
   "mcp/src/tools/tarefas-escrita.ts"() {
     "use strict";
@@ -37784,11 +39692,242 @@ var init_tarefas_escrita = __esm({
     init_comum();
     init_projetos();
     init_tarefas();
-    workspaceParam5 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
-    projetoOpcional = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
+    workspaceParam8 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    projetoOpcional2 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
     prazoParam = external_exports.string().optional().describe("Prazo no formato AAAA-MM-DD. String vazia remove o prazo.");
+    inicioParam = external_exports.string().optional().describe("In\xEDcio no formato AAAA-MM-DD (opcional). String vazia remove.");
     responsaveisParam = external_exports.array(external_exports.string()).optional().describe('Respons\xE1veis, por nome, e-mail ou uid (ver listar_membros). "eu" = o usu\xE1rio logado.');
     lerPrazo = (prazo) => lerData(prazo, "Prazo");
+  }
+});
+
+// mcp/src/tools/tarefas-extras.ts
+async function resolverAlvo(ctx, ref) {
+  const v = ref.trim();
+  const comoProjeto = /^projeto:/i.test(v);
+  if (!comoProjeto && (parseTaskCode(v.replace(/^#/, "")) || !v.includes(" "))) {
+    try {
+      const { projeto, tarefa } = await resolveTarefa(ctx, v);
+      return { alvo: { type: "task", id: tarefa.id, projectId: projeto.id }, rotulo: `${codigo(projeto, tarefa)} ${tarefa.title}` };
+    } catch (err) {
+      if (parseTaskCode(v.replace(/^#/, ""))) throw err;
+    }
+  }
+  const p = await resolveProjeto(ctx, v.replace(/^projeto:/i, ""), true);
+  return { alvo: { type: "project", id: p.id }, rotulo: `projeto ${p.name}` };
+}
+function registerTarefaExtrasTools(server) {
+  server.registerTool(
+    "excluir_tarefa",
+    {
+      title: "Excluir tarefa",
+      description: "Apaga a tarefa e os coment\xE1rios dela de vez (n\xE3o h\xE1 lixeira; o n\xFAmero do c\xF3digo n\xE3o \xE9 reaproveitado). Para tirar do caminho sem apagar, mova para a conclus\xE3o. Confirme com o usu\xE1rio antes.",
+      inputSchema: { tarefa: tarefaParam, projeto: projetoOpcional3, workspace: workspaceParam9 }
+    },
+    ({ tarefa, projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
+      await deleteTask(ctx.wsId, p.id, t.id);
+      return `Exclu\xED **${codigo(p, t)}** "${t.title}" de ${p.name}.`;
+    })
+  );
+  server.registerTool(
+    "atualizar_subtarefa",
+    {
+      title: "Editar, atribuir ou remover subtarefa",
+      description: "Muda o texto ou o respons\xE1vel de um item do checklist, ou o remove. Para marcar como feita use marcar_subtarefa. Quem passa a ser respons\xE1vel (ou \xE9 citado com @ no texto novo) \xE9 avisado.",
+      inputSchema: {
+        tarefa: tarefaParam,
+        subtarefa: external_exports.string().describe("Id ou texto (ou parte \xFAnica) da subtarefa."),
+        texto: external_exports.string().optional(),
+        responsavel: external_exports.string().optional().describe("Nome, e-mail ou uid. String vazia tira o respons\xE1vel."),
+        remover: external_exports.boolean().optional().describe("true apaga a subtarefa."),
+        projeto: projetoOpcional3,
+        workspace: workspaceParam9
+      }
+    },
+    ({ tarefa, subtarefa, texto, responsavel, remover, projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
+      const item = resolveSubtarefa(t, subtarefa);
+      const lista = t.checklist ?? [];
+      if (remover) {
+        const checklist = lista.filter((i) => i.id !== item.id);
+        await updateTask(ctx.wsId, p.id, t.id, { checklist });
+        return `Removi "${item.text}" de **${codigo(p, t)}** \u2014 subtarefas ${checklist.filter((i) => i.done).length}/${checklist.length}.`;
+      }
+      if (texto === void 0 && responsavel === void 0) throw new GliaToolError("Nada para mudar: informe texto, responsavel ou remover.");
+      const novo = { ...item };
+      const mudou = [];
+      if (texto !== void 0) {
+        if (!texto.trim()) throw new GliaToolError("A subtarefa precisa de texto \u2014 para apagar, use remover=true.");
+        novo.text = texto.trim();
+        mudou.push("texto");
+      }
+      if (responsavel !== void 0) {
+        if (responsavel.trim()) {
+          const r = comoResponsavel(await resolveMembro(ctx, responsavel));
+          novo.assigneeUid = r.uid;
+          novo.assigneeName = r.name ?? null;
+          novo.assigneePhoto = r.photo ?? null;
+        } else {
+          novo.assigneeUid = null;
+          novo.assigneeName = null;
+          novo.assigneePhoto = null;
+        }
+        mudou.push("respons\xE1vel");
+      }
+      await updateTask(ctx.wsId, p.id, t.id, { checklist: lista.map((i) => i.id === item.id ? novo : i) });
+      const avisados = await avisarSubtarefa(ctx, p, t.id, t.title, novo, item);
+      const aviso = avisados.length ? ` Avisei: ${await nomes(ctx, avisados)}.` : "";
+      return `Atualizei ${mudou.join(" e ")} de "${novo.text}" em **${codigo(p, t)}**${novo.assigneeName ? ` (respons\xE1vel: ${novo.assigneeName})` : ""}.${aviso}`;
+    })
+  );
+  server.registerTool(
+    "conectar",
+    {
+      title: "Ligar depend\xEAncia ou rela\xE7\xE3o",
+      description: 'Liga uma tarefa (ou um projeto) a outra tarefa ou projeto. "depende_de" BLOQUEIA a conclus\xE3o at\xE9 o alvo fechar (e ciclos s\xE3o recusados); "relacionada" \xE9 s\xF3 refer\xEAncia. `remover: true` desfaz a liga\xE7\xE3o.',
+      inputSchema: {
+        tarefa: external_exports.string().optional().describe("A tarefa que ganha a liga\xE7\xE3o (c\xF3digo IC-25 ou id). Ou use `projeto_origem`."),
+        projeto_origem: external_exports.string().optional().describe("Em vez de tarefa: o projeto que ganha a liga\xE7\xE3o."),
+        alvo: external_exports.string().describe('Tarefa (IC-3) ou projeto ("projeto:Nome" ou o nome) do outro lado.'),
+        tipo: external_exports.enum(["depende_de", "relacionada"]).describe("depende_de = s\xF3 conclui depois do alvo; relacionada = refer\xEAncia."),
+        remover: external_exports.boolean().optional(),
+        workspace: workspaceParam9
+      }
+    },
+    ({ tarefa, projeto_origem, alvo, tipo, remover, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      if (!!tarefa === !!projeto_origem) throw new GliaToolError("Informe `tarefa` OU `projeto_origem` (quem ganha a liga\xE7\xE3o).");
+      const linkType = tipo === "depende_de" ? "depends_on" : "related_to";
+      const { alvo: target, rotulo } = await resolverAlvo(ctx, alvo);
+      const dono = tarefa ? await resolveTarefa(ctx, tarefa).then(({ projeto, tarefa: t }) => ({
+        tipo: "task",
+        id: t.id,
+        nome: `${codigo(projeto, t)}`,
+        conexoes: t.connections ?? [],
+        gravar: (c) => updateTask(ctx.wsId, projeto.id, t.id, { connections: c })
+      })) : await resolveProjeto(ctx, projeto_origem, true).then((p) => ({
+        tipo: "project",
+        id: p.id,
+        nome: `o projeto ${p.name}`,
+        conexoes: p.connections ?? [],
+        gravar: async (c) => {
+          await updateProject(ctx.wsId, p.id, { connections: c });
+          esquecer(`projetos:${ctx.wsId}`);
+        }
+      }));
+      if (dono.tipo === target.type && dono.id === target.id) throw new GliaToolError("Um item n\xE3o pode se ligar a ele mesmo.");
+      const chave = connectionKey({ linkType, target, createdAt: Timestamp.now() });
+      const existe = dono.conexoes.some((c) => connectionKey(c) === chave);
+      const verbo = linkType === "depends_on" ? "depende de" : "relacionado a";
+      if (remover) {
+        if (!existe) return `${dono.nome} n\xE3o estava ${verbo} ${rotulo}.`;
+        await dono.gravar(dono.conexoes.filter((c) => connectionKey(c) !== chave));
+        return `Desfiz: ${dono.nome} n\xE3o est\xE1 mais ${verbo} ${rotulo}.`;
+      }
+      if (existe) return `${dono.nome} j\xE1 estava ${verbo} ${rotulo}.`;
+      if (linkType === "depends_on") {
+        const todas = await todasAsTarefas(ctx, true);
+        const ciclo = wouldCreateCycle(dono.tipo, dono.id, target, todas.map((x) => x.tarefa), await ctx.projetos(true));
+        if (ciclo) throw new GliaToolError(`A Glia recusou: ${rotulo} j\xE1 depende (direta ou indiretamente) de ${dono.nome} \u2014 isso criaria um ciclo.`);
+      }
+      await dono.gravar([...dono.conexoes, { linkType, target, createdAt: Timestamp.now() }]);
+      const bloqueio = linkType === "depends_on" ? " Enquanto o alvo estiver aberto, a conclus\xE3o fica bloqueada." : "";
+      return `Liguei: ${dono.nome} ${verbo} ${rotulo}.${bloqueio}`;
+    })
+  );
+  server.registerTool(
+    "excluir_comentario",
+    {
+      title: "Apagar coment\xE1rio da tarefa",
+      description: "Apaga um coment\xE1rio SEU do chat da tarefa (o id aparece no ver_tarefa). Coment\xE1rio de outra pessoa n\xE3o se apaga por aqui.",
+      inputSchema: {
+        tarefa: tarefaParam,
+        comentario: external_exports.string().describe("Id do coment\xE1rio (ver_tarefa mostra)."),
+        projeto: projetoOpcional3,
+        workspace: workspaceParam9
+      }
+    },
+    ({ tarefa, comentario, projeto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa, projeto);
+      const m = (await fetchTaskMessages(ctx.wsId, p.id, t.id)).find((x) => x.id === comentario.trim());
+      if (!m) throw new GliaToolError(`Coment\xE1rio ${comentario} n\xE3o existe em ${codigo(p, t)}. Use ver_tarefa para ver os ids.`);
+      if (m.authorUid !== ctx.eu.uid) throw new GliaToolError(`Esse coment\xE1rio \xE9 de ${m.authorName} \u2014 s\xF3 quem escreveu apaga.`);
+      await deleteTaskMessage(ctx.wsId, p.id, t.id, m.id);
+      return `Apaguei seu coment\xE1rio em **${codigo(p, t)}**.`;
+    })
+  );
+  server.registerTool(
+    "reagir",
+    {
+      title: "Reagir com figurinha",
+      description: `Reage com uma figurinha (${Object.keys(FIGURINHAS).join(", ")}) ao cart\xE3o de uma tarefa (a comemora\xE7\xE3o da conclus\xE3o), a um coment\xE1rio da tarefa ou a uma mensagem do chat. Quem recebe a rea\xE7\xE3o \xE9 avisado. \`remover: true\` desfaz.`,
+      inputSchema: {
+        figurinha: external_exports.string().describe(Object.keys(FIGURINHAS).join(" | ")),
+        tarefa: external_exports.string().optional().describe("Reagir ao cart\xE3o desta tarefa (ou a um coment\xE1rio dela, com `comentario`)."),
+        comentario: external_exports.string().optional().describe("Id do coment\xE1rio da tarefa."),
+        mensagem: external_exports.string().optional().describe("Id da mensagem do chat (ler_chat mostra)."),
+        canal: external_exports.string().optional().describe('Canal da mensagem: "geral" (padr\xE3o) ou o projeto.'),
+        remover: external_exports.boolean().optional(),
+        workspace: workspaceParam9
+      }
+    },
+    ({ figurinha, tarefa, comentario, mensagem, canal, remover, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const emocao = lerFigurinha(figurinha);
+      const reagindo = !remover;
+      const ator = { actorUid: ctx.eu.uid, actorName: nomeDe(ctx.eu), actorPhoto: fotoDe(ctx.eu) };
+      if (mensagem) {
+        const c = await resolveCanal(ctx, canal);
+        const m = await lerMensagem(ctx, c, mensagem);
+        await toggleChatReaction(ctx.wsId, c.canal, m.id, emocao, ctx.eu.uid, reagindo);
+        if (reagindo) await notifyChatReaction(contextoDoChat(ctx, c), m, emocao);
+        return `${reagindo ? "Reagi" : "Tirei a rea\xE7\xE3o"} "${FIGURINHAS[emocao]}" na mensagem de ${m.authorName} em ${c.nome}.`;
+      }
+      if (!tarefa) throw new GliaToolError("Informe `tarefa` (cart\xE3o ou coment\xE1rio) ou `mensagem` (chat).");
+      const { projeto: p, tarefa: t } = await resolveTarefa(ctx, tarefa);
+      const base3 = { ...ator, type: "reaction", sticker: emocao, wsId: ctx.wsId, projectId: p.id, projectName: p.name, taskId: t.id, taskTitle: t.title };
+      if (comentario) {
+        const m = (await fetchTaskMessages(ctx.wsId, p.id, t.id)).find((x) => x.id === comentario.trim());
+        if (!m) throw new GliaToolError(`Coment\xE1rio ${comentario} n\xE3o existe em ${codigo(p, t)}.`);
+        await toggleMessageReaction(ctx.wsId, p.id, t.id, m.id, emocao, ctx.eu.uid, reagindo);
+        if (reagindo && m.authorUid !== ctx.eu.uid) await createNotification({ ...base3, recipientUid: m.authorUid }).catch(() => {
+        });
+        return `${reagindo ? "Reagi" : "Tirei a rea\xE7\xE3o"} "${FIGURINHAS[emocao]}" no coment\xE1rio de ${m.authorName} em **${codigo(p, t)}**.`;
+      }
+      await toggleTaskReaction(ctx.wsId, p.id, t.id, emocao, ctx.eu.uid, reagindo);
+      const alvos = reagindo ? taskAssigneeUids(t).filter((uid) => uid !== ctx.eu.uid) : [];
+      await Promise.all(alvos.map((uid) => createNotification({ ...base3, recipientUid: uid }).catch(() => {
+      })));
+      const aviso = alvos.length ? ` Avisei: ${await nomes(ctx, alvos)}.` : "";
+      return `${reagindo ? "Reagi" : "Tirei a rea\xE7\xE3o"} "${FIGURINHAS[emocao]}" no cart\xE3o de **${codigo(p, t)}**.${aviso}`;
+    })
+  );
+}
+var workspaceParam9, projetoOpcional3;
+var init_tarefas_extras = __esm({
+  "mcp/src/tools/tarefas-extras.ts"() {
+    "use strict";
+    init_firestore();
+    init_zod();
+    init_queries2();
+    init_notify();
+    init_queries7();
+    init_queries8();
+    init_queries();
+    init_queries5();
+    init_task_code();
+    init_models();
+    init_session();
+    init_context();
+    init_glia();
+    init_comum();
+    init_tarefas();
+    workspaceParam9 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    projetoOpcional3 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
   }
 });
 
@@ -37866,7 +40005,7 @@ ${descreverWorkspaces(lista)}`);
     {
       title: "Listar membros da workspace",
       description: "Quem est\xE1 na workspace (nome, e-mail, papel). Use para atribuir respons\xE1veis ou mencionar algu\xE9m com @Nome.",
-      inputSchema: { workspace: workspaceParam6 }
+      inputSchema: { workspace: workspaceParam10 }
     },
     ({ workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -37875,19 +40014,153 @@ ${descreverWorkspaces(lista)}`);
 ${listaMembros(membros, ctx.eu.uid)}`;
     })
   );
+  server.registerTool(
+    "convidar_pessoa",
+    {
+      title: "Gerar link de convite para a workspace",
+      description: "Cria um link de convite para a workspace (vale 7 dias, uma pessoa por link). Quem abre e entra com o Google vira membro com o papel escolhido. S\xF3 dono/admin convida. Entregue o link ao usu\xE1rio para ele mandar.",
+      inputSchema: {
+        papel: external_exports.enum(["membro", "admin"]).optional().describe("Papel de quem entrar (padr\xE3o: membro)."),
+        workspace: workspaceParam10
+      }
+    },
+    ({ papel, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      await exigirAdmin(ctx);
+      const role = papel === "admin" ? "admin" : "member";
+      const token = await createInvite(ctx.wsId, ctx.wsName, role, ctx.eu.uid, nomeDe(ctx.eu));
+      return `Convite para **${ctx.wsName}** como ${PAPEL[role]} (vale 7 dias, uma pessoa):
+${link.convite(ctx.wsId, token)}`;
+    })
+  );
+  server.registerTool(
+    "listar_convites",
+    {
+      title: "Listar convites pendentes",
+      description: "Os links de convite ainda n\xE3o usados da workspace, com papel, quem criou, validade e o link. S\xF3 dono/admin.",
+      inputSchema: { workspace: workspaceParam10 }
+    },
+    ({ workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      await exigirAdmin(ctx);
+      const convites = await fetchPendingInvites(ctx.wsId);
+      if (convites.length === 0) return `Nenhum convite pendente em ${ctx.wsName}.`;
+      const agora = Date.now();
+      const linhas = convites.map((c) => {
+        const vence = c.expiresAt?.toDate?.();
+        const vencido = vence && vence.getTime() < agora ? " \xB7 VENCIDO" : "";
+        return `- ${PAPEL[c.role]} \xB7 por ${c.invitedByName} \xB7 vale at\xE9 ${vence ? dataHoraLocal(vence) : "?"}${vencido}
+  ${link.convite(ctx.wsId, c.id)}  (token ${c.id})`;
+      });
+      return `Convites pendentes de **${ctx.wsName}** \u2014 ${convites.length}:
+${linhas.join("\n")}`;
+    })
+  );
+  server.registerTool(
+    "revogar_convite",
+    {
+      title: "Revogar convite",
+      description: "Cancela um link de convite (o link para de funcionar). Use o token ou o link inteiro (listar_convites mostra).",
+      inputSchema: { convite: external_exports.string().describe("Token ou link do convite."), workspace: workspaceParam10 }
+    },
+    ({ convite, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      await exigirAdmin(ctx);
+      const token = convite.trim().split("/").filter(Boolean).pop() ?? "";
+      const pendentes = await fetchPendingInvites(ctx.wsId);
+      if (!pendentes.some((c) => c.id === token)) throw new GliaToolError(`Convite ${token} n\xE3o est\xE1 entre os pendentes de ${ctx.wsName}. Use listar_convites.`);
+      await revokeInvite(ctx.wsId, token);
+      return `Revoguei o convite ${token}: o link n\xE3o funciona mais.`;
+    })
+  );
+  server.registerTool(
+    "gerenciar_membro",
+    {
+      title: "Mudar papel ou remover membro",
+      description: "Muda o papel de um membro (admin \u2194 membro) ou o remove da workspace. S\xF3 dono/admin; o dono e voc\xEA mesmo n\xE3o mudam por aqui. Remover tira o acesso a tudo da workspace \u2014 confirme com o usu\xE1rio.",
+      inputSchema: {
+        membro: external_exports.string().describe("Nome, e-mail ou uid."),
+        papel: external_exports.enum(["membro", "admin"]).optional(),
+        remover: external_exports.boolean().optional(),
+        workspace: workspaceParam10
+      }
+    },
+    ({ membro, papel, remover, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      await exigirAdmin(ctx);
+      const m = await resolveMembro(ctx, membro);
+      if (m.uid === ctx.eu.uid) throw new GliaToolError("Voc\xEA n\xE3o muda o pr\xF3prio papel nem se remove por aqui.");
+      if (m.role === "owner") throw new GliaToolError(`${m.displayName} \xE9 o dono da workspace \u2014 o papel dele n\xE3o muda.`);
+      if (remover) {
+        await removeWorkspaceMember(ctx.wsId, m.uid, ctx.eu.uid);
+        esquecer(`membros:${ctx.wsId}`);
+        return `Removi ${m.displayName} de ${ctx.wsName}.`;
+      }
+      if (!papel) throw new GliaToolError("Informe `papel` ou `remover: true`.");
+      const role = papel === "admin" ? "admin" : "member";
+      if (m.role === role) return `${m.displayName} j\xE1 \xE9 ${PAPEL[role]}.`;
+      const indice = await updateMemberRole(ctx.wsId, m.uid, role).then(
+        () => true,
+        (err) => {
+          if (descreverErro(err) !== "permission-denied") throw err;
+          return false;
+        }
+      );
+      esquecer(`membros:${ctx.wsId}`);
+      const depois = (await ctx.membros()).find((x) => x.uid === m.uid);
+      if (depois?.role !== role) throw new GliaToolError(`A Glia recusou mudar o papel de ${m.displayName}.`);
+      const nota = indice ? "" : " (vale j\xE1 para as permiss\xF5es; o seletor de workspaces dele pode mostrar o papel antigo at\xE9 ele entrar de novo)";
+      return `${m.displayName} agora \xE9 ${PAPEL[role]} em ${ctx.wsName}${nota}.`;
+    })
+  );
+  server.registerTool(
+    "renomear_workspace",
+    {
+      title: "Renomear a workspace",
+      description: "Muda o nome da workspace (equipe) para todos os membros. S\xF3 dono/admin.",
+      inputSchema: { nome: external_exports.string().min(1), workspace: workspaceParam10 }
+    },
+    ({ nome, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      await exigirAdmin(ctx);
+      const novo = nome.trim();
+      if (!novo) throw new GliaToolError("A workspace precisa de nome.");
+      const todos = await renameWorkspace(ctx.wsId, ctx.eu.uid, novo).then(
+        () => true,
+        (err) => {
+          if (descreverErro(err) !== "permission-denied") throw err;
+          return false;
+        }
+      );
+      esquecer(`memberships:`);
+      const minha = (await minhasWorkspaces(ctx.eu.uid)).find((w) => w.id === ctx.wsId);
+      if (minha?.workspaceName !== novo) throw new GliaToolError("A Glia recusou renomear a workspace.");
+      const nota = todos ? "" : "\nOs colegas podem ver o nome antigo no seletor de workspaces at\xE9 a Glia atualizar o \xEDndice deles.";
+      return `A workspace "${ctx.wsName}" agora se chama **${novo}**.${nota}`;
+    })
+  );
 }
-var workspaceParam6;
+async function exigirAdmin(ctx) {
+  const eu = (await ctx.membros()).find((m) => m.uid === ctx.eu.uid);
+  if (eu?.role !== "owner" && eu?.role !== "admin") {
+    throw new GliaToolError(`S\xF3 o dono ou um admin de ${ctx.wsName} faz isso \u2014 voc\xEA \xE9 ${eu ? PAPEL[eu.role] : "membro"}.`);
+  }
+}
+var workspaceParam10, PAPEL;
 var init_workspace2 = __esm({
   "mcp/src/tools/workspace.ts"() {
     "use strict";
     init_zod();
+    init_queries4();
     init_login();
     init_session();
     init_workspace();
     init_context();
     init_format2();
+    init_glia();
     init_comum();
-    workspaceParam6 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
+    workspaceParam10 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
+    PAPEL = { owner: "dono", admin: "admin", member: "membro" };
   }
 });
 
@@ -37898,16 +40171,26 @@ function registerAll(server) {
   registerFaseTools(server);
   registerTarefaTools(server);
   registerTarefaEscritaTools(server);
+  registerTarefaExtrasTools(server);
+  registerAnotacaoTools(server);
   registerSugestaoTools(server);
+  registerChatTools(server);
+  registerNotificacaoTools(server);
+  registerBuscaTools(server);
 }
 var init_tools = __esm({
   "mcp/src/tools/index.ts"() {
     "use strict";
+    init_anotacoes();
+    init_busca();
+    init_chat();
     init_fases();
+    init_notificacoes();
     init_projetos();
     init_sugestoes();
     init_tarefas();
     init_tarefas_escrita();
+    init_tarefas_extras();
     init_workspace2();
   }
 });
