@@ -53,10 +53,10 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 
 ## Anotações, chat e equipe
 
-- **Anotações**: `listar_anotacoes` (de um projeto ou de todos, com `busca`), `ver_anotacao`, `criar_anotacao`, `atualizar_anotacao` (`acrescentar` adiciona ao fim — bom para atas; `conteudo` substitui tudo), `excluir_anotacao`.
+- **Anotações**: `listar_anotacoes` (de um projeto ou de todos, com `busca`), `ver_anotacao`, `criar_anotacao`, `atualizar_anotacao` (`acrescentar` adiciona ao fim — bom para atas; `conteudo` substitui tudo), `excluir_anotacao`. **Prazo de revisão**: `criar_anotacao`/`atualizar_anotacao` aceitam `prazo` (AAAA-MM-DD; `null` tira) e `avisar_uid` (quem recebe o aviso; padrão: o usuário). No dia, a Glia manda a notificação "revisar anotação" — é o jeito de atender "anota isso para eu ver amanhã". Prazo de hoje avisa na hora.
 - **Chat**: `ler_chat` (geral ou `canal` do projeto; `thread` abre as respostas) → `enviar_mensagem` (`@Nome` avisa a pessoa, `@todos` a workspace, `IC-25` no texto vira citação da tarefa; `responder_a` cita uma fala, `thread` responde dentro dela). `editar_mensagem`/`apagar_mensagem` só nas suas. `criar_tarefa_da_mensagem` transforma uma fala em tarefa e avisa o autor. Escrever no chat fala com a equipe: confirme o texto com o usuário antes de mandar.
 - **Reações**: `reagir` com figurinha (joinha, amei, haha, festa, uau, chorei, nogas, feito) no cartão da tarefa, num comentário ou numa mensagem do chat.
-- **Notificações**: `listar_notificacoes` (o sino; só não lidas por padrão) e `marcar_notificacoes_lidas`. Bom começo para "o que preciso ver hoje?".
+- **Notificações**: `listar_notificacoes` (o sino; só não lidas por padrão) e `marcar_notificacoes_lidas`. Bom começo para "o que preciso ver hoje?" — inclui as anotações cujo prazo chegou, com o link `/a/{id}` que abre a nota; avise o usuário delas.
 - **Equipe** (só dono/admin): `convidar_pessoa` devolve um link de convite (7 dias, uma pessoa), `listar_convites`, `revogar_convite`, `gerenciar_membro` (papel admin/membro ou remover), `renomear_workspace`.
 - **Achar qualquer coisa**: `buscar` procura em projetos, tarefas, anotações, chat e sugestões de uma vez; `buscar_tarefas` filtra tarefas da workspace inteira por responsável, atrasadas, prazo, prioridade, tag.
 
@@ -96,6 +96,7 @@ Datas são `AAAA-MM-DD`. Pessoas podem ser referidas por nome, e-mail ou `"eu"`.
 - "Me passa o link do portal de melhorias do projeto Portal."
 - "Tria as sugestões do Integração: responde as duplicadas e converte a mais votada em tarefa."
 - "Anota no projeto a ata da reunião de hoje."
+- "Anota x, y e z no projeto Portal para eu ver amanhã."
 - "Avisa o Bruno no chat do projeto que a IC-25 subiu."
 - "O que eu tenho de prazo esta semana?"
 - "Gera um convite de admin para a workspace."

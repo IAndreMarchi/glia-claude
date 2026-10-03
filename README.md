@@ -19,4 +19,4 @@ Pré-requisito: Node 20 ou mais novo (o plugin roda `node`).
 
 `/plugin marketplace update glia-claude` — ou espere: o Claude Code confere atualizações ao abrir.
 
-Versão 0.3.0. Gerado a partir do repositório da Glia (`npm run mcp:plugin`); não edite aqui.
+Versão 0.4.0. Gerado a partir do repositório da Glia (`npm run mcp:plugin`); não edite aqui.

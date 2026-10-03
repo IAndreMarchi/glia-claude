@@ -113,8 +113,8 @@ var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
 var init_config = __esm({
   "mcp/src/config.ts"() {
     "use strict";
-    VERSION = "0.3.0";
-    HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
+    VERSION = "0.4.0";
+    HOSTING_ORIGIN = "https://nucleo-demo.web.app";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
       emulator: process.env.GLIA_EMULATOR === "1",
@@ -7476,6 +7476,9 @@ function addDoc(reference, data2) {
     parsed.toMutation(docRef._key, Precondition.exists(false))
   ]).then(() => docRef);
 }
+function deleteField() {
+  return new DeleteFieldValueImpl("deleteField");
+}
 function serverTimestamp() {
   return new ServerTimestampFieldValueImpl("serverTimestamp");
 }
@@ -11949,20 +11952,25 @@ async function reorderTasks(wsId, projectId, updates) {
 async function updateProjectColumns(wsId, projectId, columns) {
   await updateDoc(wsProjectDoc(wsId, projectId), { columns, updatedAt: serverTimestamp() });
 }
+function noteFromData(id, raw) {
+  return {
+    id,
+    title: raw.title ?? "",
+    content: raw.content ?? "",
+    color: raw.color ?? "yellow",
+    order: raw.order ?? 0,
+    createdBy: raw.createdBy,
+    dueDate: raw.dueDate ?? null,
+    dueRecipientUid: raw.dueRecipientUid,
+    dueSetBy: raw.dueSetBy,
+    dueNotifiedAt: raw.dueNotifiedAt ?? null,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt
+  };
+}
 async function fetchNotes(wsId, projectId) {
   const snap = await getDocs(wsNotesCol(wsId, projectId));
-  const notes = snap.docs.map((d) => {
-    const raw = d.data();
-    return {
-      id: d.id,
-      title: raw.title ?? "",
-      content: raw.content ?? "",
-      color: raw.color ?? "yellow",
-      order: raw.order ?? 0,
-      createdAt: raw.createdAt,
-      updatedAt: raw.updatedAt
-    };
-  });
+  const notes = snap.docs.map((d) => noteFromData(d.id, d.data()));
   return notes.sort(
     (a, b) => a.order - b.order || (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0)
   );
@@ -11973,6 +11981,7 @@ async function createNote(wsId, projectId, color = "yellow", order = Date.now())
     content: "",
     color,
     order,
+    ...auth.currentUser ? { createdBy: auth.currentUser.uid } : {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -11981,6 +11990,17 @@ async function createNote(wsId, projectId, color = "yellow", order = Date.now())
 async function updateNote(wsId, projectId, noteId, updates) {
   await updateDoc(wsNoteDoc(wsId, projectId, noteId), {
     ...updates,
+    updatedAt: serverTimestamp()
+  });
+}
+async function setNoteDue(wsId, projectId, noteId, due, recipientUid) {
+  const eu = auth.currentUser?.uid;
+  const quem = recipientUid ?? eu;
+  await updateDoc(wsNoteDoc(wsId, projectId, noteId), {
+    dueDate: due ? Timestamp.fromDate(due) : null,
+    dueNotifiedAt: null,
+    dueRecipientUid: due && quem ? quem : deleteField(),
+    dueSetBy: due && eu ? eu : deleteField(),
     updatedAt: serverTimestamp()
   });
 }
@@ -34753,360 +34773,6 @@ Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a 
   }
 });
 
-// src/features/projects/queries.ts
-async function fetchProjects(wsId, status = "active") {
-  const q = query(wsProjectsCol(wsId), where("status", "==", status), orderBy("updatedAt", "desc"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
-async function createProject(wsId, input) {
-  const ref = await addDoc(wsProjectsCol(wsId), {
-    name: input.name.trim(),
-    description: input.description.trim(),
-    color: input.color,
-    status: "active",
-    phase: "planejando",
-    hasRoadmap: input.hasRoadmap ?? false,
-    roadmapType: input.roadmapType ?? "sequencial",
-    // Projetos são sempre da equipe: sem memberUids, todos os membros da workspace veem.
-    visibility: input.visibility ?? "team",
-    createdBy: input.createdBy ?? "",
-    ...input.columns ? { columns: input.columns } : {},
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  });
-  await assignProjectCodes(wsId, ref.id).catch((err) => console.error("[task-code] sigla do projeto novo", err));
-  return ref.id;
-}
-async function updateProject(wsId, projectId, patch) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { ...patch, updatedAt: serverTimestamp() });
-}
-async function archiveProject(wsId, projectId) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
-}
-async function unarchiveProject(wsId, projectId) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
-}
-async function updateProjectPhase(wsId, projectId, phase) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
-}
-async function deleteProject(wsId, projectId) {
-  const projSnap = await getDoc(wsProjectDoc(wsId, projectId));
-  const portalId = projSnap.data()?.portalId;
-  if (portalId) await purgePortal(portalId);
-  const tasksSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, "tasks"));
-  for (const t of tasksSnap.docs) {
-    await deleteDoc(t.ref);
-    await purgeTaskMessages(wsId, projectId, t.id);
-  }
-  for (const sub of ["notes", "phases"]) {
-    const subSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, sub));
-    for (const d of subSnap.docs) await deleteDoc(d.ref);
-  }
-  await purgeProjectChat(wsId, projectId);
-  await deleteDoc(wsProjectDoc(wsId, projectId));
-}
-var init_queries5 = __esm({
-  "src/features/projects/queries.ts"() {
-    init_firestore();
-    init_firebase();
-    init_firestore_paths();
-    init_queries();
-    init_queries2();
-    init_queries3();
-    init_codes();
-  }
-});
-
-// mcp/src/context.ts
-async function lembrado(chave, carregar) {
-  const hit = cache2.get(chave);
-  if (hit && Date.now() - hit.em < TTL_MS) return hit.valor;
-  const valor = await carregar();
-  cache2.set(chave, { em: Date.now(), valor });
-  return valor;
-}
-function esquecer(prefixo) {
-  for (const k of cache2.keys()) if (k.startsWith(prefixo)) cache2.delete(k);
-}
-function descreverWorkspaces2(lista) {
-  return lista.map((m) => `- ${m.workspaceName} (id ${m.id})`).join("\n");
-}
-async function minhasWorkspaces(uid) {
-  return lembrado(`memberships:${uid}`, () => fetchMemberships(uid));
-}
-async function contexto(workspace) {
-  const eu = await ensureSignedIn();
-  const memberships = await minhasWorkspaces(eu.uid);
-  if (memberships.length === 0) {
-    throw new GliaToolError(
-      "Voc\xEA ainda n\xE3o tem workspace na Glia. Abra a Glia no navegador uma vez (ela cria a sua) e tente de novo."
-    );
-  }
-  const padrao = workspacePadrao();
-  const alvo = workspace?.trim() || flags.workspace || padrao?.id;
-  let ws;
-  if (alvo) {
-    ws = acharMembership(memberships, alvo);
-    if (!ws) {
-      const origem = workspace?.trim() ? "" : padrao && alvo === padrao.id ? " (era a padr\xE3o fixada \u2014 voc\xEA saiu dela?)" : "";
-      throw new GliaToolError(`Workspace "${alvo}" n\xE3o encontrada${origem}. Suas workspaces:
-${descreverWorkspaces2(memberships)}`);
-    }
-  } else if (memberships.length === 1) {
-    ws = memberships[0];
-  } else {
-    throw new GliaToolError(
-      `Ainda n\xE3o h\xE1 workspace padr\xE3o nesta m\xE1quina e voc\xEA est\xE1 em ${memberships.length}:
-${descreverWorkspaces2(memberships)}
-
-Pergunte ao usu\xE1rio qual usar e fixe com a tool \`usar_workspace\` \u2014 a escolha fica salva para as pr\xF3ximas vezes.`
-    );
-  }
-  const wsId = ws.id;
-  return {
-    eu,
-    wsId,
-    wsName: ws.workspaceName,
-    membros: () => lembrado(`membros:${wsId}`, () => fetchWorkspaceMembers(wsId)),
-    projetos: (incluirArquivados = false) => lembrado(`projetos:${wsId}:${incluirArquivados}`, async () => {
-      await ensureProjectCodes(wsId);
-      const ativos = await fetchProjects(wsId, "active");
-      const arquivados = incluirArquivados ? await fetchProjects(wsId, "archived") : [];
-      return [...ativos, ...arquivados].filter((p) => canAccessProject(p, eu.uid));
-    })
-  };
-}
-var GliaToolError, TTL_MS, cache2;
-var init_context = __esm({
-  "mcp/src/context.ts"() {
-    "use strict";
-    init_queries5();
-    init_codes();
-    init_queries4();
-    init_models();
-    init_session();
-    init_workspace();
-    init_config();
-    GliaToolError = class extends Error {
-      constructor(message) {
-        super(message);
-        this.name = "GliaToolError";
-      }
-    };
-    TTL_MS = 3e4;
-    cache2 = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/features/project-detail/roadmap/labels.ts
-function roadmapNouns(type) {
-  return ROADMAP_NOUNS[type ?? "sequencial"];
-}
-var ROADMAP_NOUNS;
-var init_labels = __esm({
-  "src/features/project-detail/roadmap/labels.ts"() {
-    ROADMAP_NOUNS = {
-      sequencial: {
-        singular: "fase",
-        plural: "fases",
-        newAction: "Nova fase",
-        nameLabel: "Nome da fase",
-        namePlaceholder: "Descoberta, MVP, Lan\xE7amento\u2026",
-        descPlaceholder: "O que essa fase representa?",
-        dialogNew: "Nova fase",
-        dialogEdit: "Editar fase",
-        submitNew: "Criar fase",
-        createdToast: "Fase criada",
-        updatedToast: "Fase atualizada",
-        removedToast: "Fase removida",
-        removeTitle: "Remover fase?",
-        removeBody: (name4) => `A fase "${name4}" ser\xE1 removida do roadmap.`,
-        emptyTitle: "Comece a jornada",
-        emptyBody: "Divida este projeto em fases sequenciais \u2014 pesquisa, MVP, lan\xE7amento\u2026 \u2014 e acompanhe a trilha rumo ao cume.",
-        emptyAction: "Criar primeira fase",
-        orderAction: "Organizar fases",
-        orderTitle: "Organizar fases",
-        orderBody: "Arraste para definir a sequ\xEAncia. A primeira da lista \xE9 a primeira montanha da trilha.",
-        orderSavedToast: "Ordem das fases salva"
-      },
-      paralelo: {
-        singular: "frente",
-        plural: "frentes",
-        newAction: "Nova frente",
-        nameLabel: "Nome da frente",
-        namePlaceholder: "Ingest\xE3o de dados, Modelagem, Visual\u2026",
-        descPlaceholder: "O que essa frente cobre?",
-        dialogNew: "Nova frente",
-        dialogEdit: "Editar frente",
-        submitNew: "Criar frente",
-        createdToast: "Frente criada",
-        updatedToast: "Frente atualizada",
-        removedToast: "Frente removida",
-        removeTitle: "Remover frente?",
-        removeBody: (name4) => `A frente "${name4}" ser\xE1 removida do roadmap.`,
-        emptyTitle: "Abra as frentes",
-        emptyBody: "Separe o projeto nas frentes que rodam em paralelo. Cada uma segue no seu ritmo, medida pelas atividades pendentes.",
-        emptyAction: "Criar primeira frente",
-        orderAction: "Organizar frentes",
-        orderTitle: "Organizar frentes",
-        orderBody: "Arraste para definir em que ordem as frentes aparecem no roadmap.",
-        orderSavedToast: "Ordem das frentes salva"
-      }
-    };
-  }
-});
-
-// src/features/calendar/queries.ts
-async function fetchAllTasks(wsId) {
-  const projectsSnap = await getDocs(query(wsProjectsCol(wsId), where("status", "==", "active")));
-  const projectIds = projectsSnap.docs.map((d) => d.id);
-  if (projectIds.length === 0) return [];
-  const taskArrays = await Promise.all(
-    projectIds.map(async (pid) => {
-      const snap = await getDocs(wsTasksCol(wsId, pid));
-      return snap.docs.map((d) => ({
-        id: d.id,
-        projectId: pid,
-        ...d.data()
-      }));
-    })
-  );
-  return taskArrays.flat();
-}
-var init_queries6 = __esm({
-  "src/features/calendar/queries.ts"() {
-    init_firestore();
-    init_firestore_paths();
-  }
-});
-
-// src/features/connections/queries.ts
-function resolveTitle(target, allTasks, allProjects) {
-  if (target.type === "task") {
-    const t = allTasks.find((x) => x.id === target.id);
-    return t ? t.title : null;
-  }
-  const p = allProjects.find((x) => x.id === target.id);
-  return p ? p.name : null;
-}
-function isTargetClosed(target, allTasks, allProjects) {
-  if (target.type === "task") {
-    const t = allTasks.find((x) => x.id === target.id);
-    if (!t) return true;
-    const proj = allProjects.find((p2) => p2.id === t.projectId);
-    return doneStatusIds(proj?.columns).has(t.status);
-  }
-  const p = allProjects.find((x) => x.id === target.id);
-  if (!p) return true;
-  return p.status === "archived" || p.phase === "concluido";
-}
-function getOpenDependencies(owner, allTasks, allProjects) {
-  const conns = owner.connections ?? [];
-  const out = [];
-  for (const c of conns) {
-    if (c.linkType !== "depends_on") continue;
-    if (isTargetClosed(c.target, allTasks, allProjects)) continue;
-    const title = resolveTitle(c.target, allTasks, allProjects);
-    if (!title) continue;
-    out.push({ target: c.target, title });
-  }
-  return out;
-}
-function wouldCreateCycle(ownerType, ownerId, target, allTasks, allProjects) {
-  const visited = /* @__PURE__ */ new Set();
-  const stack = [target];
-  const key = (t) => `${t.type}:${t.id}`;
-  while (stack.length > 0) {
-    const cur = stack.pop();
-    if (cur.type === ownerType && cur.id === ownerId) return true;
-    const k = key(cur);
-    if (visited.has(k)) continue;
-    visited.add(k);
-    const node = cur.type === "task" ? allTasks.find((t) => t.id === cur.id) : allProjects.find((p) => p.id === cur.id);
-    if (!node) continue;
-    for (const c of node.connections ?? []) {
-      if (c.linkType !== "depends_on") continue;
-      stack.push(c.target);
-    }
-  }
-  return false;
-}
-function connectionKey(c) {
-  return `${c.linkType}:${c.target.type}:${c.target.id}`;
-}
-var init_queries7 = __esm({
-  "src/features/connections/queries.ts"() {
-    init_models();
-  }
-});
-
-// src/features/notifications/queries.ts
-async function createNotification(input) {
-  if (input.recipientUid === input.actorUid) return;
-  const { sticker, checklistItemId, channelKind, messageId, threadRootId, excerpt: excerpt2, ...resto } = input;
-  await addDoc(notificationsCol(input.recipientUid), {
-    ...resto,
-    projectId: input.projectId ?? "",
-    projectName: input.projectName ?? "",
-    taskId: input.taskId ?? "",
-    taskTitle: input.taskTitle ?? "",
-    ...sticker ? { sticker } : {},
-    ...checklistItemId ? { checklistItemId } : {},
-    ...channelKind ? { channelKind } : {},
-    ...messageId ? { messageId } : {},
-    ...threadRootId ? { threadRootId } : {},
-    ...excerpt2 ? { excerpt: excerpt2 } : {},
-    read: false,
-    createdAt: serverTimestamp()
-  });
-}
-async function markAsRead(uid, notifId) {
-  await updateDoc(notificationDoc(uid, notifId), { read: true });
-}
-async function markAllAsRead(uid) {
-  const snap = await getDocs(
-    query(notificationsCol(uid), orderBy("createdAt", "desc"), limit(50))
-  );
-  if (snap.empty) return;
-  const batch = writeBatch(db);
-  snap.docs.forEach((d) => {
-    if (!d.data().read) batch.update(d.ref, { read: true });
-  });
-  await batch.commit();
-}
-var init_queries8 = __esm({
-  "src/features/notifications/queries.ts"() {
-    init_firestore();
-    init_firebase();
-    init_firestore_paths();
-    init_models();
-  }
-});
-
-// src/features/project-detail/statusChange.ts
-function blockedByDependenciesMessage(task, allTasks, projects) {
-  const open = getOpenDependencies(task, allTasks, projects);
-  if (open.length === 0) return null;
-  return `Bloqueada por: ${open.map((d) => d.title).join(", ")}`;
-}
-function closeChecklistOnDone(checklist) {
-  const list = checklist ?? [];
-  if (!list.some((item) => !item.done)) return null;
-  return list.map((item) => item.done ? item : { ...item, done: true });
-}
-var init_statusChange = __esm({
-  "src/features/project-detail/statusChange.ts"() {
-    init_queries7();
-  }
-});
-
-// node_modules/clsx/dist/clsx.mjs
-var init_clsx = __esm({
-  "node_modules/clsx/dist/clsx.mjs"() {
-  }
-});
-
 // node_modules/date-fns/constants.js
 var daysInYear, maxTime, minTime, secondsInHour, secondsInDay, secondsInWeek, secondsInYear, secondsInMonth, secondsInQuarter, constructFromSymbol;
 var init_constants = __esm({
@@ -35477,8 +35143,14 @@ var init_differenceInMinutes = __esm({
 });
 
 // node_modules/date-fns/endOfDay.js
+function endOfDay(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  _date2.setHours(23, 59, 59, 999);
+  return _date2;
+}
 var init_endOfDay = __esm({
   "node_modules/date-fns/endOfDay.js"() {
+    init_toDate();
   }
 });
 
@@ -36904,6 +36576,12 @@ var init_date_fns = __esm({
   }
 });
 
+// node_modules/clsx/dist/clsx.mjs
+var init_clsx = __esm({
+  "node_modules/clsx/dist/clsx.mjs"() {
+  }
+});
+
 // src/lib/utils.ts
 function toDate2(value) {
   if (!value) return null;
@@ -36937,6 +36615,443 @@ var init_utils = __esm({
   "src/lib/utils.ts"() {
     init_clsx();
     init_date_fns();
+  }
+});
+
+// src/features/project-detail/notes/prazo.ts
+function noteDisplayTitle(n) {
+  return n.title.trim() || n.content.trim().split("\n")[0]?.replace(/^#+\s*/, "").slice(0, 60) || "(sem t\xEDtulo)";
+}
+function noteIsDue(note, agora = /* @__PURE__ */ new Date()) {
+  const due = toDate2(note.dueDate ?? null);
+  return !!due && due.getTime() <= endOfDay(agora).getTime();
+}
+async function fetchDueNotes(wsId, projects, uid) {
+  const visiveis = projects.filter((p) => p.status !== "archived" && canAccessProject(p, uid));
+  const porProjeto = await Promise.all(
+    visiveis.map(async (p) => {
+      const snap = await getDocs(query(wsNotesCol(wsId, p.id), where("dueDate", "!=", null)));
+      return snap.docs.map((d) => ({
+        projectId: p.id,
+        projectName: p.name,
+        projectColor: p.color,
+        note: noteFromData(d.id, d.data())
+      }));
+    })
+  );
+  return porProjeto.flat();
+}
+function quemEDosMembros(members) {
+  return (uid) => {
+    const m = members.find((x) => x.uid === uid);
+    return m ? { name: m.displayName, photo: m.photoURL } : void 0;
+  };
+}
+async function avisarSeVenceu(wsId, projectId, projectName, noteId, quemE, agora) {
+  const ref = wsNoteDoc(wsId, projectId, noteId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return false;
+    const note = noteFromData(snap.id, snap.data());
+    const para = note.dueRecipientUid;
+    if (!para || note.dueNotifiedAt || !noteIsDue(note, agora)) return false;
+    const autorUid = note.dueSetBy || para;
+    const autor = quemE(autorUid);
+    tx.update(ref, { dueNotifiedAt: serverTimestamp() });
+    tx.set(doc(notificationsCol(para)), {
+      recipientUid: para,
+      actorUid: autorUid,
+      actorName: autor?.name ?? "",
+      actorPhoto: autor?.photo ?? "",
+      type: "note_due",
+      wsId,
+      projectId,
+      projectName,
+      taskId: "",
+      taskTitle: "",
+      noteId,
+      noteTitle: noteDisplayTitle(note),
+      read: false,
+      createdAt: serverTimestamp()
+    });
+    return true;
+  });
+}
+async function notifyDueNotes(wsId, projects, uid, quemE, agora = /* @__PURE__ */ new Date()) {
+  const pendentes = (await fetchDueNotes(wsId, projects, uid)).filter(
+    ({ note }) => !!note.dueRecipientUid && !note.dueNotifiedAt && noteIsDue(note, agora)
+  );
+  let criados = 0;
+  for (const { projectId, projectName, note } of pendentes) {
+    try {
+      if (await avisarSeVenceu(wsId, projectId, projectName, note.id, quemE, agora)) criados++;
+    } catch (err) {
+      console.error("[prazo] n\xE3o consegui avisar a anota\xE7\xE3o", note.id, err);
+    }
+  }
+  return criados;
+}
+async function notifyDueNote(wsId, projectId, noteId, quemE, agora = /* @__PURE__ */ new Date()) {
+  const projeto = await getDoc(wsProjectDoc(wsId, projectId));
+  return avisarSeVenceu(wsId, projectId, projeto.data()?.name ?? "", noteId, quemE, agora);
+}
+var init_prazo = __esm({
+  "src/features/project-detail/notes/prazo.ts"() {
+    init_firestore();
+    init_date_fns();
+    init_firebase();
+    init_firestore_paths();
+    init_utils();
+    init_models();
+    init_queries();
+  }
+});
+
+// src/features/projects/queries.ts
+async function fetchProjects(wsId, status = "active") {
+  const q = query(wsProjectsCol(wsId), where("status", "==", status), orderBy("updatedAt", "desc"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+async function createProject(wsId, input) {
+  const ref = await addDoc(wsProjectsCol(wsId), {
+    name: input.name.trim(),
+    description: input.description.trim(),
+    color: input.color,
+    status: "active",
+    phase: "planejando",
+    hasRoadmap: input.hasRoadmap ?? false,
+    roadmapType: input.roadmapType ?? "sequencial",
+    // Projetos são sempre da equipe: sem memberUids, todos os membros da workspace veem.
+    visibility: input.visibility ?? "team",
+    createdBy: input.createdBy ?? "",
+    ...input.columns ? { columns: input.columns } : {},
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+  await assignProjectCodes(wsId, ref.id).catch((err) => console.error("[task-code] sigla do projeto novo", err));
+  return ref.id;
+}
+async function updateProject(wsId, projectId, patch) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { ...patch, updatedAt: serverTimestamp() });
+}
+async function archiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
+}
+async function unarchiveProject(wsId, projectId) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
+}
+async function updateProjectPhase(wsId, projectId, phase) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
+}
+async function deleteProject(wsId, projectId) {
+  const projSnap = await getDoc(wsProjectDoc(wsId, projectId));
+  const portalId = projSnap.data()?.portalId;
+  if (portalId) await purgePortal(portalId);
+  const tasksSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, "tasks"));
+  for (const t of tasksSnap.docs) {
+    await deleteDoc(t.ref);
+    await purgeTaskMessages(wsId, projectId, t.id);
+  }
+  for (const sub of ["notes", "phases"]) {
+    const subSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, sub));
+    for (const d of subSnap.docs) await deleteDoc(d.ref);
+  }
+  await purgeProjectChat(wsId, projectId);
+  await deleteDoc(wsProjectDoc(wsId, projectId));
+}
+var init_queries5 = __esm({
+  "src/features/projects/queries.ts"() {
+    init_firestore();
+    init_firebase();
+    init_firestore_paths();
+    init_queries();
+    init_queries2();
+    init_queries3();
+    init_codes();
+  }
+});
+
+// mcp/src/context.ts
+async function lembrado(chave, carregar) {
+  const hit = cache2.get(chave);
+  if (hit && Date.now() - hit.em < TTL_MS) return hit.valor;
+  const valor = await carregar();
+  cache2.set(chave, { em: Date.now(), valor });
+  return valor;
+}
+function esquecer(prefixo) {
+  for (const k of cache2.keys()) if (k.startsWith(prefixo)) cache2.delete(k);
+}
+function descreverWorkspaces2(lista) {
+  return lista.map((m) => `- ${m.workspaceName} (id ${m.id})`).join("\n");
+}
+async function minhasWorkspaces(uid) {
+  return lembrado(`memberships:${uid}`, () => fetchMemberships(uid));
+}
+async function contexto(workspace) {
+  const eu = await ensureSignedIn();
+  const memberships = await minhasWorkspaces(eu.uid);
+  if (memberships.length === 0) {
+    throw new GliaToolError(
+      "Voc\xEA ainda n\xE3o tem workspace na Glia. Abra a Glia no navegador uma vez (ela cria a sua) e tente de novo."
+    );
+  }
+  const padrao = workspacePadrao();
+  const alvo = workspace?.trim() || flags.workspace || padrao?.id;
+  let ws;
+  if (alvo) {
+    ws = acharMembership(memberships, alvo);
+    if (!ws) {
+      const origem = workspace?.trim() ? "" : padrao && alvo === padrao.id ? " (era a padr\xE3o fixada \u2014 voc\xEA saiu dela?)" : "";
+      throw new GliaToolError(`Workspace "${alvo}" n\xE3o encontrada${origem}. Suas workspaces:
+${descreverWorkspaces2(memberships)}`);
+    }
+  } else if (memberships.length === 1) {
+    ws = memberships[0];
+  } else {
+    throw new GliaToolError(
+      `Ainda n\xE3o h\xE1 workspace padr\xE3o nesta m\xE1quina e voc\xEA est\xE1 em ${memberships.length}:
+${descreverWorkspaces2(memberships)}
+
+Pergunte ao usu\xE1rio qual usar e fixe com a tool \`usar_workspace\` \u2014 a escolha fica salva para as pr\xF3ximas vezes.`
+    );
+  }
+  const wsId = ws.id;
+  return {
+    eu,
+    wsId,
+    wsName: ws.workspaceName,
+    membros: () => lembrado(`membros:${wsId}`, () => fetchWorkspaceMembers(wsId)),
+    projetos: (incluirArquivados = false) => lembrado(`projetos:${wsId}:${incluirArquivados}`, async () => {
+      await ensureProjectCodes(wsId);
+      const ativos = await fetchProjects(wsId, "active");
+      const arquivados = incluirArquivados ? await fetchProjects(wsId, "archived") : [];
+      return [...ativos, ...arquivados].filter((p) => canAccessProject(p, eu.uid));
+    })
+  };
+}
+var GliaToolError, TTL_MS, cache2;
+var init_context = __esm({
+  "mcp/src/context.ts"() {
+    "use strict";
+    init_queries5();
+    init_codes();
+    init_queries4();
+    init_models();
+    init_session();
+    init_workspace();
+    init_config();
+    GliaToolError = class extends Error {
+      constructor(message) {
+        super(message);
+        this.name = "GliaToolError";
+      }
+    };
+    TTL_MS = 3e4;
+    cache2 = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/features/project-detail/roadmap/labels.ts
+function roadmapNouns(type) {
+  return ROADMAP_NOUNS[type ?? "sequencial"];
+}
+var ROADMAP_NOUNS;
+var init_labels = __esm({
+  "src/features/project-detail/roadmap/labels.ts"() {
+    ROADMAP_NOUNS = {
+      sequencial: {
+        singular: "fase",
+        plural: "fases",
+        newAction: "Nova fase",
+        nameLabel: "Nome da fase",
+        namePlaceholder: "Descoberta, MVP, Lan\xE7amento\u2026",
+        descPlaceholder: "O que essa fase representa?",
+        dialogNew: "Nova fase",
+        dialogEdit: "Editar fase",
+        submitNew: "Criar fase",
+        createdToast: "Fase criada",
+        updatedToast: "Fase atualizada",
+        removedToast: "Fase removida",
+        removeTitle: "Remover fase?",
+        removeBody: (name4) => `A fase "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Comece a jornada",
+        emptyBody: "Divida este projeto em fases sequenciais \u2014 pesquisa, MVP, lan\xE7amento\u2026 \u2014 e acompanhe a trilha rumo ao cume.",
+        emptyAction: "Criar primeira fase",
+        orderAction: "Organizar fases",
+        orderTitle: "Organizar fases",
+        orderBody: "Arraste para definir a sequ\xEAncia. A primeira da lista \xE9 a primeira montanha da trilha.",
+        orderSavedToast: "Ordem das fases salva"
+      },
+      paralelo: {
+        singular: "frente",
+        plural: "frentes",
+        newAction: "Nova frente",
+        nameLabel: "Nome da frente",
+        namePlaceholder: "Ingest\xE3o de dados, Modelagem, Visual\u2026",
+        descPlaceholder: "O que essa frente cobre?",
+        dialogNew: "Nova frente",
+        dialogEdit: "Editar frente",
+        submitNew: "Criar frente",
+        createdToast: "Frente criada",
+        updatedToast: "Frente atualizada",
+        removedToast: "Frente removida",
+        removeTitle: "Remover frente?",
+        removeBody: (name4) => `A frente "${name4}" ser\xE1 removida do roadmap.`,
+        emptyTitle: "Abra as frentes",
+        emptyBody: "Separe o projeto nas frentes que rodam em paralelo. Cada uma segue no seu ritmo, medida pelas atividades pendentes.",
+        emptyAction: "Criar primeira frente",
+        orderAction: "Organizar frentes",
+        orderTitle: "Organizar frentes",
+        orderBody: "Arraste para definir em que ordem as frentes aparecem no roadmap.",
+        orderSavedToast: "Ordem das frentes salva"
+      }
+    };
+  }
+});
+
+// src/features/calendar/queries.ts
+async function fetchAllTasks(wsId) {
+  const projectsSnap = await getDocs(query(wsProjectsCol(wsId), where("status", "==", "active")));
+  const projectIds = projectsSnap.docs.map((d) => d.id);
+  if (projectIds.length === 0) return [];
+  const taskArrays = await Promise.all(
+    projectIds.map(async (pid) => {
+      const snap = await getDocs(wsTasksCol(wsId, pid));
+      return snap.docs.map((d) => ({
+        id: d.id,
+        projectId: pid,
+        ...d.data()
+      }));
+    })
+  );
+  return taskArrays.flat();
+}
+var init_queries6 = __esm({
+  "src/features/calendar/queries.ts"() {
+    init_firestore();
+    init_firestore_paths();
+  }
+});
+
+// src/features/connections/queries.ts
+function resolveTitle(target, allTasks, allProjects) {
+  if (target.type === "task") {
+    const t = allTasks.find((x) => x.id === target.id);
+    return t ? t.title : null;
+  }
+  const p = allProjects.find((x) => x.id === target.id);
+  return p ? p.name : null;
+}
+function isTargetClosed(target, allTasks, allProjects) {
+  if (target.type === "task") {
+    const t = allTasks.find((x) => x.id === target.id);
+    if (!t) return true;
+    const proj = allProjects.find((p2) => p2.id === t.projectId);
+    return doneStatusIds(proj?.columns).has(t.status);
+  }
+  const p = allProjects.find((x) => x.id === target.id);
+  if (!p) return true;
+  return p.status === "archived" || p.phase === "concluido";
+}
+function getOpenDependencies(owner, allTasks, allProjects) {
+  const conns = owner.connections ?? [];
+  const out = [];
+  for (const c of conns) {
+    if (c.linkType !== "depends_on") continue;
+    if (isTargetClosed(c.target, allTasks, allProjects)) continue;
+    const title = resolveTitle(c.target, allTasks, allProjects);
+    if (!title) continue;
+    out.push({ target: c.target, title });
+  }
+  return out;
+}
+function wouldCreateCycle(ownerType, ownerId, target, allTasks, allProjects) {
+  const visited = /* @__PURE__ */ new Set();
+  const stack = [target];
+  const key = (t) => `${t.type}:${t.id}`;
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (cur.type === ownerType && cur.id === ownerId) return true;
+    const k = key(cur);
+    if (visited.has(k)) continue;
+    visited.add(k);
+    const node = cur.type === "task" ? allTasks.find((t) => t.id === cur.id) : allProjects.find((p) => p.id === cur.id);
+    if (!node) continue;
+    for (const c of node.connections ?? []) {
+      if (c.linkType !== "depends_on") continue;
+      stack.push(c.target);
+    }
+  }
+  return false;
+}
+function connectionKey(c) {
+  return `${c.linkType}:${c.target.type}:${c.target.id}`;
+}
+var init_queries7 = __esm({
+  "src/features/connections/queries.ts"() {
+    init_models();
+  }
+});
+
+// src/features/notifications/queries.ts
+async function createNotification(input) {
+  if (input.recipientUid === input.actorUid) return;
+  const { sticker, checklistItemId, channelKind, messageId, threadRootId, excerpt: excerpt2, ...resto } = input;
+  await addDoc(notificationsCol(input.recipientUid), {
+    ...resto,
+    projectId: input.projectId ?? "",
+    projectName: input.projectName ?? "",
+    taskId: input.taskId ?? "",
+    taskTitle: input.taskTitle ?? "",
+    ...sticker ? { sticker } : {},
+    ...checklistItemId ? { checklistItemId } : {},
+    ...channelKind ? { channelKind } : {},
+    ...messageId ? { messageId } : {},
+    ...threadRootId ? { threadRootId } : {},
+    ...excerpt2 ? { excerpt: excerpt2 } : {},
+    read: false,
+    createdAt: serverTimestamp()
+  });
+}
+async function markAsRead(uid, notifId) {
+  await updateDoc(notificationDoc(uid, notifId), { read: true });
+}
+async function markAllAsRead(uid) {
+  const snap = await getDocs(
+    query(notificationsCol(uid), orderBy("createdAt", "desc"), limit(50))
+  );
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    if (!d.data().read) batch.update(d.ref, { read: true });
+  });
+  await batch.commit();
+}
+var init_queries8 = __esm({
+  "src/features/notifications/queries.ts"() {
+    init_firestore();
+    init_firebase();
+    init_firestore_paths();
+    init_models();
+  }
+});
+
+// src/features/project-detail/statusChange.ts
+function blockedByDependenciesMessage(task, allTasks, projects) {
+  const open = getOpenDependencies(task, allTasks, projects);
+  if (open.length === 0) return null;
+  return `Bloqueada por: ${open.map((d) => d.title).join(", ")}`;
+}
+function closeChecklistOnDone(checklist) {
+  const list = checklist ?? [];
+  if (!list.some((item) => !item.done)) return null;
+  return list.map((item) => item.done ? item : { ...item, done: true });
+}
+var init_statusChange = __esm({
+  "src/features/project-detail/statusChange.ts"() {
+    init_queries7();
   }
 });
 
@@ -37396,6 +37511,8 @@ var init_glia = __esm({
       aba: (p, aba) => `${HOSTING_ORIGIN}/projetos/${p.id}?tab=${aba}`,
       tarefa: (p, t) => `${HOSTING_ORIGIN}/projetos/${p.id}?task=${t.id}`,
       anotacao: (projectId, noteId) => `${HOSTING_ORIGIN}/projetos/${projectId}?tab=anotacoes&nota=${noteId}`,
+      /** Link curto (`/a/{id}`): a Glia acha o projeto sozinha. É o do aviso `note_due`. */
+      anotacaoCurta: (noteId) => `${HOSTING_ORIGIN}/a/${noteId}`,
       relatorio: (p) => `${HOSTING_ORIGIN}/projetos/${p.id}/relatorio`,
       portal: (portalId) => `${HOSTING_ORIGIN}/sugestoes/${portalId}`,
       convite: (wsId, token) => `${HOSTING_ORIGIN}/entrar/${wsId}/${token}`,
@@ -38277,16 +38394,43 @@ function lerCor(ref) {
   if (!cor) throw new GliaToolError(`Cor "${ref}" n\xE3o existe. Use: ${STICKY_COLORS.map((c) => c.label.toLowerCase()).join(", ")}.`);
   return cor.value;
 }
-function linhaNota({ projeto, nota }, comProjeto) {
-  const partes = [comProjeto ? projeto.name : null, rotuloCor(nota.color), `atualizada ${dataHora(nota.updatedAt)}`].filter(Boolean);
+function rotuloPrazo(nota, membros) {
+  const dia = data(nota.dueDate ?? null);
+  if (!dia) return "";
+  const quem = membros.find((m) => m.uid === nota.dueRecipientUid)?.displayName;
+  const estado = nota.dueNotifiedAt ? " (aviso enviado)" : noteIsDue(nota) ? " (chegou)" : "";
+  return `prazo ${dia}${estado}${quem ? ` \xB7 avisa ${quem}` : ""}`;
+}
+async function aplicarPrazo(ctx, projectId, noteId, prazo, avisar, atual) {
+  const dia = prazo === null ? null : lerData(prazo, "Prazo") ?? null;
+  const membros = await ctx.membros();
+  const para = avisar ? await resolveMembro(ctx, avisar) : membros.find((m) => m.uid === (atual ?? ctx.eu.uid)) ?? membros.find((m) => m.uid === ctx.eu.uid);
+  await setNoteDue(ctx.wsId, projectId, noteId, dia, para?.uid ?? ctx.eu.uid);
+  if (!dia) return "Prazo removido.";
+  const quem = !para || para.uid === ctx.eu.uid ? "voc\xEA" : para.displayName;
+  const dataTxt = dia.toISOString().slice(0, 10);
+  if (noteIsDue({ dueDate: dia })) {
+    const saiu = await notifyDueNote(ctx.wsId, projectId, noteId, quemEDosMembros(membros));
+    return `Prazo ${dataTxt} \u2014 j\xE1 chegou: ${saiu ? `o aviso "revisar anota\xE7\xE3o" foi para ${quem}` : `o aviso para ${quem} j\xE1 tinha sa\xEDdo`}.`;
+  }
+  return `Prazo ${dataTxt}: no dia, a Glia avisa ${quem} para revisar.`;
+}
+function linhaNota({ projeto, nota }, comProjeto, membros) {
+  const partes = [
+    comProjeto ? projeto.name : null,
+    rotuloCor(nota.color),
+    rotuloPrazo(nota, membros) || null,
+    `atualizada ${dataHora(nota.updatedAt)}`
+  ].filter(Boolean);
   const corpo = nota.content.trim() ? `
   ${trecho(nota.content, 200)}` : "";
   return `- **${tituloDaNota(nota)}** \u2014 ${partes.join(" \xB7 ")} (id ${nota.id})${corpo}`;
 }
-function notaInteira({ projeto, nota }) {
+function notaInteira({ projeto, nota }, membros) {
+  const prazo = rotuloPrazo(nota, membros);
   return [
     `# ${tituloDaNota(nota)}`,
-    `Projeto: ${projeto.name} \xB7 cor: ${rotuloCor(nota.color)} \xB7 atualizada ${dataHora(nota.updatedAt)} \xB7 id ${nota.id}`,
+    `Projeto: ${projeto.name} \xB7 cor: ${rotuloCor(nota.color)}${prazo ? ` \xB7 ${prazo}` : ""} \xB7 atualizada ${dataHora(nota.updatedAt)} \xB7 id ${nota.id}`,
     `Abrir na Glia: ${link.anotacao(projeto.id, nota.id)}`,
     "",
     nota.content.trim() || "(vazia)"
@@ -38297,7 +38441,7 @@ function registerAnotacaoTools(server) {
     "listar_anotacoes",
     {
       title: "Listar anota\xE7\xF5es",
-      description: "As anota\xE7\xF5es (post-its da aba Anota\xE7\xF5es) de um projeto \u2014 ou de todos, sem `projeto` \u2014 com t\xEDtulo, cor e o come\xE7o do texto. `busca` filtra por t\xEDtulo e conte\xFAdo.",
+      description: "As anota\xE7\xF5es (post-its da aba Anota\xE7\xF5es) de um projeto \u2014 ou de todos, sem `projeto` \u2014 com t\xEDtulo, cor, prazo (quando tem) e o come\xE7o do texto. `busca` filtra por t\xEDtulo e conte\xFAdo.",
       inputSchema: {
         projeto: projetoOpcional,
         busca: external_exports.string().optional().describe("Texto a procurar no t\xEDtulo ou no conte\xFAdo."),
@@ -38316,8 +38460,9 @@ ${nota.content}`).includes(n));
       const onde = projeto ? `de **${projetos[0].name}**` : `da workspace **${ctx.wsName}**`;
       const filtro = busca?.trim() ? ` com "${busca.trim()}"` : "";
       if (todas.length === 0) return `Nenhuma anota\xE7\xE3o ${onde}${filtro}.`;
+      const membros = await ctx.membros();
       return `Anota\xE7\xF5es ${onde}${filtro} \u2014 ${todas.length}:
-${todas.map((a) => linhaNota(a, !projeto)).join("\n")}`;
+${todas.map((a) => linhaNota(a, !projeto, membros)).join("\n")}`;
     })
   );
   server.registerTool(
@@ -38329,32 +38474,39 @@ ${todas.map((a) => linhaNota(a, !projeto)).join("\n")}`;
     },
     ({ anotacao, projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
-      return notaInteira(await resolveAnotacao(ctx, anotacao, projeto));
+      return notaInteira(await resolveAnotacao(ctx, anotacao, projeto), await ctx.membros());
     })
   );
   server.registerTool(
     "criar_anotacao",
     {
       title: "Criar anota\xE7\xE3o",
-      description: "Cria um post-it na aba Anota\xE7\xF5es do projeto \u2014 atas, decis\xF5es, requisitos, links, rascunhos. O conte\xFAdo aceita Markdown (t\xEDtulos, listas, **negrito**).",
+      description: 'Cria um post-it na aba Anota\xE7\xF5es do projeto \u2014 atas, decis\xF5es, requisitos, links, rascunhos. O conte\xFAdo aceita Markdown (t\xEDtulos, listas, **negrito**). Com `prazo` ("anota isso para eu ver amanh\xE3"), no dia a Glia manda a notifica\xE7\xE3o "revisar anota\xE7\xE3o" para voc\xEA (ou para `avisar_uid`).',
       inputSchema: {
         projeto: projetoParam,
         titulo: external_exports.string().optional(),
         conteudo: external_exports.string().describe("O texto da anota\xE7\xE3o, em Markdown."),
         cor: corParam.describe("Cor do post-it (padr\xE3o: a pr\xF3xima da sequ\xEAncia, como na tela)."),
+        prazo: prazoParam,
+        avisar_uid: avisarParam,
         workspace: workspaceParam3
       }
     },
-    ({ projeto, titulo, conteudo, cor, workspace }) => executar(async () => {
+    ({ projeto, titulo, conteudo, cor, prazo, avisar_uid, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto);
       if (!titulo?.trim() && !conteudo.trim()) throw new GliaToolError("A anota\xE7\xE3o precisa de t\xEDtulo ou conte\xFAdo.");
+      if (avisar_uid && !prazo?.trim()) throw new GliaToolError("`avisar_uid` s\xF3 vale junto com `prazo`.");
+      if (prazo?.trim()) lerData(prazo, "Prazo");
+      if (avisar_uid) await resolveMembro(ctx, avisar_uid);
       const existentes = await fetchNotes(ctx.wsId, p.id);
       const order = existentes.length ? Math.max(...existentes.map((n) => n.order)) + 100 : 100;
       const color = cor ? lerCor(cor) : STICKY_COLORS[existentes.length % STICKY_COLORS.length].value;
       const id = await createNote(ctx.wsId, p.id, color, order);
       await updateNote(ctx.wsId, p.id, id, { title: titulo?.trim() ?? "", content: conteudo.trim() });
-      return `Criei a anota\xE7\xE3o "${tituloDaNota({ title: titulo ?? "", content: conteudo })}" em ${p.name} (id ${id}).
+      const sobrePrazo = prazo?.trim() ? `
+${await aplicarPrazo(ctx, p.id, id, prazo, avisar_uid)}` : "";
+      return `Criei a anota\xE7\xE3o "${tituloDaNota({ title: titulo ?? "", content: conteudo })}" em ${p.name} (id ${id}).${sobrePrazo}
 ${link.anotacao(p.id, id)}`;
     })
   );
@@ -38362,7 +38514,7 @@ ${link.anotacao(p.id, id)}`;
     "atualizar_anotacao",
     {
       title: "Atualizar anota\xE7\xE3o",
-      description: "Muda t\xEDtulo, cor ou conte\xFAdo de uma anota\xE7\xE3o. `conteudo` substitui o texto inteiro; `acrescentar` adiciona ao fim (bom para atas e di\xE1rios). Leia antes com ver_anotacao se for reescrever.",
+      description: "Muda t\xEDtulo, cor, conte\xFAdo ou prazo de uma anota\xE7\xE3o. `conteudo` substitui o texto inteiro; `acrescentar` adiciona ao fim (bom para atas e di\xE1rios). `prazo` marca ou troca a data de revis\xE3o (`null` tira); `avisar_uid` troca quem recebe o aviso. Leia antes com ver_anotacao se for reescrever.",
       inputSchema: {
         anotacao: anotacaoParam,
         projeto: projetoOpcional,
@@ -38370,10 +38522,12 @@ ${link.anotacao(p.id, id)}`;
         conteudo: external_exports.string().optional().describe("Novo texto inteiro (Markdown)."),
         acrescentar: external_exports.string().optional().describe("Texto a acrescentar no fim, num par\xE1grafo novo."),
         cor: corParam,
+        prazo: prazoParam,
+        avisar_uid: avisarParam,
         workspace: workspaceParam3
       }
     },
-    ({ anotacao, projeto, titulo, conteudo, acrescentar, cor, workspace }) => executar(async () => {
+    ({ anotacao, projeto, titulo, conteudo, acrescentar, cor, prazo, avisar_uid, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const alvo = await resolveAnotacao(ctx, anotacao, projeto);
       if (conteudo !== void 0 && acrescentar !== void 0) {
@@ -38400,10 +38554,17 @@ ${acrescentar.trim()}` : acrescentar.trim();
         patch.color = lerCor(cor);
         mudou.push("cor");
       }
+      const novoPrazo = prazo === void 0 ? avisar_uid ? data(alvo.nota.dueDate ?? null) ?? "" : void 0 : prazo?.trim() || null;
+      if (avisar_uid && !novoPrazo) throw new GliaToolError("A anota\xE7\xE3o n\xE3o tem prazo: informe `prazo` junto com `avisar_uid`.");
+      if (novoPrazo) lerData(novoPrazo, "Prazo");
+      if (avisar_uid) await resolveMembro(ctx, avisar_uid);
+      if (novoPrazo !== void 0) mudou.push(novoPrazo ? "prazo" : "prazo (removido)");
       if (mudou.length === 0) throw new GliaToolError("Nada para atualizar: informe ao menos um campo.");
-      await updateNote(ctx.wsId, alvo.projeto.id, alvo.nota.id, patch);
+      if (Object.keys(patch).length > 0) await updateNote(ctx.wsId, alvo.projeto.id, alvo.nota.id, patch);
+      const sobrePrazo = novoPrazo !== void 0 ? `
+${await aplicarPrazo(ctx, alvo.projeto.id, alvo.nota.id, novoPrazo, avisar_uid, alvo.nota.dueRecipientUid)}` : "";
       const depois = { ...alvo.nota, ...patch };
-      return `Atualizei ${mudou.join(", ")} de "${tituloDaNota(depois)}" (${alvo.projeto.name}).
+      return `Atualizei ${mudou.join(", ")} de "${tituloDaNota(depois)}" (${alvo.projeto.name}).${sobrePrazo}
 ${link.anotacao(alvo.projeto.id, alvo.nota.id)}`;
     })
   );
@@ -38422,13 +38583,14 @@ ${link.anotacao(alvo.projeto.id, alvo.nota.id)}`;
     })
   );
 }
-var workspaceParam3, anotacaoParam, projetoOpcional, corParam, rotuloCor;
+var workspaceParam3, anotacaoParam, projetoOpcional, corParam, rotuloCor, prazoParam, avisarParam;
 var init_anotacoes = __esm({
   "mcp/src/tools/anotacoes.ts"() {
     "use strict";
     init_zod();
     init_parse();
     init_queries();
+    init_prazo();
     init_models();
     init_context();
     init_format2();
@@ -38440,6 +38602,8 @@ var init_anotacoes = __esm({
     projetoOpcional = external_exports.string().optional().describe("Projeto (nome/sigla/id). Sem ele, procura em todos os projetos.");
     corParam = external_exports.string().optional().describe(`Cor do post-it: ${STICKY_COLORS.map((c) => c.label.toLowerCase()).join(", ")}.`);
     rotuloCor = (c) => STICKY_COLORS.find((x) => x.value === c)?.label.toLowerCase() ?? c;
+    prazoParam = external_exports.string().nullable().optional().describe('Prazo para revisar a anota\xE7\xE3o, AAAA-MM-DD ("ver amanh\xE3"). No dia, a Glia avisa quem deve revisar. `null` ou "" tira o prazo.');
+    avisarParam = external_exports.string().optional().describe("Quem recebe o aviso do prazo: uid, nome ou e-mail de um membro (padr\xE3o: voc\xEA).");
   }
 });
 
@@ -38826,7 +38990,21 @@ var init_chat = __esm({
 });
 
 // mcp/src/tools/notificacoes.ts
+async function varrerPrazosDeAnotacao(uid) {
+  for (const ws of await minhasWorkspaces(uid)) {
+    const ultima = varridaEm.get(ws.id);
+    if (ultima && Date.now() - ultima < CARENCIA_MS) continue;
+    try {
+      const ctx = await contexto(ws.id);
+      await notifyDueNotes(ws.id, await ctx.projetos(), uid, quemEDosMembros(await ctx.membros()));
+      varridaEm.set(ws.id, Date.now());
+    } catch (err) {
+      console.error(`[glia-mcp] varredura de prazos de anota\xE7\xE3o falhou (${ws.id})`, err);
+    }
+  }
+}
 function destino(n) {
+  if (n.type === "note_due" && n.noteId) return link.anotacaoCurta(n.noteId);
   if (n.channelKind) {
     const canal = n.channelKind === "global" ? channelFromKey("global") : channelFromKey(n.projectId || "global");
     return link.chat(canal, n.messageId);
@@ -38835,8 +39013,8 @@ function destino(n) {
   return null;
 }
 function linhaNotificacao(n) {
-  const oque = O_QUE[n.type] ?? n.type;
-  const sobre = n.type === "reaction" ? ` com "${n.sticker ?? "?"}" em "${n.taskTitle || n.excerpt || "sua fala"}"` : n.channelKind ? `${n.channelKind === "global" ? " (chat geral)" : ` (#${n.projectName})`}${n.excerpt ? `: "${n.excerpt}"` : ""}${n.type === "chat_task_created" && n.taskTitle ? ` \u2192 ${n.taskTitle}` : ""}` : ` "${n.taskTitle}"${n.projectName ? ` (${n.projectName})` : ""}`;
+  const oque = n.type === "note_due" && n.actorUid === n.recipientUid ? "marcou para revisar a anota\xE7\xE3o" : O_QUE[n.type] ?? n.type;
+  const sobre = n.type === "note_due" ? ` "${n.noteTitle ?? ""}"${n.projectName ? ` (${n.projectName})` : ""} \u2014 prazo chegou` : n.type === "reaction" ? ` com "${n.sticker ?? "?"}" em "${n.taskTitle || n.excerpt || "sua fala"}"` : n.channelKind ? `${n.channelKind === "global" ? " (chat geral)" : ` (#${n.projectName})`}${n.excerpt ? `: "${n.excerpt}"` : ""}${n.type === "chat_task_created" && n.taskTitle ? ` \u2192 ${n.taskTitle}` : ""}` : ` "${n.taskTitle}"${n.projectName ? ` (${n.projectName})` : ""}`;
   const ir = destino(n);
   return `- ${n.read ? "" : "[n\xE3o lida] "}${dataHora(n.createdAt)} **${n.actorName}** ${oque}${sobre}${ir ? ` \u2014 ${ir}` : ""}  \`${n.id}\``;
 }
@@ -38845,7 +39023,7 @@ function registerNotificacaoTools(server) {
     "listar_notificacoes",
     {
       title: "Ver minhas notifica\xE7\xF5es",
-      description: 'O sino da Glia: quem te atribuiu tarefa, te citou, reagiu ou respondeu no chat \u2014 mais recentes primeiro, com o link de cada uma. Por padr\xE3o s\xF3 as n\xE3o lidas. Bom ponto de partida para "o que preciso ver hoje?".',
+      description: 'O sino da Glia: quem te atribuiu tarefa, te citou, reagiu ou respondeu no chat, e as anota\xE7\xF5es cujo prazo de revis\xE3o chegou ("revisar anota\xE7\xE3o") \u2014 mais recentes primeiro, com o link de cada uma. Por padr\xE3o s\xF3 as n\xE3o lidas. Bom ponto de partida para "o que preciso ver hoje?".',
       inputSchema: {
         todas: external_exports.boolean().optional().describe("Tamb\xE9m as j\xE1 lidas (padr\xE3o: s\xF3 n\xE3o lidas)."),
         limite: external_exports.number().int().min(1).max(100).optional().describe("Padr\xE3o 20.")
@@ -38853,6 +39031,7 @@ function registerNotificacaoTools(server) {
     },
     ({ todas, limite }) => executar(async () => {
       const eu = await ensureSignedIn();
+      await varrerPrazosDeAnotacao(eu.uid);
       const n = limite ?? 20;
       const snap = await getDocs(query(notificationsCol(eu.uid), orderBy("createdAt", "desc"), limit(todas ? n : Math.max(n, 100))));
       let lista = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -38885,13 +39064,14 @@ ${lista.map(linhaNotificacao).join("\n")}`;
     })
   );
 }
-var O_QUE;
+var O_QUE, CARENCIA_MS, varridaEm;
 var init_notificacoes = __esm({
   "mcp/src/tools/notificacoes.ts"() {
     "use strict";
     init_firestore();
     init_zod();
     init_queries8();
+    init_prazo();
     init_firestore_paths();
     init_models();
     init_session();
@@ -38906,8 +39086,11 @@ var init_notificacoes = __esm({
       reaction: "reagiu",
       chat_mentioned: "te citou no chat",
       chat_replied: "respondeu no chat",
-      chat_task_created: "transformou sua mensagem na tarefa"
+      chat_task_created: "transformou sua mensagem na tarefa",
+      note_due: "pediu para voc\xEA revisar a anota\xE7\xE3o"
     };
+    CARENCIA_MS = 10 * 6e4;
+    varridaEm = /* @__PURE__ */ new Map();
   }
 });
 
@@ -39455,7 +39638,7 @@ function registerTarefaEscritaTools(server) {
         descricao: external_exports.string().optional().describe("Descri\xE7\xE3o completa (o que, por qu\xEA, crit\xE9rios)."),
         coluna: external_exports.string().optional().describe("Coluna inicial (id ou nome). Padr\xE3o: a primeira do quadro."),
         prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta (padr\xE3o: m\xE9dia)."),
-        prazo: prazoParam,
+        prazo: prazoParam2,
         inicio: inicioParam,
         tags: external_exports.array(external_exports.string()).optional(),
         subtarefas: external_exports.array(external_exports.string()).optional().describe("Textos das subtarefas iniciais."),
@@ -39505,7 +39688,7 @@ ${link.tarefa(p, t)}${aviso}`;
         titulo: external_exports.string().optional(),
         descricao: external_exports.string().optional(),
         prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
-        prazo: prazoParam,
+        prazo: prazoParam2,
         inicio: inicioParam,
         tags: external_exports.array(external_exports.string()).optional().describe("Substitui a lista inteira de tags."),
         fase: external_exports.string().optional().describe("Fase (nome ou id). String vazia desvincula."),
@@ -39675,7 +39858,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
     })
   );
 }
-var workspaceParam8, projetoOpcional2, prazoParam, inicioParam, responsaveisParam, lerPrazo;
+var workspaceParam8, projetoOpcional2, prazoParam2, inicioParam, responsaveisParam, lerPrazo;
 var init_tarefas_escrita = __esm({
   "mcp/src/tools/tarefas-escrita.ts"() {
     "use strict";
@@ -39694,7 +39877,7 @@ var init_tarefas_escrita = __esm({
     init_tarefas();
     workspaceParam8 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoOpcional2 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
-    prazoParam = external_exports.string().optional().describe("Prazo no formato AAAA-MM-DD. String vazia remove o prazo.");
+    prazoParam2 = external_exports.string().optional().describe("Prazo no formato AAAA-MM-DD. String vazia remove o prazo.");
     inicioParam = external_exports.string().optional().describe("In\xEDcio no formato AAAA-MM-DD (opcional). String vazia remove.");
     responsaveisParam = external_exports.array(external_exports.string()).optional().describe('Respons\xE1veis, por nome, e-mail ou uid (ver listar_membros). "eu" = o usu\xE1rio logado.');
     lerPrazo = (prazo) => lerData(prazo, "Prazo");
