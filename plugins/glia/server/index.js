@@ -113,8 +113,8 @@ var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
 var init_config = __esm({
   "mcp/src/config.ts"() {
     "use strict";
-    VERSION = "0.4.0";
-    HOSTING_ORIGIN = "https://nucleo-demo.web.app";
+    VERSION = "0.4.1";
+    HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
       emulator: process.env.GLIA_EMULATOR === "1",
@@ -34718,6 +34718,97 @@ var init_stdio2 = __esm({
   }
 });
 
+// mcp/src/limite.ts
+function doAmbiente2(nome, padrao) {
+  const n = Number(process.env[nome]);
+  return Number.isFinite(n) && n > 0 ? n : padrao;
+}
+function limitesDoAmbiente() {
+  return {
+    porMinuto: doAmbiente2("GLIA_LIMITE_POR_MINUTO", 30),
+    porHora: doAmbiente2("GLIA_LIMITE_POR_HORA", 200),
+    repeticoes: doAmbiente2("GLIA_LIMITE_REPETICOES", 5),
+    janelaRepeticao: doAmbiente2("GLIA_LIMITE_JANELA_REPETICAO_MIN", 30) * MINUTO
+  };
+}
+function chaveDe(nome, args) {
+  const ordenar = (v) => {
+    if (Array.isArray(v)) return v.map(ordenar);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(
+        Object.keys(v).sort().map((k) => [k, ordenar(v[k])])
+      );
+    }
+    return v;
+  };
+  return `${nome} ${JSON.stringify(ordenar(args ?? {}))}`;
+}
+function minutos(ms) {
+  const m = Math.max(1, Math.ceil(ms / MINUTO));
+  return m === 1 ? "1 minuto" : `${m} minutos`;
+}
+function recusa(motivo, esperarMs) {
+  console.error(`[glia-mcp] freio: ${motivo}`);
+  return [
+    `Limite de uso da Glia: ${motivo}. Esta chamada N\xC3O foi feita; volta a ser aceita em ${minutos(esperarMs)}.`,
+    "N\xE3o consulte a Glia em loop nem fique esperando algo mudar por ela: cada consulta gasta a cota di\xE1ria de leituras da equipe inteira, e quando a cota acaba a Glia sai do ar para todo mundo at\xE9 o dia seguinte.",
+    "Pare aqui e diga ao usu\xE1rio o que voc\xEA estava tentando fazer \u2014 ele decide se vale continuar mais tarde."
+  ].join("\n\n");
+}
+var MINUTO, HORA, ISENTAS, Freio;
+var init_limite = __esm({
+  "mcp/src/limite.ts"() {
+    "use strict";
+    MINUTO = 6e4;
+    HORA = 60 * MINUTO;
+    ISENTAS = /* @__PURE__ */ new Set(["entrar"]);
+    Freio = class {
+      constructor(limites = limitesDoAmbiente(), agora = Date.now) {
+        this.limites = limites;
+        this.agora = agora;
+      }
+      /** Instantes das chamadas aceitas na última hora (a janela mais longa das duas de volume). */
+      chamadas = [];
+      porChave = /* @__PURE__ */ new Map();
+      /**
+       * Registra a chamada se couber. Devolve `null` (pode seguir) ou o texto da
+       * recusa — escrito para o MODELO ler e parar, não só para o log.
+       */
+      verificar(nome, args) {
+        if (ISENTAS.has(nome)) return null;
+        const t = this.agora();
+        const { porMinuto, porHora, repeticoes, janelaRepeticao } = this.limites;
+        this.chamadas = this.chamadas.filter((c) => t - c < HORA);
+        const chave = chaveDe(nome, args);
+        const iguais = (this.porChave.get(chave) ?? []).filter((c) => t - c < janelaRepeticao);
+        if (this.porChave.size > 500) {
+          for (const [k, v] of this.porChave) if (!v.some((c) => t - c < janelaRepeticao)) this.porChave.delete(k);
+        }
+        const noMinuto = this.chamadas.filter((c) => t - c < MINUTO);
+        if (noMinuto.length >= porMinuto) {
+          return recusa(
+            `mais de ${porMinuto} chamadas no \xFAltimo minuto`,
+            noMinuto[0] + MINUTO - t
+          );
+        }
+        if (this.chamadas.length >= porHora) {
+          return recusa(`mais de ${porHora} chamadas na \xFAltima hora`, this.chamadas[0] + HORA - t);
+        }
+        if (iguais.length >= repeticoes) {
+          return recusa(
+            `\`${nome}\` foi chamada ${iguais.length} vezes com os mesmos argumentos nos \xFAltimos ${minutos(janelaRepeticao)} \u2014 isso \xE9 consulta em loop (polling)`,
+            iguais[0] + janelaRepeticao - t
+          );
+        }
+        this.chamadas.push(t);
+        iguais.push(t);
+        this.porChave.set(chave, iguais);
+        return null;
+      }
+    };
+  }
+});
+
 // mcp/src/prompts.ts
 function registerPrompts(server) {
   server.registerPrompt(
@@ -34769,7 +34860,9 @@ Estruturar um projeto: \`criar_projeto\` (devolve a sigla; aceita colunas, panor
 
 O resto da Glia tamb\xE9m est\xE1 aqui: anota\xE7\xF5es do projeto (\`listar_anotacoes\`, \`criar_anotacao\`, \`atualizar_anotacao\`\u2026), o portal de sugest\xF5es \u2014 a "esteira de melhorias" (\`portal_sugestoes\` devolve o link p\xFAblico; \`listar_sugestoes\`, \`ver_sugestao\` com os prints, \`atualizar_sugestao\`, \`converter_sugestao\`, \`mesclar_sugestoes\`), o chat da equipe (\`ler_chat\`, \`enviar_mensagem\`, \`criar_tarefa_da_mensagem\`), colunas do quadro (\`configurar_colunas\`), depend\xEAncias (\`conectar\`), rea\xE7\xF5es (\`reagir\`), notifica\xE7\xF5es (\`listar_notificacoes\`), equipe (\`convidar_pessoa\`, \`gerenciar_membro\`) e a busca geral (\`buscar\`, \`buscar_tarefas\`). As respostas trazem o link da Glia de cada coisa \u2014 repasse ao usu\xE1rio. Mensagem no chat fala com a equipe: confirme o texto antes de enviar. Excluir (tarefa, anota\xE7\xE3o, sugest\xE3o, mensagem, projeto) n\xE3o tem lixeira: confirme antes.
 
-Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.`;
+Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.
+
+Nunca consulte a Glia em loop nem fique "de olho" esperando algo mudar (tarefa nova, notifica\xE7\xE3o, resposta no chat): cada consulta gasta a cota di\xE1ria de leituras da equipe inteira, e quando ela acaba a Glia sai do ar para todo mundo. O servidor recusa rajadas e a mesma consulta repetida \u2014 se receber "Limite de uso da Glia", pare e avise o usu\xE1rio.`;
   }
 });
 
@@ -40385,9 +40478,20 @@ __export(server_exports, {
 });
 async function serve() {
   const server = new McpServer({ name: "glia", version: VERSION }, { instructions: INSTRUCTIONS });
+  frearTools(server);
   registerAll(server);
   registerPrompts(server);
   await server.connect(new StdioServerTransport());
+}
+function frearTools(server) {
+  const freio = new Freio();
+  const registrar = server.registerTool.bind(server);
+  server.registerTool = (nome, config2, handler) => registrar(nome, config2, (...a) => {
+    const args = config2.inputSchema === void 0 ? {} : a[0];
+    const recusa2 = freio.verificar(nome, args);
+    if (recusa2) return { content: [{ type: "text", text: recusa2 }], isError: true };
+    return handler(...a);
+  });
 }
 var init_server3 = __esm({
   "mcp/src/server.ts"() {
@@ -40395,6 +40499,7 @@ var init_server3 = __esm({
     init_mcp();
     init_stdio2();
     init_config();
+    init_limite();
     init_prompts();
     init_tools();
   }

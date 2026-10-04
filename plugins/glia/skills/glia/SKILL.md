@@ -62,6 +62,8 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 
 Tudo que é apagado (tarefa, anotação, sugestão, mensagem, projeto) **não tem lixeira**: confirme com o usuário antes. Toda resposta traz o link da Glia para a pessoa conferir — repasse-o.
 
+**Não consulte a Glia em loop.** Nada de ficar "de olho" esperando tarefa nova, notificação ou resposta no chat, nem de repetir a mesma listagem para ver se mudou: cada consulta gasta a cota diária de leituras da equipe inteira, e quando ela acaba a Glia sai do ar para todo mundo até o dia seguinte. O servidor recusa rajadas e a mesma consulta repetida; se uma tool responder "Limite de uso da Glia", pare e diga ao usuário o que estava tentando fazer.
+
 ## Referências rápidas
 
 | Quero… | Tool |
