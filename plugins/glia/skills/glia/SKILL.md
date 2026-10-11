@@ -51,6 +51,11 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 - **Triagem**: `listar_sugestoes` (mais votadas primeiro; filtro por `status`) → `ver_sugestao` (texto inteiro e os **prints como imagem** — olhe antes de opinar sobre um bug) → `atualizar_sugestao` (`status` recebida/em análise/planejada/concluída/recusada, `resposta` pública que o autor vê no mural, `oculta`).
 - **Virar trabalho**: `converter_sugestao` cria a tarefa com os prints, marca "planejada" e mostra "virou IC-31" no mural. Duplicadas: `mesclar_sugestoes` (os votos vão para a principal). `votar_sugestao`, `excluir_sugestao` (prefira ocultar).
 
+## Status compartilhado (painel público, sem login)
+
+- **O link para fora da equipe**: `status_compartilhado` com `ativo: true` põe o projeto no painel público de status da workspace (cria o link na primeira vez) e devolve o endereço do painel e do cronograma do projeto. Quem abre vê nome, descrição, fim previsto e as fases com datas, progresso e entregáveis — nunca tarefas, responsáveis, chat ou anotações. `ativo: false` tira o projeto do painel na hora; sem `ativo`, só consulta (e republica o retrato se já estiver ligado).
+- **"No prazo" ou "atrasado"** no painel sai do `fim_previsto` do projeto (AAAA-MM-DD). Sem ele vale o fim da última fase — defina a data quando o usuário souber a promessa do projeto.
+
 ## Anotações, chat e equipe
 
 - **Anotações**: `listar_anotacoes` (de um projeto ou de todos, com `busca`), `ver_anotacao`, `criar_anotacao`, `atualizar_anotacao` (`acrescentar` adiciona ao fim — bom para atas; `conteudo` substitui tudo), `excluir_anotacao`. **Prazo de revisão**: `criar_anotacao`/`atualizar_anotacao` aceitam `prazo` (AAAA-MM-DD; `null` tira) e `avisar_uid` (quem recebe o aviso; padrão: o usuário). No dia, a Glia manda a notificação "revisar anotação" — é o jeito de atender "anota isso para eu ver amanhã". Prazo de hoje avisa na hora.

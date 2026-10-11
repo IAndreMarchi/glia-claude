@@ -113,7 +113,7 @@ var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
 var init_config = __esm({
   "mcp/src/config.ts"() {
     "use strict";
-    VERSION = "0.4.1";
+    VERSION = "0.5.0";
     HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
@@ -602,13 +602,13 @@ var init_index_node_esm = __esm({
       if (typeof document === "undefined") {
         return;
       }
-      let match;
+      let match3;
       try {
-        match = document.cookie.match(/__FIREBASE_DEFAULTS__=([^;]+)/);
+        match3 = document.cookie.match(/__FIREBASE_DEFAULTS__=([^;]+)/);
       } catch (e) {
         return;
       }
-      const decoded = match && base64Decode(match[1]);
+      const decoded = match3 && base64Decode(match3[1]);
       return decoded && JSON.parse(decoded);
     };
     getDefaults = () => {
@@ -660,8 +660,8 @@ var init_index_node_esm = __esm({
     };
     ERROR_NAME = "FirebaseError";
     FirebaseError = class _FirebaseError extends Error {
-      constructor(code, message, customData) {
-        super(message);
+      constructor(code, message2, customData) {
+        super(message2);
         this.code = code;
         this.customData = customData;
         this.name = ERROR_NAME;
@@ -681,8 +681,8 @@ var init_index_node_esm = __esm({
         const customData = data2[0] || {};
         const fullCode = `${this.service}/${code}`;
         const template = this.errors[code];
-        const message = template ? replaceTemplate(template, customData) : "Error";
-        const fullMessage = `${this.serviceName}: ${message} (${fullCode}).`;
+        const message2 = template ? replaceTemplate(template, customData) : "Error";
+        const fullMessage = `${this.serviceName}: ${message2} (${fullCode}).`;
         const error2 = new FirebaseError(fullCode, fullMessage, customData);
         return error2;
       }
@@ -2080,8 +2080,8 @@ function _fail(authOrCode, ...rest) {
 function _createError(authOrCode, ...rest) {
   return createErrorInternal(authOrCode, ...rest);
 }
-function _errorWithCustomMessage(auth2, code, message) {
-  const errorMap2 = Object.assign(Object.assign({}, prodErrorMap()), { [code]: message });
+function _errorWithCustomMessage(auth2, code, message2) {
+  const errorMap2 = Object.assign(Object.assign({}, prodErrorMap()), { [code]: message2 });
   const factory = new ErrorFactory("auth", "Firebase", errorMap2);
   return factory.create(code, {
     appName: auth2.name
@@ -2107,13 +2107,13 @@ function _assert(assertion, authOrCode, ...rest) {
   }
 }
 function debugFail(failure) {
-  const message = `INTERNAL ASSERTION FAILED: ` + failure;
-  _logError(message);
-  throw new Error(message);
+  const message2 = `INTERNAL ASSERTION FAILED: ` + failure;
+  _logError(message2);
+  throw new Error(message2);
 }
-function debugAssert(assertion, message) {
+function debugAssert(assertion, message2) {
   if (!assertion) {
-    debugFail(message);
+    debugFail(message2);
   }
 }
 function _isHttpOrHttps() {
@@ -5618,11 +5618,11 @@ function argToString(obj) {
   }
 }
 function fail(failure = "Unexpected state") {
-  const message = `FIRESTORE (${SDK_VERSION2}) INTERNAL ASSERTION FAILED: ` + failure;
-  logError(message);
-  throw new Error(message);
+  const message2 = `FIRESTORE (${SDK_VERSION2}) INTERNAL ASSERTION FAILED: ` + failure;
+  logError(message2);
+  throw new Error(message2);
 }
-function hardAssert(assertion, message) {
+function hardAssert(assertion, message2) {
   if (!assertion) {
     fail();
   }
@@ -7145,13 +7145,13 @@ function parseVectorValue(value, context) {
 function looksLikeJsonObject(input) {
   return typeof input === "object" && input !== null && !(input instanceof Array) && !(input instanceof Date) && !(input instanceof Timestamp) && !(input instanceof GeoPoint) && !(input instanceof Bytes) && !(input instanceof DocumentReference) && !(input instanceof FieldValue) && !(input instanceof VectorValue);
 }
-function validatePlainObject(message, context, input) {
+function validatePlainObject(message2, context, input) {
   if (!looksLikeJsonObject(input) || !isPlainObject(input)) {
     const description = valueDescription(input);
     if (description === "an object") {
-      throw context.createError(message + " a custom object");
+      throw context.createError(message2 + " a custom object");
     } else {
-      throw context.createError(message + " " + description);
+      throw context.createError(message2 + " " + description);
     }
   }
 }
@@ -7162,9 +7162,9 @@ function fieldPathFromArgument$1(methodName, path3, targetDoc) {
   } else if (typeof path3 === "string") {
     return fieldPathFromDotSeparatedString(methodName, path3);
   } else {
-    const message = "Field path arguments must be of type string or ";
+    const message2 = "Field path arguments must be of type string or ";
     throw createError(
-      message,
+      message2,
       methodName,
       /* hasConverter= */
       false,
@@ -7204,11 +7204,11 @@ function fieldPathFromDotSeparatedString(methodName, path3, targetDoc) {
 function createError(reason, methodName, hasConverter, path3, targetDoc) {
   const hasPath = path3 && !path3.isEmpty();
   const hasDocument = targetDoc !== void 0;
-  let message = `Function ${methodName}() called with invalid data`;
+  let message2 = `Function ${methodName}() called with invalid data`;
   if (hasConverter) {
-    message += " (via `toFirestore()`)";
+    message2 += " (via `toFirestore()`)";
   }
-  message += ". ";
+  message2 += ". ";
   let description = "";
   if (hasPath || hasDocument) {
     description += " (found";
@@ -7220,7 +7220,7 @@ function createError(reason, methodName, hasConverter, path3, targetDoc) {
     }
     description += ")";
   }
-  return new FirestoreError(Code.INVALID_ARGUMENT, message + reason + description);
+  return new FirestoreError(Code.INVALID_ARGUMENT, message2 + reason + description);
 }
 function fieldMaskContains(haystack, needle) {
   return haystack.some((v) => v.isEqual(needle));
@@ -7513,15 +7513,15 @@ function newAsyncQueue() {
   return new AsyncQueueImpl();
 }
 function getMessageOrStack(error2) {
-  let message = error2.message || "";
+  let message2 = error2.message || "";
   if (error2.stack) {
     if (error2.stack.includes(error2.message)) {
-      message = error2.stack;
+      message2 = error2.stack;
     } else {
-      message = error2.message + "\n" + error2.stack;
+      message2 = error2.message + "\n" + error2.stack;
     }
   }
-  return message;
+  return message2;
 }
 function runTransaction(firestore, updateFunction, options) {
   firestore = cast(firestore, Firestore);
@@ -7684,10 +7684,10 @@ var init_index_node = __esm({
     };
     FirestoreError = class extends FirebaseError {
       /** @hideconstructor */
-      constructor(code, message) {
-        super(code, message);
+      constructor(code, message2) {
+        super(code, message2);
         this.code = code;
-        this.message = message;
+        this.message = message2;
         this.toString = () => `${this.name}: [code=${this.code}]: ${this.message}`;
       }
     };
@@ -11255,8 +11255,8 @@ var init_index_node = __esm({
           return op().catch((error2) => {
             this.failure = error2;
             this.operationInProgress = false;
-            const message = getMessageOrStack(error2);
-            logError("INTERNAL UNHANDLED ERROR: ", message);
+            const message2 = getMessageOrStack(error2);
+            logError("INTERNAL UNHANDLED ERROR: ", message2);
             throw error2;
           }).then((result) => {
             this.operationInProgress = false;
@@ -11572,8 +11572,8 @@ var init_session = __esm({
     init_firebase();
     DICA_LOGIN = "N\xE3o h\xE1 sess\xE3o da Glia nesta m\xE1quina. Rode `npx glia-mcp login` uma vez e tente de novo.";
     GliaAuthError = class extends Error {
-      constructor(message = DICA_LOGIN) {
-        super(message);
+      constructor(message2 = DICA_LOGIN) {
+        super(message2);
         this.name = "GliaAuthError";
       }
     };
@@ -11649,7 +11649,7 @@ var init_firestore = __esm({
 });
 
 // src/lib/firestore-paths.ts
-var preferencesDoc, membershipsCol, membershipDoc, workspaceDoc, workspaceMembersCol, workspaceMemberDoc, workspaceInvitesCol, workspaceInviteDoc, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, wsTaskMessageDoc, notificationsCol, notificationDoc, wsNotesCol, wsNoteDoc, wsPhasesCol, wsPhaseDoc, wsChatCol, wsChatDoc, wsProjectChatCol, wsProjectChatDoc, portalDoc, portalSugestoesCol, portalSugestaoDoc, portalSugestaoImagensCol, portalSugestaoImagemDoc;
+var preferencesDoc, membershipsCol, membershipDoc, workspaceDoc, workspaceMembersCol, workspaceMemberDoc, workspaceInvitesCol, workspaceInviteDoc, wsProjectsCol, wsProjectDoc, wsTasksCol, wsTaskDoc, wsTaskMessagesCol, wsTaskMessageDoc, notificationsCol, notificationDoc, wsNotesCol, wsNoteDoc, wsPhasesCol, wsPhaseDoc, wsChatCol, wsChatDoc, wsProjectChatCol, wsProjectChatDoc, portalDoc, portalSugestoesCol, portalSugestaoDoc, portalSugestaoImagensCol, portalSugestaoImagemDoc, statusDoc, statusProjetoDoc;
 var init_firestore_paths = __esm({
   "src/lib/firestore-paths.ts"() {
     init_firestore();
@@ -11683,6 +11683,8 @@ var init_firestore_paths = __esm({
     portalSugestaoDoc = (portalId, sugestaoId) => doc(db, "portais", portalId, "sugestoes", sugestaoId);
     portalSugestaoImagensCol = (portalId, sugestaoId) => collection(db, "portais", portalId, "sugestoes", sugestaoId, "imagens");
     portalSugestaoImagemDoc = (portalId, sugestaoId, imagemId) => doc(db, "portais", portalId, "sugestoes", sugestaoId, "imagens", imagemId);
+    statusDoc = (token) => doc(db, "status", token);
+    statusProjetoDoc = (token, projectId) => doc(db, "status", token, "projetos", projectId);
   }
 });
 
@@ -12286,18 +12288,18 @@ async function editChatMessage(wsId, channel, messageId, input) {
     editedAt: serverTimestamp()
   });
 }
-async function deleteChatMessage(wsId, channel, message) {
-  if (message.parentId) {
+async function deleteChatMessage(wsId, channel, message2) {
+  if (message2.parentId) {
     const batch2 = writeBatch(db);
-    batch2.delete(chatDoc(wsId, channel, message.id));
-    batch2.update(chatDoc(wsId, channel, message.parentId), { replyCount: increment(-1) });
+    batch2.delete(chatDoc(wsId, channel, message2.id));
+    batch2.update(chatDoc(wsId, channel, message2.parentId), { replyCount: increment(-1) });
     await batch2.commit();
     return;
   }
-  const replies = await getDocs(query(chatCol(wsId, channel), where("parentId", "==", message.id)));
+  const replies = await getDocs(query(chatCol(wsId, channel), where("parentId", "==", message2.id)));
   const batch = writeBatch(db);
   replies.docs.forEach((d) => batch.delete(d.ref));
-  batch.delete(chatDoc(wsId, channel, message.id));
+  batch.delete(chatDoc(wsId, channel, message2.id));
   await batch.commit();
 }
 async function toggleChatReaction(wsId, channel, messageId, emocao, uid, reacting) {
@@ -12324,7 +12326,7 @@ async function fetchTaskDiscussions(wsId, projectId, taskId) {
             orderBy("createdAt", "desc")
           )
         );
-        return mapMessages(snap.docs).map((message) => ({ message, channel }));
+        return mapMessages(snap.docs).map((message2) => ({ message: message2, channel }));
       } catch {
         return [];
       }
@@ -12339,7 +12341,7 @@ async function fetchMessagesForSearch(wsId, channels, perChannel = 120) {
         const snap = await getDocs(
           query(chatCol(wsId, channel), orderBy("createdAt", "desc"), limit(perChannel))
         );
-        return mapMessages(snap.docs).map((message) => ({ message, channel }));
+        return mapMessages(snap.docs).map((message2) => ({ message: message2, channel }));
       } catch {
         return [];
       }
@@ -12559,6 +12561,4895 @@ var init_queries3 = __esm({
   }
 });
 
+// node_modules/clsx/dist/clsx.mjs
+var init_clsx = __esm({
+  "node_modules/clsx/dist/clsx.mjs"() {
+  }
+});
+
+// node_modules/date-fns/constants.js
+var daysInYear, maxTime, minTime, millisecondsInWeek, millisecondsInDay, secondsInHour, secondsInDay, secondsInWeek, secondsInYear, secondsInMonth, secondsInQuarter, constructFromSymbol;
+var init_constants = __esm({
+  "node_modules/date-fns/constants.js"() {
+    daysInYear = 365.2425;
+    maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
+    minTime = -maxTime;
+    millisecondsInWeek = 6048e5;
+    millisecondsInDay = 864e5;
+    secondsInHour = 3600;
+    secondsInDay = secondsInHour * 24;
+    secondsInWeek = secondsInDay * 7;
+    secondsInYear = secondsInDay * daysInYear;
+    secondsInMonth = secondsInYear / 12;
+    secondsInQuarter = secondsInMonth * 3;
+    constructFromSymbol = Symbol.for("constructDateFrom");
+  }
+});
+
+// node_modules/date-fns/constructFrom.js
+function constructFrom(date3, value) {
+  if (typeof date3 === "function") return date3(value);
+  if (date3 && typeof date3 === "object" && constructFromSymbol in date3)
+    return date3[constructFromSymbol](value);
+  if (date3 instanceof Date) return new date3.constructor(value);
+  return new Date(value);
+}
+var init_constructFrom = __esm({
+  "node_modules/date-fns/constructFrom.js"() {
+    init_constants();
+  }
+});
+
+// node_modules/date-fns/toDate.js
+function toDate(argument, context) {
+  return constructFrom(context || argument, argument);
+}
+var init_toDate = __esm({
+  "node_modules/date-fns/toDate.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/addDays.js
+var init_addDays = __esm({
+  "node_modules/date-fns/addDays.js"() {
+  }
+});
+
+// node_modules/date-fns/addMonths.js
+var init_addMonths = __esm({
+  "node_modules/date-fns/addMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/add.js
+var init_add = __esm({
+  "node_modules/date-fns/add.js"() {
+  }
+});
+
+// node_modules/date-fns/isSaturday.js
+var init_isSaturday = __esm({
+  "node_modules/date-fns/isSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/isSunday.js
+var init_isSunday = __esm({
+  "node_modules/date-fns/isSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWeekend.js
+var init_isWeekend = __esm({
+  "node_modules/date-fns/isWeekend.js"() {
+  }
+});
+
+// node_modules/date-fns/addBusinessDays.js
+var init_addBusinessDays = __esm({
+  "node_modules/date-fns/addBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/addMilliseconds.js
+var init_addMilliseconds = __esm({
+  "node_modules/date-fns/addMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/addHours.js
+var init_addHours = __esm({
+  "node_modules/date-fns/addHours.js"() {
+  }
+});
+
+// node_modules/date-fns/_lib/defaultOptions.js
+function getDefaultOptions() {
+  return defaultOptions;
+}
+var defaultOptions;
+var init_defaultOptions = __esm({
+  "node_modules/date-fns/_lib/defaultOptions.js"() {
+    defaultOptions = {};
+  }
+});
+
+// node_modules/date-fns/startOfWeek.js
+function startOfWeek(date3, options) {
+  const defaultOptions3 = getDefaultOptions();
+  const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions3.weekStartsOn ?? defaultOptions3.locale?.options?.weekStartsOn ?? 0;
+  const _date2 = toDate(date3, options?.in);
+  const day = _date2.getDay();
+  const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+  _date2.setDate(_date2.getDate() - diff);
+  _date2.setHours(0, 0, 0, 0);
+  return _date2;
+}
+var init_startOfWeek = __esm({
+  "node_modules/date-fns/startOfWeek.js"() {
+    init_defaultOptions();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/startOfISOWeek.js
+function startOfISOWeek(date3, options) {
+  return startOfWeek(date3, { ...options, weekStartsOn: 1 });
+}
+var init_startOfISOWeek = __esm({
+  "node_modules/date-fns/startOfISOWeek.js"() {
+    init_startOfWeek();
+  }
+});
+
+// node_modules/date-fns/getISOWeekYear.js
+function getISOWeekYear(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  const year = _date2.getFullYear();
+  const fourthOfJanuaryOfNextYear = constructFrom(_date2, 0);
+  fourthOfJanuaryOfNextYear.setFullYear(year + 1, 0, 4);
+  fourthOfJanuaryOfNextYear.setHours(0, 0, 0, 0);
+  const startOfNextYear = startOfISOWeek(fourthOfJanuaryOfNextYear);
+  const fourthOfJanuaryOfThisYear = constructFrom(_date2, 0);
+  fourthOfJanuaryOfThisYear.setFullYear(year, 0, 4);
+  fourthOfJanuaryOfThisYear.setHours(0, 0, 0, 0);
+  const startOfThisYear = startOfISOWeek(fourthOfJanuaryOfThisYear);
+  if (_date2.getTime() >= startOfNextYear.getTime()) {
+    return year + 1;
+  } else if (_date2.getTime() >= startOfThisYear.getTime()) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+var init_getISOWeekYear = __esm({
+  "node_modules/date-fns/getISOWeekYear.js"() {
+    init_constructFrom();
+    init_startOfISOWeek();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/_lib/getTimezoneOffsetInMilliseconds.js
+function getTimezoneOffsetInMilliseconds(date3) {
+  const _date2 = toDate(date3);
+  const utcDate = new Date(
+    Date.UTC(
+      _date2.getFullYear(),
+      _date2.getMonth(),
+      _date2.getDate(),
+      _date2.getHours(),
+      _date2.getMinutes(),
+      _date2.getSeconds(),
+      _date2.getMilliseconds()
+    )
+  );
+  utcDate.setUTCFullYear(_date2.getFullYear());
+  return +date3 - +utcDate;
+}
+var init_getTimezoneOffsetInMilliseconds = __esm({
+  "node_modules/date-fns/_lib/getTimezoneOffsetInMilliseconds.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/_lib/normalizeDates.js
+function normalizeDates(context, ...dates) {
+  const normalize2 = constructFrom.bind(
+    null,
+    context || dates.find((date3) => typeof date3 === "object")
+  );
+  return dates.map(normalize2);
+}
+var init_normalizeDates = __esm({
+  "node_modules/date-fns/_lib/normalizeDates.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/startOfDay.js
+function startOfDay(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  _date2.setHours(0, 0, 0, 0);
+  return _date2;
+}
+var init_startOfDay = __esm({
+  "node_modules/date-fns/startOfDay.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarDays.js
+function differenceInCalendarDays(laterDate, earlierDate, options) {
+  const [laterDate_, earlierDate_] = normalizeDates(
+    options?.in,
+    laterDate,
+    earlierDate
+  );
+  const laterStartOfDay = startOfDay(laterDate_);
+  const earlierStartOfDay = startOfDay(earlierDate_);
+  const laterTimestamp = +laterStartOfDay - getTimezoneOffsetInMilliseconds(laterStartOfDay);
+  const earlierTimestamp = +earlierStartOfDay - getTimezoneOffsetInMilliseconds(earlierStartOfDay);
+  return Math.round((laterTimestamp - earlierTimestamp) / millisecondsInDay);
+}
+var init_differenceInCalendarDays = __esm({
+  "node_modules/date-fns/differenceInCalendarDays.js"() {
+    init_getTimezoneOffsetInMilliseconds();
+    init_normalizeDates();
+    init_constants();
+    init_startOfDay();
+  }
+});
+
+// node_modules/date-fns/startOfISOWeekYear.js
+function startOfISOWeekYear(date3, options) {
+  const year = getISOWeekYear(date3, options);
+  const fourthOfJanuary = constructFrom(options?.in || date3, 0);
+  fourthOfJanuary.setFullYear(year, 0, 4);
+  fourthOfJanuary.setHours(0, 0, 0, 0);
+  return startOfISOWeek(fourthOfJanuary);
+}
+var init_startOfISOWeekYear = __esm({
+  "node_modules/date-fns/startOfISOWeekYear.js"() {
+    init_constructFrom();
+    init_getISOWeekYear();
+    init_startOfISOWeek();
+  }
+});
+
+// node_modules/date-fns/setISOWeekYear.js
+var init_setISOWeekYear = __esm({
+  "node_modules/date-fns/setISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/addISOWeekYears.js
+var init_addISOWeekYears = __esm({
+  "node_modules/date-fns/addISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/addMinutes.js
+var init_addMinutes = __esm({
+  "node_modules/date-fns/addMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/addQuarters.js
+var init_addQuarters = __esm({
+  "node_modules/date-fns/addQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/addSeconds.js
+var init_addSeconds = __esm({
+  "node_modules/date-fns/addSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/addWeeks.js
+var init_addWeeks = __esm({
+  "node_modules/date-fns/addWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/addYears.js
+var init_addYears = __esm({
+  "node_modules/date-fns/addYears.js"() {
+  }
+});
+
+// node_modules/date-fns/areIntervalsOverlapping.js
+var init_areIntervalsOverlapping = __esm({
+  "node_modules/date-fns/areIntervalsOverlapping.js"() {
+  }
+});
+
+// node_modules/date-fns/max.js
+var init_max = __esm({
+  "node_modules/date-fns/max.js"() {
+  }
+});
+
+// node_modules/date-fns/min.js
+var init_min = __esm({
+  "node_modules/date-fns/min.js"() {
+  }
+});
+
+// node_modules/date-fns/clamp.js
+var init_clamp = __esm({
+  "node_modules/date-fns/clamp.js"() {
+  }
+});
+
+// node_modules/date-fns/closestIndexTo.js
+var init_closestIndexTo = __esm({
+  "node_modules/date-fns/closestIndexTo.js"() {
+  }
+});
+
+// node_modules/date-fns/closestTo.js
+var init_closestTo = __esm({
+  "node_modules/date-fns/closestTo.js"() {
+  }
+});
+
+// node_modules/date-fns/compareAsc.js
+var init_compareAsc = __esm({
+  "node_modules/date-fns/compareAsc.js"() {
+  }
+});
+
+// node_modules/date-fns/compareDesc.js
+var init_compareDesc = __esm({
+  "node_modules/date-fns/compareDesc.js"() {
+  }
+});
+
+// node_modules/date-fns/constructNow.js
+function constructNow(date3) {
+  return constructFrom(date3, Date.now());
+}
+var init_constructNow = __esm({
+  "node_modules/date-fns/constructNow.js"() {
+    init_constructFrom();
+  }
+});
+
+// node_modules/date-fns/daysToWeeks.js
+var init_daysToWeeks = __esm({
+  "node_modules/date-fns/daysToWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameDay.js
+function isSameDay(laterDate, earlierDate, options) {
+  const [dateLeft_, dateRight_] = normalizeDates(
+    options?.in,
+    laterDate,
+    earlierDate
+  );
+  return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
+}
+var init_isSameDay = __esm({
+  "node_modules/date-fns/isSameDay.js"() {
+    init_normalizeDates();
+    init_startOfDay();
+  }
+});
+
+// node_modules/date-fns/isDate.js
+function isDate(value) {
+  return value instanceof Date || typeof value === "object" && Object.prototype.toString.call(value) === "[object Date]";
+}
+var init_isDate = __esm({
+  "node_modules/date-fns/isDate.js"() {
+  }
+});
+
+// node_modules/date-fns/isValid.js
+function isValid(date3) {
+  return !(!isDate(date3) && typeof date3 !== "number" || isNaN(+toDate(date3)));
+}
+var init_isValid = __esm({
+  "node_modules/date-fns/isValid.js"() {
+    init_isDate();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/differenceInBusinessDays.js
+var init_differenceInBusinessDays = __esm({
+  "node_modules/date-fns/differenceInBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarISOWeekYears.js
+var init_differenceInCalendarISOWeekYears = __esm({
+  "node_modules/date-fns/differenceInCalendarISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarISOWeeks.js
+var init_differenceInCalendarISOWeeks = __esm({
+  "node_modules/date-fns/differenceInCalendarISOWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarMonths.js
+var init_differenceInCalendarMonths = __esm({
+  "node_modules/date-fns/differenceInCalendarMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/getQuarter.js
+var init_getQuarter = __esm({
+  "node_modules/date-fns/getQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarQuarters.js
+var init_differenceInCalendarQuarters = __esm({
+  "node_modules/date-fns/differenceInCalendarQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarWeeks.js
+var init_differenceInCalendarWeeks = __esm({
+  "node_modules/date-fns/differenceInCalendarWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInCalendarYears.js
+var init_differenceInCalendarYears = __esm({
+  "node_modules/date-fns/differenceInCalendarYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInDays.js
+var init_differenceInDays = __esm({
+  "node_modules/date-fns/differenceInDays.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInHours.js
+var init_differenceInHours = __esm({
+  "node_modules/date-fns/differenceInHours.js"() {
+  }
+});
+
+// node_modules/date-fns/subISOWeekYears.js
+var init_subISOWeekYears = __esm({
+  "node_modules/date-fns/subISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInISOWeekYears.js
+var init_differenceInISOWeekYears = __esm({
+  "node_modules/date-fns/differenceInISOWeekYears.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMilliseconds.js
+var init_differenceInMilliseconds = __esm({
+  "node_modules/date-fns/differenceInMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMinutes.js
+var init_differenceInMinutes = __esm({
+  "node_modules/date-fns/differenceInMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfDay.js
+function endOfDay(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  _date2.setHours(23, 59, 59, 999);
+  return _date2;
+}
+var init_endOfDay = __esm({
+  "node_modules/date-fns/endOfDay.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/endOfMonth.js
+var init_endOfMonth = __esm({
+  "node_modules/date-fns/endOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isLastDayOfMonth.js
+var init_isLastDayOfMonth = __esm({
+  "node_modules/date-fns/isLastDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInMonths.js
+var init_differenceInMonths = __esm({
+  "node_modules/date-fns/differenceInMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInQuarters.js
+var init_differenceInQuarters = __esm({
+  "node_modules/date-fns/differenceInQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInSeconds.js
+var init_differenceInSeconds = __esm({
+  "node_modules/date-fns/differenceInSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInWeeks.js
+var init_differenceInWeeks = __esm({
+  "node_modules/date-fns/differenceInWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/differenceInYears.js
+var init_differenceInYears = __esm({
+  "node_modules/date-fns/differenceInYears.js"() {
+  }
+});
+
+// node_modules/date-fns/eachDayOfInterval.js
+var init_eachDayOfInterval = __esm({
+  "node_modules/date-fns/eachDayOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachHourOfInterval.js
+var init_eachHourOfInterval = __esm({
+  "node_modules/date-fns/eachHourOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachMinuteOfInterval.js
+var init_eachMinuteOfInterval = __esm({
+  "node_modules/date-fns/eachMinuteOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachMonthOfInterval.js
+var init_eachMonthOfInterval = __esm({
+  "node_modules/date-fns/eachMonthOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfQuarter.js
+var init_startOfQuarter = __esm({
+  "node_modules/date-fns/startOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/eachQuarterOfInterval.js
+var init_eachQuarterOfInterval = __esm({
+  "node_modules/date-fns/eachQuarterOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekOfInterval.js
+var init_eachWeekOfInterval = __esm({
+  "node_modules/date-fns/eachWeekOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfInterval.js
+var init_eachWeekendOfInterval = __esm({
+  "node_modules/date-fns/eachWeekendOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfMonth.js
+var init_startOfMonth = __esm({
+  "node_modules/date-fns/startOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfMonth.js
+var init_eachWeekendOfMonth = __esm({
+  "node_modules/date-fns/eachWeekendOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfYear.js
+var init_endOfYear = __esm({
+  "node_modules/date-fns/endOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfYear.js
+function startOfYear(date3, options) {
+  const date_ = toDate(date3, options?.in);
+  date_.setFullYear(date_.getFullYear(), 0, 1);
+  date_.setHours(0, 0, 0, 0);
+  return date_;
+}
+var init_startOfYear = __esm({
+  "node_modules/date-fns/startOfYear.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/eachWeekendOfYear.js
+var init_eachWeekendOfYear = __esm({
+  "node_modules/date-fns/eachWeekendOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/eachYearOfInterval.js
+var init_eachYearOfInterval = __esm({
+  "node_modules/date-fns/eachYearOfInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfDecade.js
+var init_endOfDecade = __esm({
+  "node_modules/date-fns/endOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfHour.js
+var init_endOfHour = __esm({
+  "node_modules/date-fns/endOfHour.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfWeek.js
+var init_endOfWeek = __esm({
+  "node_modules/date-fns/endOfWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfISOWeek.js
+var init_endOfISOWeek = __esm({
+  "node_modules/date-fns/endOfISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfISOWeekYear.js
+var init_endOfISOWeekYear = __esm({
+  "node_modules/date-fns/endOfISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfMinute.js
+var init_endOfMinute = __esm({
+  "node_modules/date-fns/endOfMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfQuarter.js
+var init_endOfQuarter = __esm({
+  "node_modules/date-fns/endOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfSecond.js
+var init_endOfSecond = __esm({
+  "node_modules/date-fns/endOfSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfToday.js
+var init_endOfToday = __esm({
+  "node_modules/date-fns/endOfToday.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfTomorrow.js
+var init_endOfTomorrow = __esm({
+  "node_modules/date-fns/endOfTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/endOfYesterday.js
+var init_endOfYesterday = __esm({
+  "node_modules/date-fns/endOfYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-US/_lib/formatDistance.js
+var formatDistanceLocale, formatDistance;
+var init_formatDistance = __esm({
+  "node_modules/date-fns/locale/en-US/_lib/formatDistance.js"() {
+    formatDistanceLocale = {
+      lessThanXSeconds: {
+        one: "less than a second",
+        other: "less than {{count}} seconds"
+      },
+      xSeconds: {
+        one: "1 second",
+        other: "{{count}} seconds"
+      },
+      halfAMinute: "half a minute",
+      lessThanXMinutes: {
+        one: "less than a minute",
+        other: "less than {{count}} minutes"
+      },
+      xMinutes: {
+        one: "1 minute",
+        other: "{{count}} minutes"
+      },
+      aboutXHours: {
+        one: "about 1 hour",
+        other: "about {{count}} hours"
+      },
+      xHours: {
+        one: "1 hour",
+        other: "{{count}} hours"
+      },
+      xDays: {
+        one: "1 day",
+        other: "{{count}} days"
+      },
+      aboutXWeeks: {
+        one: "about 1 week",
+        other: "about {{count}} weeks"
+      },
+      xWeeks: {
+        one: "1 week",
+        other: "{{count}} weeks"
+      },
+      aboutXMonths: {
+        one: "about 1 month",
+        other: "about {{count}} months"
+      },
+      xMonths: {
+        one: "1 month",
+        other: "{{count}} months"
+      },
+      aboutXYears: {
+        one: "about 1 year",
+        other: "about {{count}} years"
+      },
+      xYears: {
+        one: "1 year",
+        other: "{{count}} years"
+      },
+      overXYears: {
+        one: "over 1 year",
+        other: "over {{count}} years"
+      },
+      almostXYears: {
+        one: "almost 1 year",
+        other: "almost {{count}} years"
+      }
+    };
+    formatDistance = (token, count, options) => {
+      let result;
+      const tokenValue = formatDistanceLocale[token];
+      if (typeof tokenValue === "string") {
+        result = tokenValue;
+      } else if (count === 1) {
+        result = tokenValue.one;
+      } else {
+        result = tokenValue.other.replace("{{count}}", count.toString());
+      }
+      if (options?.addSuffix) {
+        if (options.comparison && options.comparison > 0) {
+          return "in " + result;
+        } else {
+          return result + " ago";
+        }
+      }
+      return result;
+    };
+  }
+});
+
+// node_modules/date-fns/locale/_lib/buildFormatLongFn.js
+function buildFormatLongFn(args) {
+  return (options = {}) => {
+    const width = options.width ? String(options.width) : args.defaultWidth;
+    const format2 = args.formats[width] || args.formats[args.defaultWidth];
+    return format2;
+  };
+}
+var init_buildFormatLongFn = __esm({
+  "node_modules/date-fns/locale/_lib/buildFormatLongFn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-US/_lib/formatLong.js
+var dateFormats, timeFormats, dateTimeFormats, formatLong;
+var init_formatLong = __esm({
+  "node_modules/date-fns/locale/en-US/_lib/formatLong.js"() {
+    init_buildFormatLongFn();
+    dateFormats = {
+      full: "EEEE, MMMM do, y",
+      long: "MMMM do, y",
+      medium: "MMM d, y",
+      short: "MM/dd/yyyy"
+    };
+    timeFormats = {
+      full: "h:mm:ss a zzzz",
+      long: "h:mm:ss a z",
+      medium: "h:mm:ss a",
+      short: "h:mm a"
+    };
+    dateTimeFormats = {
+      full: "{{date}} 'at' {{time}}",
+      long: "{{date}} 'at' {{time}}",
+      medium: "{{date}}, {{time}}",
+      short: "{{date}}, {{time}}"
+    };
+    formatLong = {
+      date: buildFormatLongFn({
+        formats: dateFormats,
+        defaultWidth: "full"
+      }),
+      time: buildFormatLongFn({
+        formats: timeFormats,
+        defaultWidth: "full"
+      }),
+      dateTime: buildFormatLongFn({
+        formats: dateTimeFormats,
+        defaultWidth: "full"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/en-US/_lib/formatRelative.js
+var formatRelativeLocale, formatRelative;
+var init_formatRelative = __esm({
+  "node_modules/date-fns/locale/en-US/_lib/formatRelative.js"() {
+    formatRelativeLocale = {
+      lastWeek: "'last' eeee 'at' p",
+      yesterday: "'yesterday at' p",
+      today: "'today at' p",
+      tomorrow: "'tomorrow at' p",
+      nextWeek: "eeee 'at' p",
+      other: "P"
+    };
+    formatRelative = (token, _date2, _baseDate, _options) => formatRelativeLocale[token];
+  }
+});
+
+// node_modules/date-fns/locale/_lib/buildLocalizeFn.js
+function buildLocalizeFn(args) {
+  return (value, options) => {
+    const context = options?.context ? String(options.context) : "standalone";
+    let valuesArray;
+    if (context === "formatting" && args.formattingValues) {
+      const defaultWidth = args.defaultFormattingWidth || args.defaultWidth;
+      const width = options?.width ? String(options.width) : defaultWidth;
+      valuesArray = args.formattingValues[width] || args.formattingValues[defaultWidth];
+    } else {
+      const defaultWidth = args.defaultWidth;
+      const width = options?.width ? String(options.width) : args.defaultWidth;
+      valuesArray = args.values[width] || args.values[defaultWidth];
+    }
+    const index = args.argumentCallback ? args.argumentCallback(value) : value;
+    return valuesArray[index];
+  };
+}
+var init_buildLocalizeFn = __esm({
+  "node_modules/date-fns/locale/_lib/buildLocalizeFn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-US/_lib/localize.js
+var eraValues, quarterValues, monthValues, dayValues, dayPeriodValues, formattingDayPeriodValues, ordinalNumber, localize;
+var init_localize = __esm({
+  "node_modules/date-fns/locale/en-US/_lib/localize.js"() {
+    init_buildLocalizeFn();
+    eraValues = {
+      narrow: ["B", "A"],
+      abbreviated: ["BC", "AD"],
+      wide: ["Before Christ", "Anno Domini"]
+    };
+    quarterValues = {
+      narrow: ["1", "2", "3", "4"],
+      abbreviated: ["Q1", "Q2", "Q3", "Q4"],
+      wide: ["1st quarter", "2nd quarter", "3rd quarter", "4th quarter"]
+    };
+    monthValues = {
+      narrow: ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"],
+      abbreviated: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      wide: [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+      ]
+    };
+    dayValues = {
+      narrow: ["S", "M", "T", "W", "T", "F", "S"],
+      short: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+      abbreviated: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+      wide: [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ]
+    };
+    dayPeriodValues = {
+      narrow: {
+        am: "a",
+        pm: "p",
+        midnight: "mi",
+        noon: "n",
+        morning: "morning",
+        afternoon: "afternoon",
+        evening: "evening",
+        night: "night"
+      },
+      abbreviated: {
+        am: "AM",
+        pm: "PM",
+        midnight: "midnight",
+        noon: "noon",
+        morning: "morning",
+        afternoon: "afternoon",
+        evening: "evening",
+        night: "night"
+      },
+      wide: {
+        am: "a.m.",
+        pm: "p.m.",
+        midnight: "midnight",
+        noon: "noon",
+        morning: "morning",
+        afternoon: "afternoon",
+        evening: "evening",
+        night: "night"
+      }
+    };
+    formattingDayPeriodValues = {
+      narrow: {
+        am: "a",
+        pm: "p",
+        midnight: "mi",
+        noon: "n",
+        morning: "in the morning",
+        afternoon: "in the afternoon",
+        evening: "in the evening",
+        night: "at night"
+      },
+      abbreviated: {
+        am: "AM",
+        pm: "PM",
+        midnight: "midnight",
+        noon: "noon",
+        morning: "in the morning",
+        afternoon: "in the afternoon",
+        evening: "in the evening",
+        night: "at night"
+      },
+      wide: {
+        am: "a.m.",
+        pm: "p.m.",
+        midnight: "midnight",
+        noon: "noon",
+        morning: "in the morning",
+        afternoon: "in the afternoon",
+        evening: "in the evening",
+        night: "at night"
+      }
+    };
+    ordinalNumber = (dirtyNumber, _options) => {
+      const number3 = Number(dirtyNumber);
+      const rem100 = number3 % 100;
+      if (rem100 > 20 || rem100 < 10) {
+        switch (rem100 % 10) {
+          case 1:
+            return number3 + "st";
+          case 2:
+            return number3 + "nd";
+          case 3:
+            return number3 + "rd";
+        }
+      }
+      return number3 + "th";
+    };
+    localize = {
+      ordinalNumber,
+      era: buildLocalizeFn({
+        values: eraValues,
+        defaultWidth: "wide"
+      }),
+      quarter: buildLocalizeFn({
+        values: quarterValues,
+        defaultWidth: "wide",
+        argumentCallback: (quarter) => quarter - 1
+      }),
+      month: buildLocalizeFn({
+        values: monthValues,
+        defaultWidth: "wide"
+      }),
+      day: buildLocalizeFn({
+        values: dayValues,
+        defaultWidth: "wide"
+      }),
+      dayPeriod: buildLocalizeFn({
+        values: dayPeriodValues,
+        defaultWidth: "wide",
+        formattingValues: formattingDayPeriodValues,
+        defaultFormattingWidth: "wide"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/_lib/buildMatchFn.js
+function buildMatchFn(args) {
+  return (string3, options = {}) => {
+    const width = options.width;
+    const matchPattern = width && args.matchPatterns[width] || args.matchPatterns[args.defaultMatchWidth];
+    const matchResult = string3.match(matchPattern);
+    if (!matchResult) {
+      return null;
+    }
+    const matchedString = matchResult[0];
+    const parsePatterns = width && args.parsePatterns[width] || args.parsePatterns[args.defaultParseWidth];
+    const key = Array.isArray(parsePatterns) ? findIndex(parsePatterns, (pattern) => pattern.test(matchedString)) : (
+      // [TODO] -- I challenge you to fix the type
+      findKey(parsePatterns, (pattern) => pattern.test(matchedString))
+    );
+    let value;
+    value = args.valueCallback ? args.valueCallback(key) : key;
+    value = options.valueCallback ? (
+      // [TODO] -- I challenge you to fix the type
+      options.valueCallback(value)
+    ) : value;
+    const rest = string3.slice(matchedString.length);
+    return { value, rest };
+  };
+}
+function findKey(object3, predicate) {
+  for (const key in object3) {
+    if (Object.prototype.hasOwnProperty.call(object3, key) && predicate(object3[key])) {
+      return key;
+    }
+  }
+  return void 0;
+}
+function findIndex(array2, predicate) {
+  for (let key = 0; key < array2.length; key++) {
+    if (predicate(array2[key])) {
+      return key;
+    }
+  }
+  return void 0;
+}
+var init_buildMatchFn = __esm({
+  "node_modules/date-fns/locale/_lib/buildMatchFn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/_lib/buildMatchPatternFn.js
+function buildMatchPatternFn(args) {
+  return (string3, options = {}) => {
+    const matchResult = string3.match(args.matchPattern);
+    if (!matchResult) return null;
+    const matchedString = matchResult[0];
+    const parseResult = string3.match(args.parsePattern);
+    if (!parseResult) return null;
+    let value = args.valueCallback ? args.valueCallback(parseResult[0]) : parseResult[0];
+    value = options.valueCallback ? options.valueCallback(value) : value;
+    const rest = string3.slice(matchedString.length);
+    return { value, rest };
+  };
+}
+var init_buildMatchPatternFn = __esm({
+  "node_modules/date-fns/locale/_lib/buildMatchPatternFn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-US/_lib/match.js
+var matchOrdinalNumberPattern, parseOrdinalNumberPattern, matchEraPatterns, parseEraPatterns, matchQuarterPatterns, parseQuarterPatterns, matchMonthPatterns, parseMonthPatterns, matchDayPatterns, parseDayPatterns, matchDayPeriodPatterns, parseDayPeriodPatterns, match;
+var init_match = __esm({
+  "node_modules/date-fns/locale/en-US/_lib/match.js"() {
+    init_buildMatchFn();
+    init_buildMatchPatternFn();
+    matchOrdinalNumberPattern = /^(\d+)(th|st|nd|rd)?/i;
+    parseOrdinalNumberPattern = /\d+/i;
+    matchEraPatterns = {
+      narrow: /^(b|a)/i,
+      abbreviated: /^(b\.?\s?c\.?|b\.?\s?c\.?\s?e\.?|a\.?\s?d\.?|c\.?\s?e\.?)/i,
+      wide: /^(before christ|before common era|anno domini|common era)/i
+    };
+    parseEraPatterns = {
+      any: [/^b/i, /^(a|c)/i]
+    };
+    matchQuarterPatterns = {
+      narrow: /^[1234]/i,
+      abbreviated: /^q[1234]/i,
+      wide: /^[1234](th|st|nd|rd)? quarter/i
+    };
+    parseQuarterPatterns = {
+      any: [/1/i, /2/i, /3/i, /4/i]
+    };
+    matchMonthPatterns = {
+      narrow: /^[jfmasond]/i,
+      abbreviated: /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i,
+      wide: /^(january|february|march|april|may|june|july|august|september|october|november|december)/i
+    };
+    parseMonthPatterns = {
+      narrow: [
+        /^j/i,
+        /^f/i,
+        /^m/i,
+        /^a/i,
+        /^m/i,
+        /^j/i,
+        /^j/i,
+        /^a/i,
+        /^s/i,
+        /^o/i,
+        /^n/i,
+        /^d/i
+      ],
+      any: [
+        /^ja/i,
+        /^f/i,
+        /^mar/i,
+        /^ap/i,
+        /^may/i,
+        /^jun/i,
+        /^jul/i,
+        /^au/i,
+        /^s/i,
+        /^o/i,
+        /^n/i,
+        /^d/i
+      ]
+    };
+    matchDayPatterns = {
+      narrow: /^[smtwf]/i,
+      short: /^(su|mo|tu|we|th|fr|sa)/i,
+      abbreviated: /^(sun|mon|tue|wed|thu|fri|sat)/i,
+      wide: /^(sunday|monday|tuesday|wednesday|thursday|friday|saturday)/i
+    };
+    parseDayPatterns = {
+      narrow: [/^s/i, /^m/i, /^t/i, /^w/i, /^t/i, /^f/i, /^s/i],
+      any: [/^su/i, /^m/i, /^tu/i, /^w/i, /^th/i, /^f/i, /^sa/i]
+    };
+    matchDayPeriodPatterns = {
+      narrow: /^(a|p|mi|n|(in the|at) (morning|afternoon|evening|night))/i,
+      any: /^([ap]\.?\s?m\.?|midnight|noon|(in the|at) (morning|afternoon|evening|night))/i
+    };
+    parseDayPeriodPatterns = {
+      any: {
+        am: /^a/i,
+        pm: /^p/i,
+        midnight: /^mi/i,
+        noon: /^no/i,
+        morning: /morning/i,
+        afternoon: /afternoon/i,
+        evening: /evening/i,
+        night: /night/i
+      }
+    };
+    match = {
+      ordinalNumber: buildMatchPatternFn({
+        matchPattern: matchOrdinalNumberPattern,
+        parsePattern: parseOrdinalNumberPattern,
+        valueCallback: (value) => parseInt(value, 10)
+      }),
+      era: buildMatchFn({
+        matchPatterns: matchEraPatterns,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseEraPatterns,
+        defaultParseWidth: "any"
+      }),
+      quarter: buildMatchFn({
+        matchPatterns: matchQuarterPatterns,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseQuarterPatterns,
+        defaultParseWidth: "any",
+        valueCallback: (index) => index + 1
+      }),
+      month: buildMatchFn({
+        matchPatterns: matchMonthPatterns,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseMonthPatterns,
+        defaultParseWidth: "any"
+      }),
+      day: buildMatchFn({
+        matchPatterns: matchDayPatterns,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseDayPatterns,
+        defaultParseWidth: "any"
+      }),
+      dayPeriod: buildMatchFn({
+        matchPatterns: matchDayPeriodPatterns,
+        defaultMatchWidth: "any",
+        parsePatterns: parseDayPeriodPatterns,
+        defaultParseWidth: "any"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/en-US.js
+var enUS;
+var init_en_US = __esm({
+  "node_modules/date-fns/locale/en-US.js"() {
+    init_formatDistance();
+    init_formatLong();
+    init_formatRelative();
+    init_localize();
+    init_match();
+    enUS = {
+      code: "en-US",
+      formatDistance,
+      formatLong,
+      formatRelative,
+      localize,
+      match,
+      options: {
+        weekStartsOn: 0,
+        firstWeekContainsDate: 1
+      }
+    };
+  }
+});
+
+// node_modules/date-fns/_lib/defaultLocale.js
+var init_defaultLocale = __esm({
+  "node_modules/date-fns/_lib/defaultLocale.js"() {
+    init_en_US();
+  }
+});
+
+// node_modules/date-fns/getDayOfYear.js
+function getDayOfYear(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  const diff = differenceInCalendarDays(_date2, startOfYear(_date2));
+  const dayOfYear = diff + 1;
+  return dayOfYear;
+}
+var init_getDayOfYear = __esm({
+  "node_modules/date-fns/getDayOfYear.js"() {
+    init_differenceInCalendarDays();
+    init_startOfYear();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/getISOWeek.js
+function getISOWeek(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  const diff = +startOfISOWeek(_date2) - +startOfISOWeekYear(_date2);
+  return Math.round(diff / millisecondsInWeek) + 1;
+}
+var init_getISOWeek = __esm({
+  "node_modules/date-fns/getISOWeek.js"() {
+    init_constants();
+    init_startOfISOWeek();
+    init_startOfISOWeekYear();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/getWeekYear.js
+function getWeekYear(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  const year = _date2.getFullYear();
+  const defaultOptions3 = getDefaultOptions();
+  const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions3.firstWeekContainsDate ?? defaultOptions3.locale?.options?.firstWeekContainsDate ?? 1;
+  const firstWeekOfNextYear = constructFrom(options?.in || date3, 0);
+  firstWeekOfNextYear.setFullYear(year + 1, 0, firstWeekContainsDate);
+  firstWeekOfNextYear.setHours(0, 0, 0, 0);
+  const startOfNextYear = startOfWeek(firstWeekOfNextYear, options);
+  const firstWeekOfThisYear = constructFrom(options?.in || date3, 0);
+  firstWeekOfThisYear.setFullYear(year, 0, firstWeekContainsDate);
+  firstWeekOfThisYear.setHours(0, 0, 0, 0);
+  const startOfThisYear = startOfWeek(firstWeekOfThisYear, options);
+  if (+_date2 >= +startOfNextYear) {
+    return year + 1;
+  } else if (+_date2 >= +startOfThisYear) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+var init_getWeekYear = __esm({
+  "node_modules/date-fns/getWeekYear.js"() {
+    init_defaultOptions();
+    init_constructFrom();
+    init_startOfWeek();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/startOfWeekYear.js
+function startOfWeekYear(date3, options) {
+  const defaultOptions3 = getDefaultOptions();
+  const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions3.firstWeekContainsDate ?? defaultOptions3.locale?.options?.firstWeekContainsDate ?? 1;
+  const year = getWeekYear(date3, options);
+  const firstWeek = constructFrom(options?.in || date3, 0);
+  firstWeek.setFullYear(year, 0, firstWeekContainsDate);
+  firstWeek.setHours(0, 0, 0, 0);
+  const _date2 = startOfWeek(firstWeek, options);
+  return _date2;
+}
+var init_startOfWeekYear = __esm({
+  "node_modules/date-fns/startOfWeekYear.js"() {
+    init_defaultOptions();
+    init_constructFrom();
+    init_getWeekYear();
+    init_startOfWeek();
+  }
+});
+
+// node_modules/date-fns/getWeek.js
+function getWeek(date3, options) {
+  const _date2 = toDate(date3, options?.in);
+  const diff = +startOfWeek(_date2, options) - +startOfWeekYear(_date2, options);
+  return Math.round(diff / millisecondsInWeek) + 1;
+}
+var init_getWeek = __esm({
+  "node_modules/date-fns/getWeek.js"() {
+    init_constants();
+    init_startOfWeek();
+    init_startOfWeekYear();
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/_lib/addLeadingZeros.js
+function addLeadingZeros(number3, targetLength) {
+  const sign = number3 < 0 ? "-" : "";
+  const output = Math.abs(number3).toString().padStart(targetLength, "0");
+  return sign + output;
+}
+var init_addLeadingZeros = __esm({
+  "node_modules/date-fns/_lib/addLeadingZeros.js"() {
+  }
+});
+
+// node_modules/date-fns/_lib/format/lightFormatters.js
+var lightFormatters;
+var init_lightFormatters = __esm({
+  "node_modules/date-fns/_lib/format/lightFormatters.js"() {
+    init_addLeadingZeros();
+    lightFormatters = {
+      // Year
+      y(date3, token) {
+        const signedYear = date3.getFullYear();
+        const year = signedYear > 0 ? signedYear : 1 - signedYear;
+        return addLeadingZeros(token === "yy" ? year % 100 : year, token.length);
+      },
+      // Month
+      M(date3, token) {
+        const month = date3.getMonth();
+        return token === "M" ? String(month + 1) : addLeadingZeros(month + 1, 2);
+      },
+      // Day of the month
+      d(date3, token) {
+        return addLeadingZeros(date3.getDate(), token.length);
+      },
+      // AM or PM
+      a(date3, token) {
+        const dayPeriodEnumValue = date3.getHours() / 12 >= 1 ? "pm" : "am";
+        switch (token) {
+          case "a":
+          case "aa":
+            return dayPeriodEnumValue.toUpperCase();
+          case "aaa":
+            return dayPeriodEnumValue;
+          case "aaaaa":
+            return dayPeriodEnumValue[0];
+          case "aaaa":
+          default:
+            return dayPeriodEnumValue === "am" ? "a.m." : "p.m.";
+        }
+      },
+      // Hour [1-12]
+      h(date3, token) {
+        return addLeadingZeros(date3.getHours() % 12 || 12, token.length);
+      },
+      // Hour [0-23]
+      H(date3, token) {
+        return addLeadingZeros(date3.getHours(), token.length);
+      },
+      // Minute
+      m(date3, token) {
+        return addLeadingZeros(date3.getMinutes(), token.length);
+      },
+      // Second
+      s(date3, token) {
+        return addLeadingZeros(date3.getSeconds(), token.length);
+      },
+      // Fraction of second
+      S(date3, token) {
+        const numberOfDigits = token.length;
+        const milliseconds = date3.getMilliseconds();
+        const fractionalSeconds = Math.trunc(
+          milliseconds * Math.pow(10, numberOfDigits - 3)
+        );
+        return addLeadingZeros(fractionalSeconds, token.length);
+      }
+    };
+  }
+});
+
+// node_modules/date-fns/_lib/format/formatters.js
+function formatTimezoneShort(offset, delimiter = "") {
+  const sign = offset > 0 ? "-" : "+";
+  const absOffset = Math.abs(offset);
+  const hours = Math.trunc(absOffset / 60);
+  const minutes = absOffset % 60;
+  if (minutes === 0) {
+    return sign + String(hours);
+  }
+  return sign + String(hours) + delimiter + addLeadingZeros(minutes, 2);
+}
+function formatTimezoneWithOptionalMinutes(offset, delimiter) {
+  if (offset % 60 === 0) {
+    const sign = offset > 0 ? "-" : "+";
+    return sign + addLeadingZeros(Math.abs(offset) / 60, 2);
+  }
+  return formatTimezone(offset, delimiter);
+}
+function formatTimezone(offset, delimiter = "") {
+  const sign = offset > 0 ? "-" : "+";
+  const absOffset = Math.abs(offset);
+  const hours = addLeadingZeros(Math.trunc(absOffset / 60), 2);
+  const minutes = addLeadingZeros(absOffset % 60, 2);
+  return sign + hours + delimiter + minutes;
+}
+var dayPeriodEnum, formatters;
+var init_formatters = __esm({
+  "node_modules/date-fns/_lib/format/formatters.js"() {
+    init_getDayOfYear();
+    init_getISOWeek();
+    init_getISOWeekYear();
+    init_getWeek();
+    init_getWeekYear();
+    init_addLeadingZeros();
+    init_lightFormatters();
+    dayPeriodEnum = {
+      am: "am",
+      pm: "pm",
+      midnight: "midnight",
+      noon: "noon",
+      morning: "morning",
+      afternoon: "afternoon",
+      evening: "evening",
+      night: "night"
+    };
+    formatters = {
+      // Era
+      G: function(date3, token, localize3) {
+        const era = date3.getFullYear() > 0 ? 1 : 0;
+        switch (token) {
+          case "G":
+          case "GG":
+          case "GGG":
+            return localize3.era(era, { width: "abbreviated" });
+          case "GGGGG":
+            return localize3.era(era, { width: "narrow" });
+          case "GGGG":
+          default:
+            return localize3.era(era, { width: "wide" });
+        }
+      },
+      // Year
+      y: function(date3, token, localize3) {
+        if (token === "yo") {
+          const signedYear = date3.getFullYear();
+          const year = signedYear > 0 ? signedYear : 1 - signedYear;
+          return localize3.ordinalNumber(year, { unit: "year" });
+        }
+        return lightFormatters.y(date3, token);
+      },
+      // Local week-numbering year
+      Y: function(date3, token, localize3, options) {
+        const signedWeekYear = getWeekYear(date3, options);
+        const weekYear = signedWeekYear > 0 ? signedWeekYear : 1 - signedWeekYear;
+        if (token === "YY") {
+          const twoDigitYear = weekYear % 100;
+          return addLeadingZeros(twoDigitYear, 2);
+        }
+        if (token === "Yo") {
+          return localize3.ordinalNumber(weekYear, { unit: "year" });
+        }
+        return addLeadingZeros(weekYear, token.length);
+      },
+      // ISO week-numbering year
+      R: function(date3, token) {
+        const isoWeekYear = getISOWeekYear(date3);
+        return addLeadingZeros(isoWeekYear, token.length);
+      },
+      // Extended year. This is a single number designating the year of this calendar system.
+      // The main difference between `y` and `u` localizers are B.C. years:
+      // | Year | `y` | `u` |
+      // |------|-----|-----|
+      // | AC 1 |   1 |   1 |
+      // | BC 1 |   1 |   0 |
+      // | BC 2 |   2 |  -1 |
+      // Also `yy` always returns the last two digits of a year,
+      // while `uu` pads single digit years to 2 characters and returns other years unchanged.
+      u: function(date3, token) {
+        const year = date3.getFullYear();
+        return addLeadingZeros(year, token.length);
+      },
+      // Quarter
+      Q: function(date3, token, localize3) {
+        const quarter = Math.ceil((date3.getMonth() + 1) / 3);
+        switch (token) {
+          case "Q":
+            return String(quarter);
+          case "QQ":
+            return addLeadingZeros(quarter, 2);
+          case "Qo":
+            return localize3.ordinalNumber(quarter, { unit: "quarter" });
+          case "QQQ":
+            return localize3.quarter(quarter, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "QQQQQ":
+            return localize3.quarter(quarter, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "QQQQ":
+          default:
+            return localize3.quarter(quarter, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // Stand-alone quarter
+      q: function(date3, token, localize3) {
+        const quarter = Math.ceil((date3.getMonth() + 1) / 3);
+        switch (token) {
+          case "q":
+            return String(quarter);
+          case "qq":
+            return addLeadingZeros(quarter, 2);
+          case "qo":
+            return localize3.ordinalNumber(quarter, { unit: "quarter" });
+          case "qqq":
+            return localize3.quarter(quarter, {
+              width: "abbreviated",
+              context: "standalone"
+            });
+          case "qqqqq":
+            return localize3.quarter(quarter, {
+              width: "narrow",
+              context: "standalone"
+            });
+          case "qqqq":
+          default:
+            return localize3.quarter(quarter, {
+              width: "wide",
+              context: "standalone"
+            });
+        }
+      },
+      // Month
+      M: function(date3, token, localize3) {
+        const month = date3.getMonth();
+        switch (token) {
+          case "M":
+          case "MM":
+            return lightFormatters.M(date3, token);
+          case "Mo":
+            return localize3.ordinalNumber(month + 1, { unit: "month" });
+          case "MMM":
+            return localize3.month(month, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "MMMMM":
+            return localize3.month(month, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "MMMM":
+          default:
+            return localize3.month(month, { width: "wide", context: "formatting" });
+        }
+      },
+      // Stand-alone month
+      L: function(date3, token, localize3) {
+        const month = date3.getMonth();
+        switch (token) {
+          case "L":
+            return String(month + 1);
+          case "LL":
+            return addLeadingZeros(month + 1, 2);
+          case "Lo":
+            return localize3.ordinalNumber(month + 1, { unit: "month" });
+          case "LLL":
+            return localize3.month(month, {
+              width: "abbreviated",
+              context: "standalone"
+            });
+          case "LLLLL":
+            return localize3.month(month, {
+              width: "narrow",
+              context: "standalone"
+            });
+          case "LLLL":
+          default:
+            return localize3.month(month, { width: "wide", context: "standalone" });
+        }
+      },
+      // Local week of year
+      w: function(date3, token, localize3, options) {
+        const week = getWeek(date3, options);
+        if (token === "wo") {
+          return localize3.ordinalNumber(week, { unit: "week" });
+        }
+        return addLeadingZeros(week, token.length);
+      },
+      // ISO week of year
+      I: function(date3, token, localize3) {
+        const isoWeek = getISOWeek(date3);
+        if (token === "Io") {
+          return localize3.ordinalNumber(isoWeek, { unit: "week" });
+        }
+        return addLeadingZeros(isoWeek, token.length);
+      },
+      // Day of the month
+      d: function(date3, token, localize3) {
+        if (token === "do") {
+          return localize3.ordinalNumber(date3.getDate(), { unit: "date" });
+        }
+        return lightFormatters.d(date3, token);
+      },
+      // Day of year
+      D: function(date3, token, localize3) {
+        const dayOfYear = getDayOfYear(date3);
+        if (token === "Do") {
+          return localize3.ordinalNumber(dayOfYear, { unit: "dayOfYear" });
+        }
+        return addLeadingZeros(dayOfYear, token.length);
+      },
+      // Day of week
+      E: function(date3, token, localize3) {
+        const dayOfWeek = date3.getDay();
+        switch (token) {
+          case "E":
+          case "EE":
+          case "EEE":
+            return localize3.day(dayOfWeek, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "EEEEE":
+            return localize3.day(dayOfWeek, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "EEEEEE":
+            return localize3.day(dayOfWeek, {
+              width: "short",
+              context: "formatting"
+            });
+          case "EEEE":
+          default:
+            return localize3.day(dayOfWeek, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // Local day of week
+      e: function(date3, token, localize3, options) {
+        const dayOfWeek = date3.getDay();
+        const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+        switch (token) {
+          case "e":
+            return String(localDayOfWeek);
+          case "ee":
+            return addLeadingZeros(localDayOfWeek, 2);
+          case "eo":
+            return localize3.ordinalNumber(localDayOfWeek, { unit: "day" });
+          case "eee":
+            return localize3.day(dayOfWeek, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "eeeee":
+            return localize3.day(dayOfWeek, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "eeeeee":
+            return localize3.day(dayOfWeek, {
+              width: "short",
+              context: "formatting"
+            });
+          case "eeee":
+          default:
+            return localize3.day(dayOfWeek, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // Stand-alone local day of week
+      c: function(date3, token, localize3, options) {
+        const dayOfWeek = date3.getDay();
+        const localDayOfWeek = (dayOfWeek - options.weekStartsOn + 8) % 7 || 7;
+        switch (token) {
+          case "c":
+            return String(localDayOfWeek);
+          case "cc":
+            return addLeadingZeros(localDayOfWeek, token.length);
+          case "co":
+            return localize3.ordinalNumber(localDayOfWeek, { unit: "day" });
+          case "ccc":
+            return localize3.day(dayOfWeek, {
+              width: "abbreviated",
+              context: "standalone"
+            });
+          case "ccccc":
+            return localize3.day(dayOfWeek, {
+              width: "narrow",
+              context: "standalone"
+            });
+          case "cccccc":
+            return localize3.day(dayOfWeek, {
+              width: "short",
+              context: "standalone"
+            });
+          case "cccc":
+          default:
+            return localize3.day(dayOfWeek, {
+              width: "wide",
+              context: "standalone"
+            });
+        }
+      },
+      // ISO day of week
+      i: function(date3, token, localize3) {
+        const dayOfWeek = date3.getDay();
+        const isoDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+        switch (token) {
+          case "i":
+            return String(isoDayOfWeek);
+          case "ii":
+            return addLeadingZeros(isoDayOfWeek, token.length);
+          case "io":
+            return localize3.ordinalNumber(isoDayOfWeek, { unit: "day" });
+          case "iii":
+            return localize3.day(dayOfWeek, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "iiiii":
+            return localize3.day(dayOfWeek, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "iiiiii":
+            return localize3.day(dayOfWeek, {
+              width: "short",
+              context: "formatting"
+            });
+          case "iiii":
+          default:
+            return localize3.day(dayOfWeek, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // AM or PM
+      a: function(date3, token, localize3) {
+        const hours = date3.getHours();
+        const dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
+        switch (token) {
+          case "a":
+          case "aa":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "aaa":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting"
+            }).toLowerCase();
+          case "aaaaa":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "aaaa":
+          default:
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // AM, PM, midnight, noon
+      b: function(date3, token, localize3) {
+        const hours = date3.getHours();
+        let dayPeriodEnumValue;
+        if (hours === 12) {
+          dayPeriodEnumValue = dayPeriodEnum.noon;
+        } else if (hours === 0) {
+          dayPeriodEnumValue = dayPeriodEnum.midnight;
+        } else {
+          dayPeriodEnumValue = hours / 12 >= 1 ? "pm" : "am";
+        }
+        switch (token) {
+          case "b":
+          case "bb":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "bbb":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting"
+            }).toLowerCase();
+          case "bbbbb":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "bbbb":
+          default:
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // in the morning, in the afternoon, in the evening, at night
+      B: function(date3, token, localize3) {
+        const hours = date3.getHours();
+        let dayPeriodEnumValue;
+        if (hours >= 17) {
+          dayPeriodEnumValue = dayPeriodEnum.evening;
+        } else if (hours >= 12) {
+          dayPeriodEnumValue = dayPeriodEnum.afternoon;
+        } else if (hours >= 4) {
+          dayPeriodEnumValue = dayPeriodEnum.morning;
+        } else {
+          dayPeriodEnumValue = dayPeriodEnum.night;
+        }
+        switch (token) {
+          case "B":
+          case "BB":
+          case "BBB":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "abbreviated",
+              context: "formatting"
+            });
+          case "BBBBB":
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "narrow",
+              context: "formatting"
+            });
+          case "BBBB":
+          default:
+            return localize3.dayPeriod(dayPeriodEnumValue, {
+              width: "wide",
+              context: "formatting"
+            });
+        }
+      },
+      // Hour [1-12]
+      h: function(date3, token, localize3) {
+        if (token === "ho") {
+          let hours = date3.getHours() % 12;
+          if (hours === 0) hours = 12;
+          return localize3.ordinalNumber(hours, { unit: "hour" });
+        }
+        return lightFormatters.h(date3, token);
+      },
+      // Hour [0-23]
+      H: function(date3, token, localize3) {
+        if (token === "Ho") {
+          return localize3.ordinalNumber(date3.getHours(), { unit: "hour" });
+        }
+        return lightFormatters.H(date3, token);
+      },
+      // Hour [0-11]
+      K: function(date3, token, localize3) {
+        const hours = date3.getHours() % 12;
+        if (token === "Ko") {
+          return localize3.ordinalNumber(hours, { unit: "hour" });
+        }
+        return addLeadingZeros(hours, token.length);
+      },
+      // Hour [1-24]
+      k: function(date3, token, localize3) {
+        let hours = date3.getHours();
+        if (hours === 0) hours = 24;
+        if (token === "ko") {
+          return localize3.ordinalNumber(hours, { unit: "hour" });
+        }
+        return addLeadingZeros(hours, token.length);
+      },
+      // Minute
+      m: function(date3, token, localize3) {
+        if (token === "mo") {
+          return localize3.ordinalNumber(date3.getMinutes(), { unit: "minute" });
+        }
+        return lightFormatters.m(date3, token);
+      },
+      // Second
+      s: function(date3, token, localize3) {
+        if (token === "so") {
+          return localize3.ordinalNumber(date3.getSeconds(), { unit: "second" });
+        }
+        return lightFormatters.s(date3, token);
+      },
+      // Fraction of second
+      S: function(date3, token) {
+        return lightFormatters.S(date3, token);
+      },
+      // Timezone (ISO-8601. If offset is 0, output is always `'Z'`)
+      X: function(date3, token, _localize) {
+        const timezoneOffset = date3.getTimezoneOffset();
+        if (timezoneOffset === 0) {
+          return "Z";
+        }
+        switch (token) {
+          case "X":
+            return formatTimezoneWithOptionalMinutes(timezoneOffset);
+          case "XXXX":
+          case "XX":
+            return formatTimezone(timezoneOffset);
+          case "XXXXX":
+          case "XXX":
+          default:
+            return formatTimezone(timezoneOffset, ":");
+        }
+      },
+      // Timezone (ISO-8601. If offset is 0, output is `'+00:00'` or equivalent)
+      x: function(date3, token, _localize) {
+        const timezoneOffset = date3.getTimezoneOffset();
+        switch (token) {
+          case "x":
+            return formatTimezoneWithOptionalMinutes(timezoneOffset);
+          case "xxxx":
+          case "xx":
+            return formatTimezone(timezoneOffset);
+          case "xxxxx":
+          case "xxx":
+          default:
+            return formatTimezone(timezoneOffset, ":");
+        }
+      },
+      // Timezone (GMT)
+      O: function(date3, token, _localize) {
+        const timezoneOffset = date3.getTimezoneOffset();
+        switch (token) {
+          case "O":
+          case "OO":
+          case "OOO":
+            return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+          case "OOOO":
+          default:
+            return "GMT" + formatTimezone(timezoneOffset, ":");
+        }
+      },
+      // Timezone (specific non-location)
+      z: function(date3, token, _localize) {
+        const timezoneOffset = date3.getTimezoneOffset();
+        switch (token) {
+          case "z":
+          case "zz":
+          case "zzz":
+            return "GMT" + formatTimezoneShort(timezoneOffset, ":");
+          case "zzzz":
+          default:
+            return "GMT" + formatTimezone(timezoneOffset, ":");
+        }
+      },
+      // Seconds timestamp
+      t: function(date3, token, _localize) {
+        const timestamp = Math.trunc(+date3 / 1e3);
+        return addLeadingZeros(timestamp, token.length);
+      },
+      // Milliseconds timestamp
+      T: function(date3, token, _localize) {
+        return addLeadingZeros(+date3, token.length);
+      }
+    };
+  }
+});
+
+// node_modules/date-fns/_lib/format/longFormatters.js
+var dateLongFormatter, timeLongFormatter, dateTimeLongFormatter, longFormatters;
+var init_longFormatters = __esm({
+  "node_modules/date-fns/_lib/format/longFormatters.js"() {
+    dateLongFormatter = (pattern, formatLong3) => {
+      switch (pattern) {
+        case "P":
+          return formatLong3.date({ width: "short" });
+        case "PP":
+          return formatLong3.date({ width: "medium" });
+        case "PPP":
+          return formatLong3.date({ width: "long" });
+        case "PPPP":
+        default:
+          return formatLong3.date({ width: "full" });
+      }
+    };
+    timeLongFormatter = (pattern, formatLong3) => {
+      switch (pattern) {
+        case "p":
+          return formatLong3.time({ width: "short" });
+        case "pp":
+          return formatLong3.time({ width: "medium" });
+        case "ppp":
+          return formatLong3.time({ width: "long" });
+        case "pppp":
+        default:
+          return formatLong3.time({ width: "full" });
+      }
+    };
+    dateTimeLongFormatter = (pattern, formatLong3) => {
+      const matchResult = pattern.match(/(P+)(p+)?/) || [];
+      const datePattern = matchResult[1];
+      const timePattern = matchResult[2];
+      if (!timePattern) {
+        return dateLongFormatter(pattern, formatLong3);
+      }
+      let dateTimeFormat;
+      switch (datePattern) {
+        case "P":
+          dateTimeFormat = formatLong3.dateTime({ width: "short" });
+          break;
+        case "PP":
+          dateTimeFormat = formatLong3.dateTime({ width: "medium" });
+          break;
+        case "PPP":
+          dateTimeFormat = formatLong3.dateTime({ width: "long" });
+          break;
+        case "PPPP":
+        default:
+          dateTimeFormat = formatLong3.dateTime({ width: "full" });
+          break;
+      }
+      return dateTimeFormat.replace("{{date}}", dateLongFormatter(datePattern, formatLong3)).replace("{{time}}", timeLongFormatter(timePattern, formatLong3));
+    };
+    longFormatters = {
+      p: timeLongFormatter,
+      P: dateTimeLongFormatter
+    };
+  }
+});
+
+// node_modules/date-fns/_lib/protectedTokens.js
+function isProtectedDayOfYearToken(token) {
+  return dayOfYearTokenRE.test(token);
+}
+function isProtectedWeekYearToken(token) {
+  return weekYearTokenRE.test(token);
+}
+function warnOrThrowProtectedError(token, format2, input) {
+  const _message = message(token, format2, input);
+  console.warn(_message);
+  if (throwTokens.includes(token)) throw new RangeError(_message);
+}
+function message(token, format2, input) {
+  const subject = token[0] === "Y" ? "years" : "days of the month";
+  return `Use \`${token.toLowerCase()}\` instead of \`${token}\` (in \`${format2}\`) for formatting ${subject} to the input \`${input}\`; see: https://github.com/date-fns/date-fns/blob/master/docs/unicodeTokens.md`;
+}
+var dayOfYearTokenRE, weekYearTokenRE, throwTokens;
+var init_protectedTokens = __esm({
+  "node_modules/date-fns/_lib/protectedTokens.js"() {
+    dayOfYearTokenRE = /^D+$/;
+    weekYearTokenRE = /^Y+$/;
+    throwTokens = ["D", "DD", "YY", "YYYY"];
+  }
+});
+
+// node_modules/date-fns/format.js
+function format(date3, formatStr, options) {
+  const defaultOptions3 = getDefaultOptions();
+  const locale = options?.locale ?? defaultOptions3.locale ?? enUS;
+  const firstWeekContainsDate = options?.firstWeekContainsDate ?? options?.locale?.options?.firstWeekContainsDate ?? defaultOptions3.firstWeekContainsDate ?? defaultOptions3.locale?.options?.firstWeekContainsDate ?? 1;
+  const weekStartsOn = options?.weekStartsOn ?? options?.locale?.options?.weekStartsOn ?? defaultOptions3.weekStartsOn ?? defaultOptions3.locale?.options?.weekStartsOn ?? 0;
+  const originalDate = toDate(date3, options?.in);
+  if (!isValid(originalDate)) {
+    throw new RangeError("Invalid time value");
+  }
+  let parts = formatStr.match(longFormattingTokensRegExp).map((substring) => {
+    const firstCharacter = substring[0];
+    if (firstCharacter === "p" || firstCharacter === "P") {
+      const longFormatter = longFormatters[firstCharacter];
+      return longFormatter(substring, locale.formatLong);
+    }
+    return substring;
+  }).join("").match(formattingTokensRegExp).map((substring) => {
+    if (substring === "''") {
+      return { isToken: false, value: "'" };
+    }
+    const firstCharacter = substring[0];
+    if (firstCharacter === "'") {
+      return { isToken: false, value: cleanEscapedString(substring) };
+    }
+    if (formatters[firstCharacter]) {
+      return { isToken: true, value: substring };
+    }
+    if (firstCharacter.match(unescapedLatinCharacterRegExp)) {
+      throw new RangeError(
+        "Format string contains an unescaped latin alphabet character `" + firstCharacter + "`"
+      );
+    }
+    return { isToken: false, value: substring };
+  });
+  if (locale.localize.preprocessor) {
+    parts = locale.localize.preprocessor(originalDate, parts);
+  }
+  const formatterOptions = {
+    firstWeekContainsDate,
+    weekStartsOn,
+    locale
+  };
+  return parts.map((part) => {
+    if (!part.isToken) return part.value;
+    const token = part.value;
+    if (!options?.useAdditionalWeekYearTokens && isProtectedWeekYearToken(token) || !options?.useAdditionalDayOfYearTokens && isProtectedDayOfYearToken(token)) {
+      warnOrThrowProtectedError(token, formatStr, String(date3));
+    }
+    const formatter = formatters[token[0]];
+    return formatter(originalDate, token, locale.localize, formatterOptions);
+  }).join("");
+}
+function cleanEscapedString(input) {
+  const matched = input.match(escapedStringRegExp);
+  if (!matched) {
+    return input;
+  }
+  return matched[1].replace(doubleQuoteRegExp, "'");
+}
+var formattingTokensRegExp, longFormattingTokensRegExp, escapedStringRegExp, doubleQuoteRegExp, unescapedLatinCharacterRegExp;
+var init_format = __esm({
+  "node_modules/date-fns/format.js"() {
+    init_defaultLocale();
+    init_defaultOptions();
+    init_formatters();
+    init_longFormatters();
+    init_protectedTokens();
+    init_isValid();
+    init_toDate();
+    formattingTokensRegExp = /[yYQqMLwIdDecihHKkms]o|(\w)\1*|''|'(''|[^'])+('|$)|./g;
+    longFormattingTokensRegExp = /P+p+|P+|p+|''|'(''|[^'])+('|$)|./g;
+    escapedStringRegExp = /^'([^]*?)'?$/;
+    doubleQuoteRegExp = /''/g;
+    unescapedLatinCharacterRegExp = /[a-zA-Z]/;
+  }
+});
+
+// node_modules/date-fns/formatDistance.js
+var init_formatDistance2 = __esm({
+  "node_modules/date-fns/formatDistance.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceStrict.js
+var init_formatDistanceStrict = __esm({
+  "node_modules/date-fns/formatDistanceStrict.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceToNow.js
+var init_formatDistanceToNow = __esm({
+  "node_modules/date-fns/formatDistanceToNow.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDistanceToNowStrict.js
+var init_formatDistanceToNowStrict = __esm({
+  "node_modules/date-fns/formatDistanceToNowStrict.js"() {
+  }
+});
+
+// node_modules/date-fns/formatDuration.js
+var init_formatDuration = __esm({
+  "node_modules/date-fns/formatDuration.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISO.js
+var init_formatISO = __esm({
+  "node_modules/date-fns/formatISO.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISO9075.js
+var init_formatISO9075 = __esm({
+  "node_modules/date-fns/formatISO9075.js"() {
+  }
+});
+
+// node_modules/date-fns/formatISODuration.js
+var init_formatISODuration = __esm({
+  "node_modules/date-fns/formatISODuration.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRFC3339.js
+var init_formatRFC3339 = __esm({
+  "node_modules/date-fns/formatRFC3339.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRFC7231.js
+var init_formatRFC7231 = __esm({
+  "node_modules/date-fns/formatRFC7231.js"() {
+  }
+});
+
+// node_modules/date-fns/formatRelative.js
+var init_formatRelative2 = __esm({
+  "node_modules/date-fns/formatRelative.js"() {
+  }
+});
+
+// node_modules/date-fns/fromUnixTime.js
+var init_fromUnixTime = __esm({
+  "node_modules/date-fns/fromUnixTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getDate.js
+var init_getDate = __esm({
+  "node_modules/date-fns/getDate.js"() {
+  }
+});
+
+// node_modules/date-fns/getDay.js
+var init_getDay = __esm({
+  "node_modules/date-fns/getDay.js"() {
+  }
+});
+
+// node_modules/date-fns/getDaysInMonth.js
+var init_getDaysInMonth = __esm({
+  "node_modules/date-fns/getDaysInMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isLeapYear.js
+var init_isLeapYear = __esm({
+  "node_modules/date-fns/isLeapYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getDaysInYear.js
+var init_getDaysInYear = __esm({
+  "node_modules/date-fns/getDaysInYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getDecade.js
+var init_getDecade = __esm({
+  "node_modules/date-fns/getDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/getDefaultOptions.js
+var init_getDefaultOptions = __esm({
+  "node_modules/date-fns/getDefaultOptions.js"() {
+  }
+});
+
+// node_modules/date-fns/getHours.js
+var init_getHours = __esm({
+  "node_modules/date-fns/getHours.js"() {
+  }
+});
+
+// node_modules/date-fns/getISODay.js
+var init_getISODay = __esm({
+  "node_modules/date-fns/getISODay.js"() {
+  }
+});
+
+// node_modules/date-fns/getISOWeeksInYear.js
+var init_getISOWeeksInYear = __esm({
+  "node_modules/date-fns/getISOWeeksInYear.js"() {
+  }
+});
+
+// node_modules/date-fns/getMilliseconds.js
+var init_getMilliseconds = __esm({
+  "node_modules/date-fns/getMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/getMinutes.js
+var init_getMinutes = __esm({
+  "node_modules/date-fns/getMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/getMonth.js
+var init_getMonth = __esm({
+  "node_modules/date-fns/getMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getOverlappingDaysInIntervals.js
+var init_getOverlappingDaysInIntervals = __esm({
+  "node_modules/date-fns/getOverlappingDaysInIntervals.js"() {
+  }
+});
+
+// node_modules/date-fns/getSeconds.js
+var init_getSeconds = __esm({
+  "node_modules/date-fns/getSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/getTime.js
+var init_getTime = __esm({
+  "node_modules/date-fns/getTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getUnixTime.js
+var init_getUnixTime = __esm({
+  "node_modules/date-fns/getUnixTime.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeekOfMonth.js
+var init_getWeekOfMonth = __esm({
+  "node_modules/date-fns/getWeekOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfMonth.js
+var init_lastDayOfMonth = __esm({
+  "node_modules/date-fns/lastDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getWeeksInMonth.js
+var init_getWeeksInMonth = __esm({
+  "node_modules/date-fns/getWeeksInMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/getYear.js
+var init_getYear = __esm({
+  "node_modules/date-fns/getYear.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToMilliseconds.js
+var init_hoursToMilliseconds = __esm({
+  "node_modules/date-fns/hoursToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToMinutes.js
+var init_hoursToMinutes = __esm({
+  "node_modules/date-fns/hoursToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/hoursToSeconds.js
+var init_hoursToSeconds = __esm({
+  "node_modules/date-fns/hoursToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/interval.js
+var init_interval = __esm({
+  "node_modules/date-fns/interval.js"() {
+  }
+});
+
+// node_modules/date-fns/intervalToDuration.js
+var init_intervalToDuration = __esm({
+  "node_modules/date-fns/intervalToDuration.js"() {
+  }
+});
+
+// node_modules/date-fns/intlFormat.js
+var init_intlFormat = __esm({
+  "node_modules/date-fns/intlFormat.js"() {
+  }
+});
+
+// node_modules/date-fns/intlFormatDistance.js
+var init_intlFormatDistance = __esm({
+  "node_modules/date-fns/intlFormatDistance.js"() {
+  }
+});
+
+// node_modules/date-fns/isAfter.js
+var init_isAfter = __esm({
+  "node_modules/date-fns/isAfter.js"() {
+  }
+});
+
+// node_modules/date-fns/isBefore.js
+function isBefore(date3, dateToCompare) {
+  return +toDate(date3) < +toDate(dateToCompare);
+}
+var init_isBefore = __esm({
+  "node_modules/date-fns/isBefore.js"() {
+    init_toDate();
+  }
+});
+
+// node_modules/date-fns/isEqual.js
+var init_isEqual = __esm({
+  "node_modules/date-fns/isEqual.js"() {
+  }
+});
+
+// node_modules/date-fns/isExists.js
+var init_isExists = __esm({
+  "node_modules/date-fns/isExists.js"() {
+  }
+});
+
+// node_modules/date-fns/isFirstDayOfMonth.js
+var init_isFirstDayOfMonth = __esm({
+  "node_modules/date-fns/isFirstDayOfMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isFriday.js
+var init_isFriday = __esm({
+  "node_modules/date-fns/isFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/isFuture.js
+var init_isFuture = __esm({
+  "node_modules/date-fns/isFuture.js"() {
+  }
+});
+
+// node_modules/date-fns/transpose.js
+var init_transpose = __esm({
+  "node_modules/date-fns/transpose.js"() {
+  }
+});
+
+// node_modules/date-fns/setWeek.js
+var init_setWeek = __esm({
+  "node_modules/date-fns/setWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/setISOWeek.js
+var init_setISOWeek = __esm({
+  "node_modules/date-fns/setISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/setDay.js
+var init_setDay = __esm({
+  "node_modules/date-fns/setDay.js"() {
+  }
+});
+
+// node_modules/date-fns/setISODay.js
+var init_setISODay = __esm({
+  "node_modules/date-fns/setISODay.js"() {
+  }
+});
+
+// node_modules/date-fns/parse.js
+var init_parse2 = __esm({
+  "node_modules/date-fns/parse.js"() {
+  }
+});
+
+// node_modules/date-fns/isMatch.js
+var init_isMatch = __esm({
+  "node_modules/date-fns/isMatch.js"() {
+  }
+});
+
+// node_modules/date-fns/isMonday.js
+var init_isMonday = __esm({
+  "node_modules/date-fns/isMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/isPast.js
+var init_isPast = __esm({
+  "node_modules/date-fns/isPast.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfHour.js
+var init_startOfHour = __esm({
+  "node_modules/date-fns/startOfHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameHour.js
+var init_isSameHour = __esm({
+  "node_modules/date-fns/isSameHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameWeek.js
+var init_isSameWeek = __esm({
+  "node_modules/date-fns/isSameWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameISOWeek.js
+var init_isSameISOWeek = __esm({
+  "node_modules/date-fns/isSameISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameISOWeekYear.js
+var init_isSameISOWeekYear = __esm({
+  "node_modules/date-fns/isSameISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfMinute.js
+var init_startOfMinute = __esm({
+  "node_modules/date-fns/startOfMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameMinute.js
+var init_isSameMinute = __esm({
+  "node_modules/date-fns/isSameMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameMonth.js
+var init_isSameMonth = __esm({
+  "node_modules/date-fns/isSameMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameQuarter.js
+var init_isSameQuarter = __esm({
+  "node_modules/date-fns/isSameQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfSecond.js
+var init_startOfSecond = __esm({
+  "node_modules/date-fns/startOfSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameSecond.js
+var init_isSameSecond = __esm({
+  "node_modules/date-fns/isSameSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isSameYear.js
+var init_isSameYear = __esm({
+  "node_modules/date-fns/isSameYear.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisHour.js
+var init_isThisHour = __esm({
+  "node_modules/date-fns/isThisHour.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisISOWeek.js
+var init_isThisISOWeek = __esm({
+  "node_modules/date-fns/isThisISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisMinute.js
+var init_isThisMinute = __esm({
+  "node_modules/date-fns/isThisMinute.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisMonth.js
+var init_isThisMonth = __esm({
+  "node_modules/date-fns/isThisMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisQuarter.js
+var init_isThisQuarter = __esm({
+  "node_modules/date-fns/isThisQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisSecond.js
+var init_isThisSecond = __esm({
+  "node_modules/date-fns/isThisSecond.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisWeek.js
+var init_isThisWeek = __esm({
+  "node_modules/date-fns/isThisWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/isThisYear.js
+var init_isThisYear = __esm({
+  "node_modules/date-fns/isThisYear.js"() {
+  }
+});
+
+// node_modules/date-fns/isThursday.js
+var init_isThursday = __esm({
+  "node_modules/date-fns/isThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/isToday.js
+function isToday(date3, options) {
+  return isSameDay(
+    constructFrom(options?.in || date3, date3),
+    constructNow(options?.in || date3)
+  );
+}
+var init_isToday = __esm({
+  "node_modules/date-fns/isToday.js"() {
+    init_constructFrom();
+    init_constructNow();
+    init_isSameDay();
+  }
+});
+
+// node_modules/date-fns/isTomorrow.js
+var init_isTomorrow = __esm({
+  "node_modules/date-fns/isTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/isTuesday.js
+var init_isTuesday = __esm({
+  "node_modules/date-fns/isTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWednesday.js
+var init_isWednesday = __esm({
+  "node_modules/date-fns/isWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/isWithinInterval.js
+var init_isWithinInterval = __esm({
+  "node_modules/date-fns/isWithinInterval.js"() {
+  }
+});
+
+// node_modules/date-fns/subDays.js
+var init_subDays = __esm({
+  "node_modules/date-fns/subDays.js"() {
+  }
+});
+
+// node_modules/date-fns/isYesterday.js
+var init_isYesterday = __esm({
+  "node_modules/date-fns/isYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfDecade.js
+var init_lastDayOfDecade = __esm({
+  "node_modules/date-fns/lastDayOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfWeek.js
+var init_lastDayOfWeek = __esm({
+  "node_modules/date-fns/lastDayOfWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfISOWeek.js
+var init_lastDayOfISOWeek = __esm({
+  "node_modules/date-fns/lastDayOfISOWeek.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfISOWeekYear.js
+var init_lastDayOfISOWeekYear = __esm({
+  "node_modules/date-fns/lastDayOfISOWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfQuarter.js
+var init_lastDayOfQuarter = __esm({
+  "node_modules/date-fns/lastDayOfQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/lastDayOfYear.js
+var init_lastDayOfYear = __esm({
+  "node_modules/date-fns/lastDayOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/lightFormat.js
+var init_lightFormat = __esm({
+  "node_modules/date-fns/lightFormat.js"() {
+  }
+});
+
+// node_modules/date-fns/milliseconds.js
+var init_milliseconds = __esm({
+  "node_modules/date-fns/milliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToHours.js
+var init_millisecondsToHours = __esm({
+  "node_modules/date-fns/millisecondsToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToMinutes.js
+var init_millisecondsToMinutes = __esm({
+  "node_modules/date-fns/millisecondsToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/millisecondsToSeconds.js
+var init_millisecondsToSeconds = __esm({
+  "node_modules/date-fns/millisecondsToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToHours.js
+var init_minutesToHours = __esm({
+  "node_modules/date-fns/minutesToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToMilliseconds.js
+var init_minutesToMilliseconds = __esm({
+  "node_modules/date-fns/minutesToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/minutesToSeconds.js
+var init_minutesToSeconds = __esm({
+  "node_modules/date-fns/minutesToSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/monthsToQuarters.js
+var init_monthsToQuarters = __esm({
+  "node_modules/date-fns/monthsToQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/monthsToYears.js
+var init_monthsToYears = __esm({
+  "node_modules/date-fns/monthsToYears.js"() {
+  }
+});
+
+// node_modules/date-fns/nextDay.js
+var init_nextDay = __esm({
+  "node_modules/date-fns/nextDay.js"() {
+  }
+});
+
+// node_modules/date-fns/nextFriday.js
+var init_nextFriday = __esm({
+  "node_modules/date-fns/nextFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextMonday.js
+var init_nextMonday = __esm({
+  "node_modules/date-fns/nextMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextSaturday.js
+var init_nextSaturday = __esm({
+  "node_modules/date-fns/nextSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextSunday.js
+var init_nextSunday = __esm({
+  "node_modules/date-fns/nextSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextThursday.js
+var init_nextThursday = __esm({
+  "node_modules/date-fns/nextThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextTuesday.js
+var init_nextTuesday = __esm({
+  "node_modules/date-fns/nextTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/nextWednesday.js
+var init_nextWednesday = __esm({
+  "node_modules/date-fns/nextWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/parseISO.js
+var init_parseISO = __esm({
+  "node_modules/date-fns/parseISO.js"() {
+  }
+});
+
+// node_modules/date-fns/parseJSON.js
+var init_parseJSON = __esm({
+  "node_modules/date-fns/parseJSON.js"() {
+  }
+});
+
+// node_modules/date-fns/previousDay.js
+var init_previousDay = __esm({
+  "node_modules/date-fns/previousDay.js"() {
+  }
+});
+
+// node_modules/date-fns/previousFriday.js
+var init_previousFriday = __esm({
+  "node_modules/date-fns/previousFriday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousMonday.js
+var init_previousMonday = __esm({
+  "node_modules/date-fns/previousMonday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousSaturday.js
+var init_previousSaturday = __esm({
+  "node_modules/date-fns/previousSaturday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousSunday.js
+var init_previousSunday = __esm({
+  "node_modules/date-fns/previousSunday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousThursday.js
+var init_previousThursday = __esm({
+  "node_modules/date-fns/previousThursday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousTuesday.js
+var init_previousTuesday = __esm({
+  "node_modules/date-fns/previousTuesday.js"() {
+  }
+});
+
+// node_modules/date-fns/previousWednesday.js
+var init_previousWednesday = __esm({
+  "node_modules/date-fns/previousWednesday.js"() {
+  }
+});
+
+// node_modules/date-fns/quartersToMonths.js
+var init_quartersToMonths = __esm({
+  "node_modules/date-fns/quartersToMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/quartersToYears.js
+var init_quartersToYears = __esm({
+  "node_modules/date-fns/quartersToYears.js"() {
+  }
+});
+
+// node_modules/date-fns/roundToNearestHours.js
+var init_roundToNearestHours = __esm({
+  "node_modules/date-fns/roundToNearestHours.js"() {
+  }
+});
+
+// node_modules/date-fns/roundToNearestMinutes.js
+var init_roundToNearestMinutes = __esm({
+  "node_modules/date-fns/roundToNearestMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToHours.js
+var init_secondsToHours = __esm({
+  "node_modules/date-fns/secondsToHours.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToMilliseconds.js
+var init_secondsToMilliseconds = __esm({
+  "node_modules/date-fns/secondsToMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/secondsToMinutes.js
+var init_secondsToMinutes = __esm({
+  "node_modules/date-fns/secondsToMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/setMonth.js
+var init_setMonth = __esm({
+  "node_modules/date-fns/setMonth.js"() {
+  }
+});
+
+// node_modules/date-fns/set.js
+var init_set = __esm({
+  "node_modules/date-fns/set.js"() {
+  }
+});
+
+// node_modules/date-fns/setDate.js
+var init_setDate = __esm({
+  "node_modules/date-fns/setDate.js"() {
+  }
+});
+
+// node_modules/date-fns/setDayOfYear.js
+var init_setDayOfYear = __esm({
+  "node_modules/date-fns/setDayOfYear.js"() {
+  }
+});
+
+// node_modules/date-fns/setDefaultOptions.js
+var init_setDefaultOptions = __esm({
+  "node_modules/date-fns/setDefaultOptions.js"() {
+  }
+});
+
+// node_modules/date-fns/setHours.js
+var init_setHours = __esm({
+  "node_modules/date-fns/setHours.js"() {
+  }
+});
+
+// node_modules/date-fns/setMilliseconds.js
+var init_setMilliseconds = __esm({
+  "node_modules/date-fns/setMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/setMinutes.js
+var init_setMinutes = __esm({
+  "node_modules/date-fns/setMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/setQuarter.js
+var init_setQuarter = __esm({
+  "node_modules/date-fns/setQuarter.js"() {
+  }
+});
+
+// node_modules/date-fns/setSeconds.js
+var init_setSeconds = __esm({
+  "node_modules/date-fns/setSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/setWeekYear.js
+var init_setWeekYear = __esm({
+  "node_modules/date-fns/setWeekYear.js"() {
+  }
+});
+
+// node_modules/date-fns/setYear.js
+var init_setYear = __esm({
+  "node_modules/date-fns/setYear.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfDecade.js
+var init_startOfDecade = __esm({
+  "node_modules/date-fns/startOfDecade.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfToday.js
+var init_startOfToday = __esm({
+  "node_modules/date-fns/startOfToday.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfTomorrow.js
+var init_startOfTomorrow = __esm({
+  "node_modules/date-fns/startOfTomorrow.js"() {
+  }
+});
+
+// node_modules/date-fns/startOfYesterday.js
+var init_startOfYesterday = __esm({
+  "node_modules/date-fns/startOfYesterday.js"() {
+  }
+});
+
+// node_modules/date-fns/subMonths.js
+var init_subMonths = __esm({
+  "node_modules/date-fns/subMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/sub.js
+var init_sub = __esm({
+  "node_modules/date-fns/sub.js"() {
+  }
+});
+
+// node_modules/date-fns/subBusinessDays.js
+var init_subBusinessDays = __esm({
+  "node_modules/date-fns/subBusinessDays.js"() {
+  }
+});
+
+// node_modules/date-fns/subHours.js
+var init_subHours = __esm({
+  "node_modules/date-fns/subHours.js"() {
+  }
+});
+
+// node_modules/date-fns/subMilliseconds.js
+var init_subMilliseconds = __esm({
+  "node_modules/date-fns/subMilliseconds.js"() {
+  }
+});
+
+// node_modules/date-fns/subMinutes.js
+var init_subMinutes = __esm({
+  "node_modules/date-fns/subMinutes.js"() {
+  }
+});
+
+// node_modules/date-fns/subQuarters.js
+var init_subQuarters = __esm({
+  "node_modules/date-fns/subQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/subSeconds.js
+var init_subSeconds = __esm({
+  "node_modules/date-fns/subSeconds.js"() {
+  }
+});
+
+// node_modules/date-fns/subWeeks.js
+var init_subWeeks = __esm({
+  "node_modules/date-fns/subWeeks.js"() {
+  }
+});
+
+// node_modules/date-fns/subYears.js
+var init_subYears = __esm({
+  "node_modules/date-fns/subYears.js"() {
+  }
+});
+
+// node_modules/date-fns/weeksToDays.js
+var init_weeksToDays = __esm({
+  "node_modules/date-fns/weeksToDays.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToDays.js
+var init_yearsToDays = __esm({
+  "node_modules/date-fns/yearsToDays.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToMonths.js
+var init_yearsToMonths = __esm({
+  "node_modules/date-fns/yearsToMonths.js"() {
+  }
+});
+
+// node_modules/date-fns/yearsToQuarters.js
+var init_yearsToQuarters = __esm({
+  "node_modules/date-fns/yearsToQuarters.js"() {
+  }
+});
+
+// node_modules/date-fns/index.js
+var init_date_fns = __esm({
+  "node_modules/date-fns/index.js"() {
+    init_add();
+    init_addBusinessDays();
+    init_addDays();
+    init_addHours();
+    init_addISOWeekYears();
+    init_addMilliseconds();
+    init_addMinutes();
+    init_addMonths();
+    init_addQuarters();
+    init_addSeconds();
+    init_addWeeks();
+    init_addYears();
+    init_areIntervalsOverlapping();
+    init_clamp();
+    init_closestIndexTo();
+    init_closestTo();
+    init_compareAsc();
+    init_compareDesc();
+    init_constructFrom();
+    init_constructNow();
+    init_daysToWeeks();
+    init_differenceInBusinessDays();
+    init_differenceInCalendarDays();
+    init_differenceInCalendarISOWeekYears();
+    init_differenceInCalendarISOWeeks();
+    init_differenceInCalendarMonths();
+    init_differenceInCalendarQuarters();
+    init_differenceInCalendarWeeks();
+    init_differenceInCalendarYears();
+    init_differenceInDays();
+    init_differenceInHours();
+    init_differenceInISOWeekYears();
+    init_differenceInMilliseconds();
+    init_differenceInMinutes();
+    init_differenceInMonths();
+    init_differenceInQuarters();
+    init_differenceInSeconds();
+    init_differenceInWeeks();
+    init_differenceInYears();
+    init_eachDayOfInterval();
+    init_eachHourOfInterval();
+    init_eachMinuteOfInterval();
+    init_eachMonthOfInterval();
+    init_eachQuarterOfInterval();
+    init_eachWeekOfInterval();
+    init_eachWeekendOfInterval();
+    init_eachWeekendOfMonth();
+    init_eachWeekendOfYear();
+    init_eachYearOfInterval();
+    init_endOfDay();
+    init_endOfDecade();
+    init_endOfHour();
+    init_endOfISOWeek();
+    init_endOfISOWeekYear();
+    init_endOfMinute();
+    init_endOfMonth();
+    init_endOfQuarter();
+    init_endOfSecond();
+    init_endOfToday();
+    init_endOfTomorrow();
+    init_endOfWeek();
+    init_endOfYear();
+    init_endOfYesterday();
+    init_format();
+    init_formatDistance2();
+    init_formatDistanceStrict();
+    init_formatDistanceToNow();
+    init_formatDistanceToNowStrict();
+    init_formatDuration();
+    init_formatISO();
+    init_formatISO9075();
+    init_formatISODuration();
+    init_formatRFC3339();
+    init_formatRFC7231();
+    init_formatRelative2();
+    init_fromUnixTime();
+    init_getDate();
+    init_getDay();
+    init_getDayOfYear();
+    init_getDaysInMonth();
+    init_getDaysInYear();
+    init_getDecade();
+    init_getDefaultOptions();
+    init_getHours();
+    init_getISODay();
+    init_getISOWeek();
+    init_getISOWeekYear();
+    init_getISOWeeksInYear();
+    init_getMilliseconds();
+    init_getMinutes();
+    init_getMonth();
+    init_getOverlappingDaysInIntervals();
+    init_getQuarter();
+    init_getSeconds();
+    init_getTime();
+    init_getUnixTime();
+    init_getWeek();
+    init_getWeekOfMonth();
+    init_getWeekYear();
+    init_getWeeksInMonth();
+    init_getYear();
+    init_hoursToMilliseconds();
+    init_hoursToMinutes();
+    init_hoursToSeconds();
+    init_interval();
+    init_intervalToDuration();
+    init_intlFormat();
+    init_intlFormatDistance();
+    init_isAfter();
+    init_isBefore();
+    init_isDate();
+    init_isEqual();
+    init_isExists();
+    init_isFirstDayOfMonth();
+    init_isFriday();
+    init_isFuture();
+    init_isLastDayOfMonth();
+    init_isLeapYear();
+    init_isMatch();
+    init_isMonday();
+    init_isPast();
+    init_isSameDay();
+    init_isSameHour();
+    init_isSameISOWeek();
+    init_isSameISOWeekYear();
+    init_isSameMinute();
+    init_isSameMonth();
+    init_isSameQuarter();
+    init_isSameSecond();
+    init_isSameWeek();
+    init_isSameYear();
+    init_isSaturday();
+    init_isSunday();
+    init_isThisHour();
+    init_isThisISOWeek();
+    init_isThisMinute();
+    init_isThisMonth();
+    init_isThisQuarter();
+    init_isThisSecond();
+    init_isThisWeek();
+    init_isThisYear();
+    init_isThursday();
+    init_isToday();
+    init_isTomorrow();
+    init_isTuesday();
+    init_isValid();
+    init_isWednesday();
+    init_isWeekend();
+    init_isWithinInterval();
+    init_isYesterday();
+    init_lastDayOfDecade();
+    init_lastDayOfISOWeek();
+    init_lastDayOfISOWeekYear();
+    init_lastDayOfMonth();
+    init_lastDayOfQuarter();
+    init_lastDayOfWeek();
+    init_lastDayOfYear();
+    init_lightFormat();
+    init_max();
+    init_milliseconds();
+    init_millisecondsToHours();
+    init_millisecondsToMinutes();
+    init_millisecondsToSeconds();
+    init_min();
+    init_minutesToHours();
+    init_minutesToMilliseconds();
+    init_minutesToSeconds();
+    init_monthsToQuarters();
+    init_monthsToYears();
+    init_nextDay();
+    init_nextFriday();
+    init_nextMonday();
+    init_nextSaturday();
+    init_nextSunday();
+    init_nextThursday();
+    init_nextTuesday();
+    init_nextWednesday();
+    init_parse2();
+    init_parseISO();
+    init_parseJSON();
+    init_previousDay();
+    init_previousFriday();
+    init_previousMonday();
+    init_previousSaturday();
+    init_previousSunday();
+    init_previousThursday();
+    init_previousTuesday();
+    init_previousWednesday();
+    init_quartersToMonths();
+    init_quartersToYears();
+    init_roundToNearestHours();
+    init_roundToNearestMinutes();
+    init_secondsToHours();
+    init_secondsToMilliseconds();
+    init_secondsToMinutes();
+    init_set();
+    init_setDate();
+    init_setDay();
+    init_setDayOfYear();
+    init_setDefaultOptions();
+    init_setHours();
+    init_setISODay();
+    init_setISOWeek();
+    init_setISOWeekYear();
+    init_setMilliseconds();
+    init_setMinutes();
+    init_setMonth();
+    init_setQuarter();
+    init_setSeconds();
+    init_setWeek();
+    init_setWeekYear();
+    init_setYear();
+    init_startOfDay();
+    init_startOfDecade();
+    init_startOfHour();
+    init_startOfISOWeek();
+    init_startOfISOWeekYear();
+    init_startOfMinute();
+    init_startOfMonth();
+    init_startOfQuarter();
+    init_startOfSecond();
+    init_startOfToday();
+    init_startOfTomorrow();
+    init_startOfWeek();
+    init_startOfWeekYear();
+    init_startOfYear();
+    init_startOfYesterday();
+    init_sub();
+    init_subBusinessDays();
+    init_subDays();
+    init_subHours();
+    init_subISOWeekYears();
+    init_subMilliseconds();
+    init_subMinutes();
+    init_subMonths();
+    init_subQuarters();
+    init_subSeconds();
+    init_subWeeks();
+    init_subYears();
+    init_toDate();
+    init_transpose();
+    init_weeksToDays();
+    init_yearsToDays();
+    init_yearsToMonths();
+    init_yearsToQuarters();
+  }
+});
+
+// node_modules/date-fns/locale/af.js
+var init_af = __esm({
+  "node_modules/date-fns/locale/af.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar.js
+var init_ar = __esm({
+  "node_modules/date-fns/locale/ar.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar-DZ.js
+var init_ar_DZ = __esm({
+  "node_modules/date-fns/locale/ar-DZ.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar-EG.js
+var init_ar_EG = __esm({
+  "node_modules/date-fns/locale/ar-EG.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar-MA.js
+var init_ar_MA = __esm({
+  "node_modules/date-fns/locale/ar-MA.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar-SA.js
+var init_ar_SA = __esm({
+  "node_modules/date-fns/locale/ar-SA.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ar-TN.js
+var init_ar_TN = __esm({
+  "node_modules/date-fns/locale/ar-TN.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/az.js
+var init_az = __esm({
+  "node_modules/date-fns/locale/az.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/be.js
+var init_be = __esm({
+  "node_modules/date-fns/locale/be.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/be-tarask.js
+var init_be_tarask = __esm({
+  "node_modules/date-fns/locale/be-tarask.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/bg.js
+var init_bg = __esm({
+  "node_modules/date-fns/locale/bg.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/bn.js
+var init_bn = __esm({
+  "node_modules/date-fns/locale/bn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/bs.js
+var init_bs = __esm({
+  "node_modules/date-fns/locale/bs.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ca.js
+var init_ca = __esm({
+  "node_modules/date-fns/locale/ca.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ckb.js
+var init_ckb = __esm({
+  "node_modules/date-fns/locale/ckb.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/cs.js
+var init_cs = __esm({
+  "node_modules/date-fns/locale/cs.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/cy.js
+var init_cy = __esm({
+  "node_modules/date-fns/locale/cy.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/da.js
+var init_da = __esm({
+  "node_modules/date-fns/locale/da.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/de.js
+var init_de = __esm({
+  "node_modules/date-fns/locale/de.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/de-AT.js
+var init_de_AT = __esm({
+  "node_modules/date-fns/locale/de-AT.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/el.js
+var init_el = __esm({
+  "node_modules/date-fns/locale/el.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-AU.js
+var init_en_AU = __esm({
+  "node_modules/date-fns/locale/en-AU.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-CA.js
+var init_en_CA = __esm({
+  "node_modules/date-fns/locale/en-CA.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-GB.js
+var init_en_GB = __esm({
+  "node_modules/date-fns/locale/en-GB.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-IE.js
+var init_en_IE = __esm({
+  "node_modules/date-fns/locale/en-IE.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-IN.js
+var init_en_IN = __esm({
+  "node_modules/date-fns/locale/en-IN.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-NZ.js
+var init_en_NZ = __esm({
+  "node_modules/date-fns/locale/en-NZ.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/en-ZA.js
+var init_en_ZA = __esm({
+  "node_modules/date-fns/locale/en-ZA.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/eo.js
+var init_eo = __esm({
+  "node_modules/date-fns/locale/eo.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/es.js
+var init_es = __esm({
+  "node_modules/date-fns/locale/es.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/et.js
+var init_et = __esm({
+  "node_modules/date-fns/locale/et.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/eu.js
+var init_eu = __esm({
+  "node_modules/date-fns/locale/eu.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fa-IR.js
+var init_fa_IR = __esm({
+  "node_modules/date-fns/locale/fa-IR.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fi.js
+var init_fi = __esm({
+  "node_modules/date-fns/locale/fi.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fr.js
+var init_fr = __esm({
+  "node_modules/date-fns/locale/fr.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fr-CA.js
+var init_fr_CA = __esm({
+  "node_modules/date-fns/locale/fr-CA.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fr-CH.js
+var init_fr_CH = __esm({
+  "node_modules/date-fns/locale/fr-CH.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/fy.js
+var init_fy = __esm({
+  "node_modules/date-fns/locale/fy.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/gd.js
+var init_gd = __esm({
+  "node_modules/date-fns/locale/gd.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/gl.js
+var init_gl = __esm({
+  "node_modules/date-fns/locale/gl.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/gu.js
+var init_gu = __esm({
+  "node_modules/date-fns/locale/gu.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/he.js
+var init_he = __esm({
+  "node_modules/date-fns/locale/he.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/hi.js
+var init_hi = __esm({
+  "node_modules/date-fns/locale/hi.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/hr.js
+var init_hr = __esm({
+  "node_modules/date-fns/locale/hr.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ht.js
+var init_ht = __esm({
+  "node_modules/date-fns/locale/ht.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/hu.js
+var init_hu = __esm({
+  "node_modules/date-fns/locale/hu.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/hy.js
+var init_hy = __esm({
+  "node_modules/date-fns/locale/hy.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/id.js
+var init_id = __esm({
+  "node_modules/date-fns/locale/id.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/is.js
+var init_is = __esm({
+  "node_modules/date-fns/locale/is.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/it.js
+var init_it = __esm({
+  "node_modules/date-fns/locale/it.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/it-CH.js
+var init_it_CH = __esm({
+  "node_modules/date-fns/locale/it-CH.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ja.js
+var init_ja = __esm({
+  "node_modules/date-fns/locale/ja.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ja-Hira.js
+var init_ja_Hira = __esm({
+  "node_modules/date-fns/locale/ja-Hira.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ka.js
+var init_ka = __esm({
+  "node_modules/date-fns/locale/ka.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/kk.js
+var init_kk = __esm({
+  "node_modules/date-fns/locale/kk.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/km.js
+var init_km = __esm({
+  "node_modules/date-fns/locale/km.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/kn.js
+var init_kn = __esm({
+  "node_modules/date-fns/locale/kn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ko.js
+var init_ko = __esm({
+  "node_modules/date-fns/locale/ko.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/lb.js
+var init_lb = __esm({
+  "node_modules/date-fns/locale/lb.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/lt.js
+var init_lt = __esm({
+  "node_modules/date-fns/locale/lt.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/lv.js
+var init_lv = __esm({
+  "node_modules/date-fns/locale/lv.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/mk.js
+var init_mk = __esm({
+  "node_modules/date-fns/locale/mk.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/mn.js
+var init_mn = __esm({
+  "node_modules/date-fns/locale/mn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ms.js
+var init_ms = __esm({
+  "node_modules/date-fns/locale/ms.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/mt.js
+var init_mt = __esm({
+  "node_modules/date-fns/locale/mt.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/nb.js
+var init_nb = __esm({
+  "node_modules/date-fns/locale/nb.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/nl.js
+var init_nl = __esm({
+  "node_modules/date-fns/locale/nl.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/nl-BE.js
+var init_nl_BE = __esm({
+  "node_modules/date-fns/locale/nl-BE.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/nn.js
+var init_nn = __esm({
+  "node_modules/date-fns/locale/nn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/oc.js
+var init_oc = __esm({
+  "node_modules/date-fns/locale/oc.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/pl.js
+var init_pl = __esm({
+  "node_modules/date-fns/locale/pl.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/pt.js
+var init_pt = __esm({
+  "node_modules/date-fns/locale/pt.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR/_lib/formatDistance.js
+var formatDistanceLocale2, formatDistance2;
+var init_formatDistance3 = __esm({
+  "node_modules/date-fns/locale/pt-BR/_lib/formatDistance.js"() {
+    formatDistanceLocale2 = {
+      lessThanXSeconds: {
+        one: "menos de um segundo",
+        other: "menos de {{count}} segundos"
+      },
+      xSeconds: {
+        one: "1 segundo",
+        other: "{{count}} segundos"
+      },
+      halfAMinute: "meio minuto",
+      lessThanXMinutes: {
+        one: "menos de um minuto",
+        other: "menos de {{count}} minutos"
+      },
+      xMinutes: {
+        one: "1 minuto",
+        other: "{{count}} minutos"
+      },
+      aboutXHours: {
+        one: "cerca de 1 hora",
+        other: "cerca de {{count}} horas"
+      },
+      xHours: {
+        one: "1 hora",
+        other: "{{count}} horas"
+      },
+      xDays: {
+        one: "1 dia",
+        other: "{{count}} dias"
+      },
+      aboutXWeeks: {
+        one: "cerca de 1 semana",
+        other: "cerca de {{count}} semanas"
+      },
+      xWeeks: {
+        one: "1 semana",
+        other: "{{count}} semanas"
+      },
+      aboutXMonths: {
+        one: "cerca de 1 m\xEAs",
+        other: "cerca de {{count}} meses"
+      },
+      xMonths: {
+        one: "1 m\xEAs",
+        other: "{{count}} meses"
+      },
+      aboutXYears: {
+        one: "cerca de 1 ano",
+        other: "cerca de {{count}} anos"
+      },
+      xYears: {
+        one: "1 ano",
+        other: "{{count}} anos"
+      },
+      overXYears: {
+        one: "mais de 1 ano",
+        other: "mais de {{count}} anos"
+      },
+      almostXYears: {
+        one: "quase 1 ano",
+        other: "quase {{count}} anos"
+      }
+    };
+    formatDistance2 = (token, count, options) => {
+      let result;
+      const tokenValue = formatDistanceLocale2[token];
+      if (typeof tokenValue === "string") {
+        result = tokenValue;
+      } else if (count === 1) {
+        result = tokenValue.one;
+      } else {
+        result = tokenValue.other.replace("{{count}}", String(count));
+      }
+      if (options?.addSuffix) {
+        if (options.comparison && options.comparison > 0) {
+          return "em " + result;
+        } else {
+          return "h\xE1 " + result;
+        }
+      }
+      return result;
+    };
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR/_lib/formatLong.js
+var dateFormats2, timeFormats2, dateTimeFormats2, formatLong2;
+var init_formatLong2 = __esm({
+  "node_modules/date-fns/locale/pt-BR/_lib/formatLong.js"() {
+    init_buildFormatLongFn();
+    dateFormats2 = {
+      full: "EEEE, d 'de' MMMM 'de' y",
+      long: "d 'de' MMMM 'de' y",
+      medium: "d MMM y",
+      short: "dd/MM/yyyy"
+    };
+    timeFormats2 = {
+      full: "HH:mm:ss zzzz",
+      long: "HH:mm:ss z",
+      medium: "HH:mm:ss",
+      short: "HH:mm"
+    };
+    dateTimeFormats2 = {
+      full: "{{date}} '\xE0s' {{time}}",
+      long: "{{date}} '\xE0s' {{time}}",
+      medium: "{{date}}, {{time}}",
+      short: "{{date}}, {{time}}"
+    };
+    formatLong2 = {
+      date: buildFormatLongFn({
+        formats: dateFormats2,
+        defaultWidth: "full"
+      }),
+      time: buildFormatLongFn({
+        formats: timeFormats2,
+        defaultWidth: "full"
+      }),
+      dateTime: buildFormatLongFn({
+        formats: dateTimeFormats2,
+        defaultWidth: "full"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR/_lib/formatRelative.js
+var formatRelativeLocale2, formatRelative2;
+var init_formatRelative3 = __esm({
+  "node_modules/date-fns/locale/pt-BR/_lib/formatRelative.js"() {
+    formatRelativeLocale2 = {
+      lastWeek: (date3) => {
+        const weekday = date3.getDay();
+        const last = weekday === 0 || weekday === 6 ? "\xFAltimo" : "\xFAltima";
+        return "'" + last + "' eeee '\xE0s' p";
+      },
+      yesterday: "'ontem \xE0s' p",
+      today: "'hoje \xE0s' p",
+      tomorrow: "'amanh\xE3 \xE0s' p",
+      nextWeek: "eeee '\xE0s' p",
+      other: "P"
+    };
+    formatRelative2 = (token, date3, _baseDate, _options) => {
+      const format2 = formatRelativeLocale2[token];
+      if (typeof format2 === "function") {
+        return format2(date3);
+      }
+      return format2;
+    };
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR/_lib/localize.js
+var eraValues2, quarterValues2, monthValues2, dayValues2, dayPeriodValues2, formattingDayPeriodValues2, ordinalNumber2, localize2;
+var init_localize2 = __esm({
+  "node_modules/date-fns/locale/pt-BR/_lib/localize.js"() {
+    init_buildLocalizeFn();
+    eraValues2 = {
+      narrow: ["AC", "DC"],
+      abbreviated: ["AC", "DC"],
+      wide: ["antes de cristo", "depois de cristo"]
+    };
+    quarterValues2 = {
+      narrow: ["1", "2", "3", "4"],
+      abbreviated: ["T1", "T2", "T3", "T4"],
+      wide: ["1\xBA trimestre", "2\xBA trimestre", "3\xBA trimestre", "4\xBA trimestre"]
+    };
+    monthValues2 = {
+      narrow: ["j", "f", "m", "a", "m", "j", "j", "a", "s", "o", "n", "d"],
+      abbreviated: [
+        "jan",
+        "fev",
+        "mar",
+        "abr",
+        "mai",
+        "jun",
+        "jul",
+        "ago",
+        "set",
+        "out",
+        "nov",
+        "dez"
+      ],
+      wide: [
+        "janeiro",
+        "fevereiro",
+        "mar\xE7o",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro"
+      ]
+    };
+    dayValues2 = {
+      narrow: ["D", "S", "T", "Q", "Q", "S", "S"],
+      short: ["dom", "seg", "ter", "qua", "qui", "sex", "sab"],
+      abbreviated: [
+        "domingo",
+        "segunda",
+        "ter\xE7a",
+        "quarta",
+        "quinta",
+        "sexta",
+        "s\xE1bado"
+      ],
+      wide: [
+        "domingo",
+        "segunda-feira",
+        "ter\xE7a-feira",
+        "quarta-feira",
+        "quinta-feira",
+        "sexta-feira",
+        "s\xE1bado"
+      ]
+    };
+    dayPeriodValues2 = {
+      narrow: {
+        am: "a",
+        pm: "p",
+        midnight: "mn",
+        noon: "md",
+        morning: "manh\xE3",
+        afternoon: "tarde",
+        evening: "tarde",
+        night: "noite"
+      },
+      abbreviated: {
+        am: "AM",
+        pm: "PM",
+        midnight: "meia-noite",
+        noon: "meio-dia",
+        morning: "manh\xE3",
+        afternoon: "tarde",
+        evening: "tarde",
+        night: "noite"
+      },
+      wide: {
+        am: "a.m.",
+        pm: "p.m.",
+        midnight: "meia-noite",
+        noon: "meio-dia",
+        morning: "manh\xE3",
+        afternoon: "tarde",
+        evening: "tarde",
+        night: "noite"
+      }
+    };
+    formattingDayPeriodValues2 = {
+      narrow: {
+        am: "a",
+        pm: "p",
+        midnight: "mn",
+        noon: "md",
+        morning: "da manh\xE3",
+        afternoon: "da tarde",
+        evening: "da tarde",
+        night: "da noite"
+      },
+      abbreviated: {
+        am: "AM",
+        pm: "PM",
+        midnight: "meia-noite",
+        noon: "meio-dia",
+        morning: "da manh\xE3",
+        afternoon: "da tarde",
+        evening: "da tarde",
+        night: "da noite"
+      },
+      wide: {
+        am: "a.m.",
+        pm: "p.m.",
+        midnight: "meia-noite",
+        noon: "meio-dia",
+        morning: "da manh\xE3",
+        afternoon: "da tarde",
+        evening: "da tarde",
+        night: "da noite"
+      }
+    };
+    ordinalNumber2 = (dirtyNumber, options) => {
+      const number3 = Number(dirtyNumber);
+      if (options?.unit === "week") {
+        return number3 + "\xAA";
+      }
+      return number3 + "\xBA";
+    };
+    localize2 = {
+      ordinalNumber: ordinalNumber2,
+      era: buildLocalizeFn({
+        values: eraValues2,
+        defaultWidth: "wide"
+      }),
+      quarter: buildLocalizeFn({
+        values: quarterValues2,
+        defaultWidth: "wide",
+        argumentCallback: (quarter) => quarter - 1
+      }),
+      month: buildLocalizeFn({
+        values: monthValues2,
+        defaultWidth: "wide"
+      }),
+      day: buildLocalizeFn({
+        values: dayValues2,
+        defaultWidth: "wide"
+      }),
+      dayPeriod: buildLocalizeFn({
+        values: dayPeriodValues2,
+        defaultWidth: "wide",
+        formattingValues: formattingDayPeriodValues2,
+        defaultFormattingWidth: "wide"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR/_lib/match.js
+var matchOrdinalNumberPattern2, parseOrdinalNumberPattern2, matchEraPatterns2, parseEraPatterns2, matchQuarterPatterns2, parseQuarterPatterns2, matchMonthPatterns2, parseMonthPatterns2, matchDayPatterns2, parseDayPatterns2, matchDayPeriodPatterns2, parseDayPeriodPatterns2, match2;
+var init_match2 = __esm({
+  "node_modules/date-fns/locale/pt-BR/_lib/match.js"() {
+    init_buildMatchFn();
+    init_buildMatchPatternFn();
+    matchOrdinalNumberPattern2 = /^(\d+)[ºªo]?/i;
+    parseOrdinalNumberPattern2 = /\d+/i;
+    matchEraPatterns2 = {
+      narrow: /^(ac|dc|a|d)/i,
+      abbreviated: /^(a\.?\s?c\.?|d\.?\s?c\.?)/i,
+      wide: /^(antes de cristo|depois de cristo)/i
+    };
+    parseEraPatterns2 = {
+      any: [/^ac/i, /^dc/i],
+      wide: [/^antes de cristo/i, /^depois de cristo/i]
+    };
+    matchQuarterPatterns2 = {
+      narrow: /^[1234]/i,
+      abbreviated: /^T[1234]/i,
+      wide: /^[1234](º)? trimestre/i
+    };
+    parseQuarterPatterns2 = {
+      any: [/1/i, /2/i, /3/i, /4/i]
+    };
+    matchMonthPatterns2 = {
+      narrow: /^[jfmajsond]/i,
+      abbreviated: /^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)/i,
+      wide: /^(janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)/i
+    };
+    parseMonthPatterns2 = {
+      narrow: [
+        /^j/i,
+        /^f/i,
+        /^m/i,
+        /^a/i,
+        /^m/i,
+        /^j/i,
+        /^j/i,
+        /^a/i,
+        /^s/i,
+        /^o/i,
+        /^n/i,
+        /^d/i
+      ],
+      any: [
+        /^ja/i,
+        /^fev/i,
+        /^mar/i,
+        /^abr/i,
+        /^mai/i,
+        /^jun/i,
+        /^jul/i,
+        /^ago/i,
+        /^set/i,
+        /^out/i,
+        /^nov/i,
+        /^dez/i
+      ]
+    };
+    matchDayPatterns2 = {
+      narrow: /^(dom|[23456]ª?|s[aá]b)/i,
+      short: /^(dom|[23456]ª?|s[aá]b)/i,
+      abbreviated: /^(dom|seg|ter|qua|qui|sex|s[aá]b)/i,
+      wide: /^(domingo|(segunda|ter[cç]a|quarta|quinta|sexta)([- ]feira)?|s[aá]bado)/i
+    };
+    parseDayPatterns2 = {
+      short: [/^d/i, /^2/i, /^3/i, /^4/i, /^5/i, /^6/i, /^s[aá]/i],
+      narrow: [/^d/i, /^2/i, /^3/i, /^4/i, /^5/i, /^6/i, /^s[aá]/i],
+      any: [/^d/i, /^seg/i, /^t/i, /^qua/i, /^qui/i, /^sex/i, /^s[aá]b/i]
+    };
+    matchDayPeriodPatterns2 = {
+      narrow: /^(a|p|mn|md|(da) (manhã|tarde|noite))/i,
+      any: /^([ap]\.?\s?m\.?|meia[-\s]noite|meio[-\s]dia|(da) (manhã|tarde|noite))/i
+    };
+    parseDayPeriodPatterns2 = {
+      any: {
+        am: /^a/i,
+        pm: /^p/i,
+        midnight: /^mn|^meia[-\s]noite/i,
+        noon: /^md|^meio[-\s]dia/i,
+        morning: /manhã/i,
+        afternoon: /tarde/i,
+        evening: /tarde/i,
+        night: /noite/i
+      }
+    };
+    match2 = {
+      ordinalNumber: buildMatchPatternFn({
+        matchPattern: matchOrdinalNumberPattern2,
+        parsePattern: parseOrdinalNumberPattern2,
+        valueCallback: (value) => parseInt(value, 10)
+      }),
+      era: buildMatchFn({
+        matchPatterns: matchEraPatterns2,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseEraPatterns2,
+        defaultParseWidth: "any"
+      }),
+      quarter: buildMatchFn({
+        matchPatterns: matchQuarterPatterns2,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseQuarterPatterns2,
+        defaultParseWidth: "any",
+        valueCallback: (index) => index + 1
+      }),
+      month: buildMatchFn({
+        matchPatterns: matchMonthPatterns2,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseMonthPatterns2,
+        defaultParseWidth: "any"
+      }),
+      day: buildMatchFn({
+        matchPatterns: matchDayPatterns2,
+        defaultMatchWidth: "wide",
+        parsePatterns: parseDayPatterns2,
+        defaultParseWidth: "any"
+      }),
+      dayPeriod: buildMatchFn({
+        matchPatterns: matchDayPeriodPatterns2,
+        defaultMatchWidth: "any",
+        parsePatterns: parseDayPeriodPatterns2,
+        defaultParseWidth: "any"
+      })
+    };
+  }
+});
+
+// node_modules/date-fns/locale/pt-BR.js
+var ptBR;
+var init_pt_BR = __esm({
+  "node_modules/date-fns/locale/pt-BR.js"() {
+    init_formatDistance3();
+    init_formatLong2();
+    init_formatRelative3();
+    init_localize2();
+    init_match2();
+    ptBR = {
+      code: "pt-BR",
+      formatDistance: formatDistance2,
+      formatLong: formatLong2,
+      formatRelative: formatRelative2,
+      localize: localize2,
+      match: match2,
+      options: {
+        weekStartsOn: 0,
+        firstWeekContainsDate: 1
+      }
+    };
+  }
+});
+
+// node_modules/date-fns/locale/ro.js
+var init_ro = __esm({
+  "node_modules/date-fns/locale/ro.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ru.js
+var init_ru = __esm({
+  "node_modules/date-fns/locale/ru.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/se.js
+var init_se = __esm({
+  "node_modules/date-fns/locale/se.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sk.js
+var init_sk = __esm({
+  "node_modules/date-fns/locale/sk.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sl.js
+var init_sl = __esm({
+  "node_modules/date-fns/locale/sl.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sq.js
+var init_sq = __esm({
+  "node_modules/date-fns/locale/sq.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sr.js
+var init_sr = __esm({
+  "node_modules/date-fns/locale/sr.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sr-Latn.js
+var init_sr_Latn = __esm({
+  "node_modules/date-fns/locale/sr-Latn.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/sv.js
+var init_sv = __esm({
+  "node_modules/date-fns/locale/sv.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ta.js
+var init_ta = __esm({
+  "node_modules/date-fns/locale/ta.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/te.js
+var init_te = __esm({
+  "node_modules/date-fns/locale/te.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/th.js
+var init_th = __esm({
+  "node_modules/date-fns/locale/th.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/tr.js
+var init_tr = __esm({
+  "node_modules/date-fns/locale/tr.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/ug.js
+var init_ug = __esm({
+  "node_modules/date-fns/locale/ug.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/uk.js
+var init_uk = __esm({
+  "node_modules/date-fns/locale/uk.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/uz.js
+var init_uz = __esm({
+  "node_modules/date-fns/locale/uz.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/uz-Cyrl.js
+var init_uz_Cyrl = __esm({
+  "node_modules/date-fns/locale/uz-Cyrl.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/vi.js
+var init_vi = __esm({
+  "node_modules/date-fns/locale/vi.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/zh-CN.js
+var init_zh_CN = __esm({
+  "node_modules/date-fns/locale/zh-CN.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/zh-HK.js
+var init_zh_HK = __esm({
+  "node_modules/date-fns/locale/zh-HK.js"() {
+  }
+});
+
+// node_modules/date-fns/locale/zh-TW.js
+var init_zh_TW = __esm({
+  "node_modules/date-fns/locale/zh-TW.js"() {
+  }
+});
+
+// node_modules/date-fns/locale.js
+var init_locale = __esm({
+  "node_modules/date-fns/locale.js"() {
+    init_af();
+    init_ar();
+    init_ar_DZ();
+    init_ar_EG();
+    init_ar_MA();
+    init_ar_SA();
+    init_ar_TN();
+    init_az();
+    init_be();
+    init_be_tarask();
+    init_bg();
+    init_bn();
+    init_bs();
+    init_ca();
+    init_ckb();
+    init_cs();
+    init_cy();
+    init_da();
+    init_de();
+    init_de_AT();
+    init_el();
+    init_en_AU();
+    init_en_CA();
+    init_en_GB();
+    init_en_IE();
+    init_en_IN();
+    init_en_NZ();
+    init_en_US();
+    init_en_ZA();
+    init_eo();
+    init_es();
+    init_et();
+    init_eu();
+    init_fa_IR();
+    init_fi();
+    init_fr();
+    init_fr_CA();
+    init_fr_CH();
+    init_fy();
+    init_gd();
+    init_gl();
+    init_gu();
+    init_he();
+    init_hi();
+    init_hr();
+    init_ht();
+    init_hu();
+    init_hy();
+    init_id();
+    init_is();
+    init_it();
+    init_it_CH();
+    init_ja();
+    init_ja_Hira();
+    init_ka();
+    init_kk();
+    init_km();
+    init_kn();
+    init_ko();
+    init_lb();
+    init_lt();
+    init_lv();
+    init_mk();
+    init_mn();
+    init_ms();
+    init_mt();
+    init_nb();
+    init_nl();
+    init_nl_BE();
+    init_nn();
+    init_oc();
+    init_pl();
+    init_pt();
+    init_pt_BR();
+    init_ro();
+    init_ru();
+    init_se();
+    init_sk();
+    init_sl();
+    init_sq();
+    init_sr();
+    init_sr_Latn();
+    init_sv();
+    init_ta();
+    init_te();
+    init_th();
+    init_tr();
+    init_ug();
+    init_uk();
+    init_uz();
+    init_uz_Cyrl();
+    init_vi();
+    init_zh_CN();
+    init_zh_HK();
+    init_zh_TW();
+  }
+});
+
+// src/lib/utils.ts
+function toDate2(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  return null;
+}
+function isOverdue(due, status) {
+  if (!due || status === "done") return false;
+  return isBefore(due, startOfDay(/* @__PURE__ */ new Date()));
+}
+function isDueToday(due, status) {
+  if (!due || status === "done") return false;
+  return isToday(due);
+}
+function nameInitials(name4) {
+  const parts = name4.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function generateId() {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
+}
+function parseDateOnly(value) {
+  if (!value) return null;
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+}
+var init_utils = __esm({
+  "src/lib/utils.ts"() {
+    init_clsx();
+    init_date_fns();
+  }
+});
+
+// src/features/project-detail/roadmap/metrics.ts
+function taskCompletion(task, doneSet) {
+  if (doneSet.has(task.status)) return 1;
+  const checklist = task.checklist ?? [];
+  if (checklist.length === 0) return 0;
+  return checklist.filter((item) => item.done).length / checklist.length;
+}
+function phaseMetrics(phase, tasks, doneSet, options = {}) {
+  const own = tasks.filter((t) => t.phaseId === phase.id);
+  const doneCount = own.filter((t) => doneSet.has(t.status)).length;
+  const pending = own.filter((t) => !doneSet.has(t.status));
+  const totalCount = own.length;
+  let progress;
+  let status;
+  if (totalCount === 0) {
+    progress = phase.progress;
+    status = phase.status;
+  } else {
+    const completed = options.weighted ? own.reduce((sum, t) => sum + taskCompletion(t, doneSet), 0) : doneCount;
+    const raw = completed / totalCount * 100;
+    const allDone = doneCount === totalCount;
+    progress = allDone ? 100 : raw > 0 ? Math.min(99, Math.max(1, Math.round(raw))) : 0;
+    status = allDone ? "done" : raw > 0 ? "doing" : "todo";
+  }
+  let overdueCount = 0;
+  let dueTodayCount = 0;
+  let nextDue = null;
+  let nextDueAt = null;
+  for (const task of pending) {
+    const due = toDate2(task.dueDate);
+    if (!due) continue;
+    if (isOverdue(due)) overdueCount += 1;
+    else if (isDueToday(due)) dueTodayCount += 1;
+    const at = due.getTime();
+    if (nextDueAt === null || at < nextDueAt) {
+      nextDueAt = at;
+      nextDue = task;
+    }
+  }
+  let health;
+  if (overdueCount > 0) health = "overdue";
+  else if (dueTodayCount > 0) health = "today";
+  else if (nextDue) health = "ontrack";
+  else if (totalCount > 0 && doneCount === totalCount) health = "ontrack";
+  else health = "nodates";
+  return { progress, status, doneCount, totalCount, overdueCount, dueTodayCount, nextDue, health };
+}
+function metricsOptionsFor(roadmapType) {
+  return { weighted: (roadmapType ?? "sequencial") !== "paralelo" };
+}
+function buildRoadmapItems(phases, tasks, doneSet, roadmapType) {
+  const options = metricsOptionsFor(roadmapType);
+  return phases.map((phase) => {
+    const metrics = phaseMetrics(phase, tasks, doneSet, options);
+    return {
+      phase: { ...phase, progress: metrics.progress, status: metrics.status },
+      metrics
+    };
+  });
+}
+function roadmapAggregate(items) {
+  if (items.length === 0) {
+    return { overallPct: 0, overdueCount: 0, dueTodayCount: 0, health: "nodates" };
+  }
+  let sum = 0;
+  let overdueCount = 0;
+  let dueTodayCount = 0;
+  let health = "nodates";
+  for (const { metrics } of items) {
+    sum += metrics.status === "done" ? 100 : metrics.progress;
+    overdueCount += metrics.overdueCount;
+    dueTodayCount += metrics.dueTodayCount;
+    if (HEALTH_RANK[metrics.health] > HEALTH_RANK[health]) health = metrics.health;
+  }
+  return {
+    overallPct: Math.round(sum / items.length),
+    overdueCount,
+    dueTodayCount,
+    health
+  };
+}
+var HEALTH_RANK;
+var init_metrics = __esm({
+  "src/features/project-detail/roadmap/metrics.ts"() {
+    init_utils();
+    HEALTH_RANK = {
+      overdue: 3,
+      today: 2,
+      ontrack: 1,
+      nodates: 0
+    };
+  }
+});
+
+// src/features/project-detail/roadmap/relatorio.ts
+function minDate(dates) {
+  let best = null;
+  for (const d of dates) if (d && (!best || d < best)) best = d;
+  return best;
+}
+function maxDate(dates) {
+  let best = null;
+  for (const d of dates) if (d && (!best || d > best)) best = d;
+  return best;
+}
+function tarefaMexeu(task, entryStatus) {
+  if (task.status !== entryStatus) return true;
+  return (task.checklist ?? []).some((c) => c.done);
+}
+function janelaPrevista(phase, own) {
+  const inicioFase = toDate2(phase.startDate);
+  const fimFase = toDate2(phase.endDate);
+  if (inicioFase || fimFase) {
+    return {
+      inicio: inicioFase ?? minDate(own.map((t) => toDate2(t.startDate ?? null) ?? toDate2(t.dueDate))),
+      fim: fimFase ?? maxDate(own.map((t) => toDate2(t.dueDate))),
+      origem: "fase"
+    };
+  }
+  const inicio = minDate(own.map((t) => toDate2(t.startDate ?? null) ?? toDate2(t.dueDate)));
+  const fim = maxDate(own.map((t) => toDate2(t.dueDate)));
+  return { inicio, fim, origem: inicio || fim ? "tarefas" : null };
+}
+function janelaRealizada(phase, own, metrics, doneSet, entryStatus) {
+  const informado = toDate2(phase.completedAt ?? null);
+  if (own.length === 0 || metrics.status === "todo") {
+    return { inicio: null, fim: informado, fimInformado: !!informado };
+  }
+  const inicio = minDate(own.filter((t) => tarefaMexeu(t, entryStatus)).map((t) => toDate2(t.updatedAt)));
+  if (informado) return { inicio, fim: informado, fimInformado: true };
+  const fim = metrics.status === "done" ? maxDate(own.filter((t) => doneSet.has(t.status)).map((t) => toDate2(t.updatedAt))) : null;
+  return { inicio, fim, fimInformado: false };
+}
+function desvioEmDias(previsto, realizado, situacao, hoje) {
+  if (!previsto.fim) return null;
+  const fimPrevisto = startOfDay(previsto.fim);
+  if (situacao === "done" || realizado.fimInformado) {
+    return realizado.fim ? differenceInCalendarDays(startOfDay(realizado.fim), fimPrevisto) : null;
+  }
+  const atraso = differenceInCalendarDays(startOfDay(hoje), fimPrevisto);
+  return atraso > 0 ? atraso : null;
+}
+function montarLinhas(items, tasks, doneSet, entryStatus, hoje = /* @__PURE__ */ new Date()) {
+  return items.map(({ phase, metrics }, index) => {
+    const own = tasks.filter((t) => t.phaseId === phase.id);
+    const previsto = janelaPrevista(phase, own);
+    const realizado = janelaRealizada(phase, own, metrics, doneSet, entryStatus);
+    const situacao = metrics.status;
+    return {
+      index,
+      phase,
+      metrics,
+      previsto,
+      realizado,
+      desvioDias: desvioEmDias(previsto, realizado, situacao, hoje),
+      situacao
+    };
+  });
+}
+var init_relatorio = __esm({
+  "src/features/project-detail/roadmap/relatorio.ts"() {
+    init_date_fns();
+    init_utils();
+  }
+});
+
+// src/features/status/snapshot.ts
+function maxDate2(dates) {
+  let best = null;
+  for (const d of dates) if (d && (!best || d > best)) best = d;
+  return best;
+}
+function montarRetrato(project, phases, tasks) {
+  const roadmapType = project.roadmapType ?? "sequencial";
+  const columns = project.columns?.length ? project.columns : DEFAULT_COLUMNS;
+  const doneSet = doneStatusIds(project.columns);
+  const entryStatus = [...columns].sort((a, b) => a.order - b.order)[0]?.id ?? "todo";
+  const items = buildRoadmapItems(phases, tasks, doneSet, roadmapType);
+  const linhas = montarLinhas(items, tasks, doneSet, entryStatus);
+  const fases = linhas.map((l) => ({
+    id: l.phase.id,
+    nome: l.phase.name || `Fase ${String(l.index + 1).padStart(2, "0")}`,
+    status: l.situacao,
+    pct: l.situacao === "done" ? 100 : l.phase.progress,
+    inicio: ts(l.previsto.inicio),
+    fim: ts(l.previsto.fim),
+    inicioReal: ts(l.realizado.inicio),
+    fimReal: ts(l.realizado.fim),
+    fimInformado: l.realizado.fimInformado,
+    entregaveis: (l.phase.deliverables ?? []).map((d) => ({ id: d.id, texto: d.text, feito: !!d.done }))
+  }));
+  const aggregate = roadmapAggregate(items);
+  const atual = linhas.find((l) => l.situacao === "doing") ?? linhas.find((l) => l.situacao === "todo") ?? linhas[linhas.length - 1];
+  const fimDoProjeto = toDate2(project.dueDate ?? null);
+  const fimDasFases = maxDate2(linhas.map((l) => l.previsto.fim));
+  const fimPrevisto = fimDoProjeto ?? fimDasFases;
+  const todasFeitas = linhas.length > 0 && linhas.every((l) => l.situacao === "done");
+  const concluido = project.phase === "concluido" || todasFeitas;
+  const concluidoEm = concluido ? toDate2(project.completedAt ?? null) ?? maxDate2(linhas.map((l) => l.realizado.fim)) ?? toDate2(project.updatedAt ?? null) : null;
+  return {
+    nome: project.name,
+    descricao: project.description ?? "",
+    cor: project.color,
+    roadmapType,
+    fimPrevisto: ts(fimPrevisto),
+    fimPrevistoOrigem: fimDoProjeto ? "projeto" : fimDasFases ? "fases" : null,
+    concluidoEm: ts(concluidoEm),
+    pct: aggregate.overallPct,
+    faseAtual: concluido ? null : atual?.phase.name ?? null,
+    fases
+  };
+}
+function assinatura(r) {
+  const partes = [
+    r.nome,
+    r.descricao,
+    r.cor,
+    r.roadmapType,
+    dia(r.fimPrevisto),
+    r.fimPrevistoOrigem,
+    dia(r.concluidoEm),
+    r.pct,
+    r.faseAtual,
+    r.fases.map((f) => [
+      f.id,
+      f.nome,
+      f.status,
+      f.pct,
+      dia(f.inicio),
+      dia(f.fim),
+      dia(f.inicioReal),
+      dia(f.fimReal),
+      f.fimInformado,
+      f.entregaveis.map((e) => [e.id, e.texto, e.feito])
+    ])
+  ];
+  const texto = JSON.stringify(partes);
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = (h << 5) + h + texto.charCodeAt(i) | 0;
+  return `v1-${(h >>> 0).toString(36)}-${texto.length.toString(36)}`;
+}
+var ts, dia;
+var init_snapshot = __esm({
+  "src/features/status/snapshot.ts"() {
+    init_firestore();
+    init_metrics();
+    init_relatorio();
+    init_utils();
+    init_models();
+    ts = (d) => d ? Timestamp.fromDate(d) : null;
+    dia = (t) => t ? t.toDate().toISOString().slice(0, 10) : "";
+  }
+});
+
+// src/features/status/queries.ts
+async function fetchStatusToken(wsId) {
+  const snap = await getDoc(workspaceDoc(wsId));
+  return snap.data()?.statusToken ?? null;
+}
+async function garantirStatusToken(wsId, uid, workspaceName) {
+  return runTransaction(db, async (tx) => {
+    const ws = await tx.get(workspaceDoc(wsId));
+    const existente = ws.data()?.statusToken;
+    if (existente) return existente;
+    const token = crypto.randomUUID();
+    tx.set(statusDoc(token), {
+      wsId,
+      workspaceName,
+      ativo: true,
+      createdBy: uid,
+      createdAt: serverTimestamp()
+    });
+    tx.update(workspaceDoc(wsId), { statusToken: token });
+    return token;
+  });
+}
+async function syncStatusWorkspaceName(token, workspaceName) {
+  await setDoc(statusDoc(token), { workspaceName }, { merge: true });
+}
+async function publicarRetrato(token, projectId, retrato, uid, versaoAtual) {
+  const versao = assinatura(retrato);
+  let conhecida = versaoAtual;
+  if (conhecida === void 0) {
+    const snap = await getDoc(statusProjetoDoc(token, projectId));
+    conhecida = snap.data()?.versao ?? null;
+  }
+  if (conhecida === versao) return "igual";
+  await setDoc(statusProjetoDoc(token, projectId), {
+    ...retrato,
+    versao,
+    atualizadoEm: serverTimestamp(),
+    atualizadoPor: uid
+  });
+  return "gravado";
+}
+async function ativarStatusDoProjeto(wsId, projectId, retrato, uid, workspaceName) {
+  const token = await garantirStatusToken(wsId, uid, workspaceName);
+  const batch = writeBatch(db);
+  batch.set(statusProjetoDoc(token, projectId), {
+    ...retrato,
+    versao: assinatura(retrato),
+    atualizadoEm: serverTimestamp(),
+    atualizadoPor: uid
+  });
+  batch.update(wsProjectDoc(wsId, projectId), { statusCompartilhado: true, updatedAt: serverTimestamp() });
+  await batch.commit();
+  return token;
+}
+async function desativarStatusDoProjeto(wsId, projectId, token) {
+  const batch = writeBatch(db);
+  batch.delete(statusProjetoDoc(token, projectId));
+  batch.update(wsProjectDoc(wsId, projectId), { statusCompartilhado: false, updatedAt: serverTimestamp() });
+  await batch.commit();
+}
+async function removerRetrato(wsId, projectId) {
+  const token = await fetchStatusToken(wsId);
+  if (!token) return;
+  await deleteDoc(statusProjetoDoc(token, projectId)).catch(() => {
+  });
+}
+async function setProjectFimPrevisto(wsId, projectId, fim) {
+  await updateDoc(wsProjectDoc(wsId, projectId), { dueDate: fim, updatedAt: serverTimestamp() });
+}
+var init_queries4 = __esm({
+  "src/features/status/queries.ts"() {
+    init_firestore();
+    init_firebase();
+    init_firestore_paths();
+    init_snapshot();
+  }
+});
+
 // src/features/workspace/queries.ts
 async function fetchMemberships(uid) {
   const snap = await getDocs(membershipsCol(uid));
@@ -12603,10 +17494,14 @@ async function revokeInvite(wsId, token) {
   await deleteDoc(workspaceInviteDoc(wsId, token));
 }
 async function renameWorkspace(wsId, uid, name4) {
+  const wsSnap = await getDoc(workspaceDoc(wsId));
   const batch = writeBatch(db);
   batch.update(workspaceDoc(wsId), { name: name4 });
   batch.update(membershipDoc(uid, wsId), { workspaceName: name4 });
   await batch.commit();
+  const statusToken = wsSnap.data()?.statusToken;
+  if (statusToken) await syncStatusWorkspaceName(statusToken, name4).catch(() => {
+  });
   const membersSnap = await getDocs(workspaceMembersCol(wsId));
   const memberBatch = writeBatch(db);
   for (const m of membersSnap.docs) {
@@ -12614,13 +17509,14 @@ async function renameWorkspace(wsId, uid, name4) {
   }
   await memberBatch.commit();
 }
-var init_queries4 = __esm({
+var init_queries5 = __esm({
   "src/features/workspace/queries.ts"() {
     init_firestore();
     init_firebase();
     init_queries();
     init_queries2();
     init_queries3();
+    init_queries4();
     init_firestore_paths();
   }
 });
@@ -12701,7 +17597,7 @@ var init_workspace = __esm({
   "mcp/src/auth/workspace.ts"() {
     "use strict";
     init_parse();
-    init_queries4();
+    init_queries5();
     init_config();
     init_persistence();
     init_session();
@@ -13171,104 +18067,104 @@ var init_en = __esm({
     init_ZodError();
     init_util();
     errorMap = (issue2, _ctx) => {
-      let message;
+      let message2;
       switch (issue2.code) {
         case ZodIssueCode.invalid_type:
           if (issue2.received === ZodParsedType.undefined) {
-            message = "Required";
+            message2 = "Required";
           } else {
-            message = `Expected ${issue2.expected}, received ${issue2.received}`;
+            message2 = `Expected ${issue2.expected}, received ${issue2.received}`;
           }
           break;
         case ZodIssueCode.invalid_literal:
-          message = `Invalid literal value, expected ${JSON.stringify(issue2.expected, util.jsonStringifyReplacer)}`;
+          message2 = `Invalid literal value, expected ${JSON.stringify(issue2.expected, util.jsonStringifyReplacer)}`;
           break;
         case ZodIssueCode.unrecognized_keys:
-          message = `Unrecognized key(s) in object: ${util.joinValues(issue2.keys, ", ")}`;
+          message2 = `Unrecognized key(s) in object: ${util.joinValues(issue2.keys, ", ")}`;
           break;
         case ZodIssueCode.invalid_union:
-          message = `Invalid input`;
+          message2 = `Invalid input`;
           break;
         case ZodIssueCode.invalid_union_discriminator:
-          message = `Invalid discriminator value. Expected ${util.joinValues(issue2.options)}`;
+          message2 = `Invalid discriminator value. Expected ${util.joinValues(issue2.options)}`;
           break;
         case ZodIssueCode.invalid_enum_value:
-          message = `Invalid enum value. Expected ${util.joinValues(issue2.options)}, received '${issue2.received}'`;
+          message2 = `Invalid enum value. Expected ${util.joinValues(issue2.options)}, received '${issue2.received}'`;
           break;
         case ZodIssueCode.invalid_arguments:
-          message = `Invalid function arguments`;
+          message2 = `Invalid function arguments`;
           break;
         case ZodIssueCode.invalid_return_type:
-          message = `Invalid function return type`;
+          message2 = `Invalid function return type`;
           break;
         case ZodIssueCode.invalid_date:
-          message = `Invalid date`;
+          message2 = `Invalid date`;
           break;
         case ZodIssueCode.invalid_string:
           if (typeof issue2.validation === "object") {
             if ("includes" in issue2.validation) {
-              message = `Invalid input: must include "${issue2.validation.includes}"`;
+              message2 = `Invalid input: must include "${issue2.validation.includes}"`;
               if (typeof issue2.validation.position === "number") {
-                message = `${message} at one or more positions greater than or equal to ${issue2.validation.position}`;
+                message2 = `${message2} at one or more positions greater than or equal to ${issue2.validation.position}`;
               }
             } else if ("startsWith" in issue2.validation) {
-              message = `Invalid input: must start with "${issue2.validation.startsWith}"`;
+              message2 = `Invalid input: must start with "${issue2.validation.startsWith}"`;
             } else if ("endsWith" in issue2.validation) {
-              message = `Invalid input: must end with "${issue2.validation.endsWith}"`;
+              message2 = `Invalid input: must end with "${issue2.validation.endsWith}"`;
             } else {
               util.assertNever(issue2.validation);
             }
           } else if (issue2.validation !== "regex") {
-            message = `Invalid ${issue2.validation}`;
+            message2 = `Invalid ${issue2.validation}`;
           } else {
-            message = "Invalid";
+            message2 = "Invalid";
           }
           break;
         case ZodIssueCode.too_small:
           if (issue2.type === "array")
-            message = `Array must contain ${issue2.exact ? "exactly" : issue2.inclusive ? `at least` : `more than`} ${issue2.minimum} element(s)`;
+            message2 = `Array must contain ${issue2.exact ? "exactly" : issue2.inclusive ? `at least` : `more than`} ${issue2.minimum} element(s)`;
           else if (issue2.type === "string")
-            message = `String must contain ${issue2.exact ? "exactly" : issue2.inclusive ? `at least` : `over`} ${issue2.minimum} character(s)`;
+            message2 = `String must contain ${issue2.exact ? "exactly" : issue2.inclusive ? `at least` : `over`} ${issue2.minimum} character(s)`;
           else if (issue2.type === "number")
-            message = `Number must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${issue2.minimum}`;
+            message2 = `Number must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${issue2.minimum}`;
           else if (issue2.type === "bigint")
-            message = `Number must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${issue2.minimum}`;
+            message2 = `Number must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${issue2.minimum}`;
           else if (issue2.type === "date")
-            message = `Date must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${new Date(Number(issue2.minimum))}`;
+            message2 = `Date must be ${issue2.exact ? `exactly equal to ` : issue2.inclusive ? `greater than or equal to ` : `greater than `}${new Date(Number(issue2.minimum))}`;
           else
-            message = "Invalid input";
+            message2 = "Invalid input";
           break;
         case ZodIssueCode.too_big:
           if (issue2.type === "array")
-            message = `Array must contain ${issue2.exact ? `exactly` : issue2.inclusive ? `at most` : `less than`} ${issue2.maximum} element(s)`;
+            message2 = `Array must contain ${issue2.exact ? `exactly` : issue2.inclusive ? `at most` : `less than`} ${issue2.maximum} element(s)`;
           else if (issue2.type === "string")
-            message = `String must contain ${issue2.exact ? `exactly` : issue2.inclusive ? `at most` : `under`} ${issue2.maximum} character(s)`;
+            message2 = `String must contain ${issue2.exact ? `exactly` : issue2.inclusive ? `at most` : `under`} ${issue2.maximum} character(s)`;
           else if (issue2.type === "number")
-            message = `Number must be ${issue2.exact ? `exactly` : issue2.inclusive ? `less than or equal to` : `less than`} ${issue2.maximum}`;
+            message2 = `Number must be ${issue2.exact ? `exactly` : issue2.inclusive ? `less than or equal to` : `less than`} ${issue2.maximum}`;
           else if (issue2.type === "bigint")
-            message = `BigInt must be ${issue2.exact ? `exactly` : issue2.inclusive ? `less than or equal to` : `less than`} ${issue2.maximum}`;
+            message2 = `BigInt must be ${issue2.exact ? `exactly` : issue2.inclusive ? `less than or equal to` : `less than`} ${issue2.maximum}`;
           else if (issue2.type === "date")
-            message = `Date must be ${issue2.exact ? `exactly` : issue2.inclusive ? `smaller than or equal to` : `smaller than`} ${new Date(Number(issue2.maximum))}`;
+            message2 = `Date must be ${issue2.exact ? `exactly` : issue2.inclusive ? `smaller than or equal to` : `smaller than`} ${new Date(Number(issue2.maximum))}`;
           else
-            message = "Invalid input";
+            message2 = "Invalid input";
           break;
         case ZodIssueCode.custom:
-          message = `Invalid input`;
+          message2 = `Invalid input`;
           break;
         case ZodIssueCode.invalid_intersection_types:
-          message = `Intersection results could not be merged`;
+          message2 = `Intersection results could not be merged`;
           break;
         case ZodIssueCode.not_multiple_of:
-          message = `Number must be a multiple of ${issue2.multipleOf}`;
+          message2 = `Number must be a multiple of ${issue2.multipleOf}`;
           break;
         case ZodIssueCode.not_finite:
-          message = "Number must be finite";
+          message2 = "Number must be finite";
           break;
         default:
-          message = _ctx.defaultError;
+          message2 = _ctx.defaultError;
           util.assertNever(issue2);
       }
-      return { message };
+      return { message: message2 };
     };
     en_default = errorMap;
   }
@@ -13309,7 +18205,7 @@ function addIssueToContext(ctx, issueData) {
   });
   ctx.common.issues.push(issue2);
 }
-var makeIssue, EMPTY_PATH, ParseStatus, INVALID, DIRTY, OK, isAborted, isDirty, isValid, isAsync;
+var makeIssue, EMPTY_PATH, ParseStatus, INVALID, DIRTY, OK, isAborted, isDirty, isValid2, isAsync;
 var init_parseUtil = __esm({
   "node_modules/zod/v3/helpers/parseUtil.js"() {
     init_errors();
@@ -13401,7 +18297,7 @@ var init_parseUtil = __esm({
     OK = (value) => ({ status: "valid", value });
     isAborted = (x) => x.status === "aborted";
     isDirty = (x) => x.status === "dirty";
-    isValid = (x) => x.status === "valid";
+    isValid2 = (x) => x.status === "valid";
     isAsync = (x) => typeof Promise !== "undefined" && x instanceof Promise;
   }
 });
@@ -13417,8 +18313,8 @@ var errorUtil;
 var init_errorUtil = __esm({
   "node_modules/zod/v3/helpers/errorUtil.js"() {
     (function(errorUtil2) {
-      errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
-      errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
+      errorUtil2.errToObj = (message2) => typeof message2 === "string" ? { message: message2 } : message2 || {};
+      errorUtil2.toString = (message2) => typeof message2 === "string" ? message2 : message2?.message;
     })(errorUtil || (errorUtil = {}));
   }
 });
@@ -13434,16 +18330,16 @@ function processCreateParams(params) {
   if (errorMap2)
     return { errorMap: errorMap2, description };
   const customMap = (iss, ctx) => {
-    const { message } = params;
+    const { message: message2 } = params;
     if (iss.code === "invalid_enum_value") {
-      return { message: message ?? ctx.defaultError };
+      return { message: message2 ?? ctx.defaultError };
     }
     if (typeof ctx.data === "undefined") {
-      return { message: message ?? required_error ?? ctx.defaultError };
+      return { message: message2 ?? required_error ?? ctx.defaultError };
     }
     if (iss.code !== "invalid_type")
       return { message: ctx.defaultError };
-    return { message: message ?? invalid_type_error ?? ctx.defaultError };
+    return { message: message2 ?? invalid_type_error ?? ctx.defaultError };
   };
   return { errorMap: customMap, description };
 }
@@ -13643,7 +18539,7 @@ var init_types = __esm({
       }
     };
     handleResult = (ctx, result) => {
-      if (isValid(result)) {
+      if (isValid2(result)) {
         return { success: true, data: result.value };
       } else {
         if (!ctx.common.issues.length) {
@@ -13739,7 +18635,7 @@ var init_types = __esm({
         if (!this["~standard"].async) {
           try {
             const result = this._parseSync({ data: data2, path: [], parent: ctx });
-            return isValid(result) ? {
+            return isValid2(result) ? {
               value: result.value
             } : {
               issues: ctx.common.issues
@@ -13754,7 +18650,7 @@ var init_types = __esm({
             };
           }
         }
-        return this._parseAsync({ data: data2, path: [], parent: ctx }).then((result) => isValid(result) ? {
+        return this._parseAsync({ data: data2, path: [], parent: ctx }).then((result) => isValid2(result) ? {
           value: result.value
         } : {
           issues: ctx.common.issues
@@ -13783,14 +18679,14 @@ var init_types = __esm({
         const result = await (isAsync(maybeAsyncResult) ? maybeAsyncResult : Promise.resolve(maybeAsyncResult));
         return handleResult(ctx, result);
       }
-      refine(check2, message) {
+      refine(check2, message2) {
         const getIssueProperties = (val) => {
-          if (typeof message === "string" || typeof message === "undefined") {
-            return { message };
-          } else if (typeof message === "function") {
-            return message(val);
+          if (typeof message2 === "string" || typeof message2 === "undefined") {
+            return { message: message2 };
+          } else if (typeof message2 === "function") {
+            return message2(val);
           } else {
-            return message;
+            return message2;
           }
         };
         return this._refinement((val, ctx) => {
@@ -14263,11 +19159,11 @@ var init_types = __esm({
         }
         return { status: status.value, value: input.data };
       }
-      _regex(regex, validation, message) {
+      _regex(regex, validation, message2) {
         return this.refinement((data2) => regex.test(data2), {
           validation,
           code: ZodIssueCode.invalid_string,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
       _addCheck(check2) {
@@ -14276,37 +19172,37 @@ var init_types = __esm({
           checks: [...this._def.checks, check2]
         });
       }
-      email(message) {
-        return this._addCheck({ kind: "email", ...errorUtil.errToObj(message) });
+      email(message2) {
+        return this._addCheck({ kind: "email", ...errorUtil.errToObj(message2) });
       }
-      url(message) {
-        return this._addCheck({ kind: "url", ...errorUtil.errToObj(message) });
+      url(message2) {
+        return this._addCheck({ kind: "url", ...errorUtil.errToObj(message2) });
       }
-      emoji(message) {
-        return this._addCheck({ kind: "emoji", ...errorUtil.errToObj(message) });
+      emoji(message2) {
+        return this._addCheck({ kind: "emoji", ...errorUtil.errToObj(message2) });
       }
-      uuid(message) {
-        return this._addCheck({ kind: "uuid", ...errorUtil.errToObj(message) });
+      uuid(message2) {
+        return this._addCheck({ kind: "uuid", ...errorUtil.errToObj(message2) });
       }
-      nanoid(message) {
-        return this._addCheck({ kind: "nanoid", ...errorUtil.errToObj(message) });
+      nanoid(message2) {
+        return this._addCheck({ kind: "nanoid", ...errorUtil.errToObj(message2) });
       }
-      cuid(message) {
-        return this._addCheck({ kind: "cuid", ...errorUtil.errToObj(message) });
+      cuid(message2) {
+        return this._addCheck({ kind: "cuid", ...errorUtil.errToObj(message2) });
       }
-      cuid2(message) {
-        return this._addCheck({ kind: "cuid2", ...errorUtil.errToObj(message) });
+      cuid2(message2) {
+        return this._addCheck({ kind: "cuid2", ...errorUtil.errToObj(message2) });
       }
-      ulid(message) {
-        return this._addCheck({ kind: "ulid", ...errorUtil.errToObj(message) });
+      ulid(message2) {
+        return this._addCheck({ kind: "ulid", ...errorUtil.errToObj(message2) });
       }
-      base64(message) {
-        return this._addCheck({ kind: "base64", ...errorUtil.errToObj(message) });
+      base64(message2) {
+        return this._addCheck({ kind: "base64", ...errorUtil.errToObj(message2) });
       }
-      base64url(message) {
+      base64url(message2) {
         return this._addCheck({
           kind: "base64url",
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
       jwt(options) {
@@ -14336,8 +19232,8 @@ var init_types = __esm({
           ...errorUtil.errToObj(options?.message)
         });
       }
-      date(message) {
-        return this._addCheck({ kind: "date", message });
+      date(message2) {
+        return this._addCheck({ kind: "date", message: message2 });
       }
       time(options) {
         if (typeof options === "string") {
@@ -14353,14 +19249,14 @@ var init_types = __esm({
           ...errorUtil.errToObj(options?.message)
         });
       }
-      duration(message) {
-        return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message) });
+      duration(message2) {
+        return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message2) });
       }
-      regex(regex, message) {
+      regex(regex, message2) {
         return this._addCheck({
           kind: "regex",
           regex,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
       includes(value, options) {
@@ -14371,46 +19267,46 @@ var init_types = __esm({
           ...errorUtil.errToObj(options?.message)
         });
       }
-      startsWith(value, message) {
+      startsWith(value, message2) {
         return this._addCheck({
           kind: "startsWith",
           value,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
-      endsWith(value, message) {
+      endsWith(value, message2) {
         return this._addCheck({
           kind: "endsWith",
           value,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
-      min(minLength, message) {
+      min(minLength, message2) {
         return this._addCheck({
           kind: "min",
           value: minLength,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
-      max(maxLength, message) {
+      max(maxLength, message2) {
         return this._addCheck({
           kind: "max",
           value: maxLength,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
-      length(len, message) {
+      length(len, message2) {
         return this._addCheck({
           kind: "length",
           value: len,
-          ...errorUtil.errToObj(message)
+          ...errorUtil.errToObj(message2)
         });
       }
       /**
        * Equivalent to `.min(1)`
        */
-      nonempty(message) {
-        return this.min(1, errorUtil.errToObj(message));
+      nonempty(message2) {
+        return this.min(1, errorUtil.errToObj(message2));
       }
       trim() {
         return new _ZodString2({
@@ -14595,19 +19491,19 @@ var init_types = __esm({
         }
         return { status: status.value, value: input.data };
       }
-      gte(value, message) {
-        return this.setLimit("min", value, true, errorUtil.toString(message));
+      gte(value, message2) {
+        return this.setLimit("min", value, true, errorUtil.toString(message2));
       }
-      gt(value, message) {
-        return this.setLimit("min", value, false, errorUtil.toString(message));
+      gt(value, message2) {
+        return this.setLimit("min", value, false, errorUtil.toString(message2));
       }
-      lte(value, message) {
-        return this.setLimit("max", value, true, errorUtil.toString(message));
+      lte(value, message2) {
+        return this.setLimit("max", value, true, errorUtil.toString(message2));
       }
-      lt(value, message) {
-        return this.setLimit("max", value, false, errorUtil.toString(message));
+      lt(value, message2) {
+        return this.setLimit("max", value, false, errorUtil.toString(message2));
       }
-      setLimit(kind, value, inclusive, message) {
+      setLimit(kind, value, inclusive, message2) {
         return new _ZodNumber({
           ...this._def,
           checks: [
@@ -14616,7 +19512,7 @@ var init_types = __esm({
               kind,
               value,
               inclusive,
-              message: errorUtil.toString(message)
+              message: errorUtil.toString(message2)
             }
           ]
         });
@@ -14627,68 +19523,68 @@ var init_types = __esm({
           checks: [...this._def.checks, check2]
         });
       }
-      int(message) {
+      int(message2) {
         return this._addCheck({
           kind: "int",
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      positive(message) {
+      positive(message2) {
         return this._addCheck({
           kind: "min",
           value: 0,
           inclusive: false,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      negative(message) {
+      negative(message2) {
         return this._addCheck({
           kind: "max",
           value: 0,
           inclusive: false,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      nonpositive(message) {
+      nonpositive(message2) {
         return this._addCheck({
           kind: "max",
           value: 0,
           inclusive: true,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      nonnegative(message) {
+      nonnegative(message2) {
         return this._addCheck({
           kind: "min",
           value: 0,
           inclusive: true,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      multipleOf(value, message) {
+      multipleOf(value, message2) {
         return this._addCheck({
           kind: "multipleOf",
           value,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      finite(message) {
+      finite(message2) {
         return this._addCheck({
           kind: "finite",
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      safe(message) {
+      safe(message2) {
         return this._addCheck({
           kind: "min",
           inclusive: true,
           value: Number.MIN_SAFE_INTEGER,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         })._addCheck({
           kind: "max",
           inclusive: true,
           value: Number.MAX_SAFE_INTEGER,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
       get minValue() {
@@ -14811,19 +19707,19 @@ var init_types = __esm({
         });
         return INVALID;
       }
-      gte(value, message) {
-        return this.setLimit("min", value, true, errorUtil.toString(message));
+      gte(value, message2) {
+        return this.setLimit("min", value, true, errorUtil.toString(message2));
       }
-      gt(value, message) {
-        return this.setLimit("min", value, false, errorUtil.toString(message));
+      gt(value, message2) {
+        return this.setLimit("min", value, false, errorUtil.toString(message2));
       }
-      lte(value, message) {
-        return this.setLimit("max", value, true, errorUtil.toString(message));
+      lte(value, message2) {
+        return this.setLimit("max", value, true, errorUtil.toString(message2));
       }
-      lt(value, message) {
-        return this.setLimit("max", value, false, errorUtil.toString(message));
+      lt(value, message2) {
+        return this.setLimit("max", value, false, errorUtil.toString(message2));
       }
-      setLimit(kind, value, inclusive, message) {
+      setLimit(kind, value, inclusive, message2) {
         return new _ZodBigInt({
           ...this._def,
           checks: [
@@ -14832,7 +19728,7 @@ var init_types = __esm({
               kind,
               value,
               inclusive,
-              message: errorUtil.toString(message)
+              message: errorUtil.toString(message2)
             }
           ]
         });
@@ -14843,43 +19739,43 @@ var init_types = __esm({
           checks: [...this._def.checks, check2]
         });
       }
-      positive(message) {
+      positive(message2) {
         return this._addCheck({
           kind: "min",
           value: BigInt(0),
           inclusive: false,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      negative(message) {
+      negative(message2) {
         return this._addCheck({
           kind: "max",
           value: BigInt(0),
           inclusive: false,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      nonpositive(message) {
+      nonpositive(message2) {
         return this._addCheck({
           kind: "max",
           value: BigInt(0),
           inclusive: true,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      nonnegative(message) {
+      nonnegative(message2) {
         return this._addCheck({
           kind: "min",
           value: BigInt(0),
           inclusive: true,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
-      multipleOf(value, message) {
+      multipleOf(value, message2) {
         return this._addCheck({
           kind: "multipleOf",
           value,
-          message: errorUtil.toString(message)
+          message: errorUtil.toString(message2)
         });
       }
       get minValue() {
@@ -15002,18 +19898,18 @@ var init_types = __esm({
           checks: [...this._def.checks, check2]
         });
       }
-      min(minDate, message) {
+      min(minDate2, message2) {
         return this._addCheck({
           kind: "min",
-          value: minDate.getTime(),
-          message: errorUtil.toString(message)
+          value: minDate2.getTime(),
+          message: errorUtil.toString(message2)
         });
       }
-      max(maxDate, message) {
+      max(maxDate3, message2) {
         return this._addCheck({
           kind: "max",
-          value: maxDate.getTime(),
-          message: errorUtil.toString(message)
+          value: maxDate3.getTime(),
+          message: errorUtil.toString(message2)
         });
       }
       get minDate() {
@@ -15245,26 +20141,26 @@ var init_types = __esm({
       get element() {
         return this._def.type;
       }
-      min(minLength, message) {
+      min(minLength, message2) {
         return new _ZodArray({
           ...this._def,
-          minLength: { value: minLength, message: errorUtil.toString(message) }
+          minLength: { value: minLength, message: errorUtil.toString(message2) }
         });
       }
-      max(maxLength, message) {
+      max(maxLength, message2) {
         return new _ZodArray({
           ...this._def,
-          maxLength: { value: maxLength, message: errorUtil.toString(message) }
+          maxLength: { value: maxLength, message: errorUtil.toString(message2) }
         });
       }
-      length(len, message) {
+      length(len, message2) {
         return new _ZodArray({
           ...this._def,
-          exactLength: { value: len, message: errorUtil.toString(message) }
+          exactLength: { value: len, message: errorUtil.toString(message2) }
         });
       }
-      nonempty(message) {
-        return this.min(1, message);
+      nonempty(message2) {
+        return this.min(1, message2);
       }
     };
     ZodArray.create = (schema, params) => {
@@ -15381,17 +20277,17 @@ var init_types = __esm({
       get shape() {
         return this._def.shape();
       }
-      strict(message) {
+      strict(message2) {
         errorUtil.errToObj;
         return new _ZodObject({
           ...this._def,
           unknownKeys: "strict",
-          ...message !== void 0 ? {
+          ...message2 !== void 0 ? {
             errorMap: (issue2, ctx) => {
               const defaultError = this._def.errorMap?.(issue2, ctx).message ?? ctx.defaultError;
               if (issue2.code === "unrecognized_keys")
                 return {
-                  message: errorUtil.errToObj(message).message ?? defaultError
+                  message: errorUtil.errToObj(message2).message ?? defaultError
                 };
               return {
                 message: defaultError
@@ -16109,23 +21005,23 @@ var init_types = __esm({
           return finalizeSet(elements);
         }
       }
-      min(minSize, message) {
+      min(minSize, message2) {
         return new _ZodSet({
           ...this._def,
-          minSize: { value: minSize, message: errorUtil.toString(message) }
+          minSize: { value: minSize, message: errorUtil.toString(message2) }
         });
       }
-      max(maxSize, message) {
+      max(maxSize, message2) {
         return new _ZodSet({
           ...this._def,
-          maxSize: { value: maxSize, message: errorUtil.toString(message) }
+          maxSize: { value: maxSize, message: errorUtil.toString(message2) }
         });
       }
-      size(size, message) {
-        return this.min(size, message).max(size, message);
+      size(size, message2) {
+        return this.min(size, message2).max(size, message2);
       }
-      nonempty(message) {
-        return this.min(1, message);
+      nonempty(message2) {
+        return this.min(1, message2);
       }
     };
     ZodSet.create = (valueType, params) => {
@@ -16518,7 +21414,7 @@ var init_types = __esm({
               path: ctx.path,
               parent: ctx
             });
-            if (!isValid(base3))
+            if (!isValid2(base3))
               return INVALID;
             const result = effect.transform(base3.value, checkCtx);
             if (result instanceof Promise) {
@@ -16527,7 +21423,7 @@ var init_types = __esm({
             return { status: status.value, value: result };
           } else {
             return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base3) => {
-              if (!isValid(base3))
+              if (!isValid2(base3))
                 return INVALID;
               return Promise.resolve(effect.transform(base3.value, checkCtx)).then((result) => ({
                 status: status.value,
@@ -16766,7 +21662,7 @@ var init_types = __esm({
       _parse(input) {
         const result = this._def.innerType._parse(input);
         const freeze = (data2) => {
-          if (isValid(data2)) {
+          if (isValid2(data2)) {
             data2.value = Object.freeze(data2.value);
           }
           return data2;
@@ -16954,7 +21850,7 @@ __export(external_exports, {
   isAborted: () => isAborted,
   isAsync: () => isAsync,
   isDirty: () => isDirty,
-  isValid: () => isValid,
+  isValid: () => isValid2,
   late: () => late,
   lazy: () => lazyType,
   literal: () => literalType,
@@ -17469,14 +22365,14 @@ function prefixIssues(path3, issues) {
     return iss;
   });
 }
-function unwrapMessage(message) {
-  return typeof message === "string" ? message : message?.message;
+function unwrapMessage(message2) {
+  return typeof message2 === "string" ? message2 : message2?.message;
 }
 function finalizeIssue(iss, ctx, config2) {
   const full = { ...iss, path: iss.path ?? [] };
   if (!iss.message) {
-    const message = unwrapMessage(iss.inst?._zod.def?.error?.(iss)) ?? unwrapMessage(ctx?.error?.(iss)) ?? unwrapMessage(config2.customError?.(iss)) ?? unwrapMessage(config2.localeError?.(iss)) ?? "Invalid input";
-    full.message = message;
+    const message2 = unwrapMessage(iss.inst?._zod.def?.error?.(iss)) ?? unwrapMessage(ctx?.error?.(iss)) ?? unwrapMessage(config2.customError?.(iss)) ?? unwrapMessage(config2.localeError?.(iss)) ?? "Invalid input";
+    full.message = message2;
   }
   delete full.inst;
   delete full.continue;
@@ -17683,7 +22579,7 @@ var init_errors2 = __esm({
 
 // node_modules/zod/v4/core/parse.js
 var _parse, parse, _parseAsync, parseAsync, _safeParse, safeParse, _safeParseAsync, safeParseAsync;
-var init_parse2 = __esm({
+var init_parse3 = __esm({
   "node_modules/zod/v4/core/parse.js"() {
     init_core();
     init_errors2();
@@ -18445,7 +23341,7 @@ var init_schemas = __esm({
     init_checks();
     init_core();
     init_doc();
-    init_parse2();
+    init_parse3();
     init_regexes();
     init_util2();
     init_versions();
@@ -20919,7 +25815,7 @@ var init_json_schema = __esm({
 var init_core2 = __esm({
   "node_modules/zod/v4/core/index.js"() {
     init_core();
-    init_parse2();
+    init_parse3();
     init_errors2();
     init_schemas();
     init_checks();
@@ -20937,7 +25833,7 @@ var init_core2 = __esm({
 });
 
 // node_modules/zod/v4/mini/parse.js
-var init_parse3 = __esm({
+var init_parse4 = __esm({
   "node_modules/zod/v4/mini/parse.js"() {
     init_core2();
   }
@@ -20960,7 +25856,7 @@ var init_schemas2 = __esm({
   "node_modules/zod/v4/mini/schemas.js"() {
     init_core2();
     init_core2();
-    init_parse3();
+    init_parse4();
     ZodMiniType = /* @__PURE__ */ $constructor("ZodMiniType", (inst, def) => {
       if (!inst._zod)
         throw new Error("Uninitialized schema in ZodMiniType.");
@@ -21019,7 +25915,7 @@ var init_coerce = __esm({
 var init_external2 = __esm({
   "node_modules/zod/v4/mini/external.js"() {
     init_core2();
-    init_parse3();
+    init_parse4();
     init_schemas2();
     init_checks2();
     init_core2();
@@ -21307,7 +26203,7 @@ var init_errors3 = __esm({
 
 // node_modules/zod/v4/classic/parse.js
 var parse2, parseAsync2, safeParse3, safeParseAsync3;
-var init_parse4 = __esm({
+var init_parse5 = __esm({
   "node_modules/zod/v4/classic/parse.js"() {
     init_core2();
     init_errors3();
@@ -21518,7 +26414,7 @@ var init_schemas3 = __esm({
     init_core2();
     init_checks3();
     init_iso2();
-    init_parse4();
+    init_parse5();
     ZodType2 = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
       $ZodType.init(inst, def);
       inst.def = def;
@@ -21958,7 +26854,7 @@ var init_external3 = __esm({
     init_schemas3();
     init_checks3();
     init_errors3();
-    init_parse4();
+    init_parse5();
     init_compat();
     init_core2();
     init_en2();
@@ -23485,8 +28381,8 @@ var init_types2 = __esm({
       CreateTaskResultSchema
     ]);
     McpError = class _McpError extends Error {
-      constructor(code, message, data2) {
-        super(`MCP error ${code}: ${message}`);
+      constructor(code, message2, data2) {
+        super(`MCP error ${code}: ${message2}`);
         this.code = code;
         this.data = data2;
         this.name = "McpError";
@@ -23494,19 +28390,19 @@ var init_types2 = __esm({
       /**
        * Factory method to create the appropriate error type based on the error code and data
        */
-      static fromError(code, message, data2) {
+      static fromError(code, message2, data2) {
         if (code === ErrorCode.UrlElicitationRequired && data2) {
           const errorData = data2;
           if (errorData.elicitations) {
-            return new UrlElicitationRequiredError(errorData.elicitations, message);
+            return new UrlElicitationRequiredError(errorData.elicitations, message2);
           }
         }
-        return new _McpError(code, message, data2);
+        return new _McpError(code, message2, data2);
       }
     };
     UrlElicitationRequiredError = class extends McpError {
-      constructor(elicitations, message = `URL elicitation${elicitations.length > 1 ? "s" : ""} required`) {
-        super(ErrorCode.UrlElicitationRequired, message, {
+      constructor(elicitations, message2 = `URL elicitation${elicitations.length > 1 ? "s" : ""} required`) {
+        super(ErrorCode.UrlElicitationRequired, message2, {
           elicitations
         });
       }
@@ -23527,11 +28423,11 @@ var init_interfaces = __esm({
 });
 
 // node_modules/zod-to-json-schema/dist/esm/Options.js
-var ignoreOverride, defaultOptions, getDefaultOptions;
+var ignoreOverride, defaultOptions2, getDefaultOptions2;
 var init_Options = __esm({
   "node_modules/zod-to-json-schema/dist/esm/Options.js"() {
     ignoreOverride = Symbol("Let zodToJsonSchema decide on which parser to use");
-    defaultOptions = {
+    defaultOptions2 = {
       name: void 0,
       $refStrategy: "root",
       basePath: ["#"],
@@ -23555,11 +28451,11 @@ var init_Options = __esm({
       nameStrategy: "ref",
       openAiAnyTypeName: "OpenAiAnyType"
     };
-    getDefaultOptions = (options) => typeof options === "string" ? {
-      ...defaultOptions,
+    getDefaultOptions2 = (options) => typeof options === "string" ? {
+      ...defaultOptions2,
       name: options
     } : {
-      ...defaultOptions,
+      ...defaultOptions2,
       ...options
     };
   }
@@ -23571,7 +28467,7 @@ var init_Refs = __esm({
   "node_modules/zod-to-json-schema/dist/esm/Refs.js"() {
     init_Options();
     getRefs = (options) => {
-      const _options = getDefaultOptions(options);
+      const _options = getDefaultOptions2(options);
       const currentPath = _options.name !== void 0 ? [..._options.basePath, _options.definitionPath, _options.name] : _options.basePath;
       return {
         ..._options,
@@ -24079,7 +28975,7 @@ function escapeNonAlphaNumeric(source) {
   }
   return result;
 }
-function addFormat(schema, value, message, refs) {
+function addFormat(schema, value, message2, refs) {
   if (schema.format || schema.anyOf?.some((x) => x.format)) {
     if (!schema.anyOf) {
       schema.anyOf = [];
@@ -24101,13 +28997,13 @@ function addFormat(schema, value, message, refs) {
     }
     schema.anyOf.push({
       format: value,
-      ...message && refs.errorMessages && { errorMessage: { format: message } }
+      ...message2 && refs.errorMessages && { errorMessage: { format: message2 } }
     });
   } else {
-    setResponseValueAndErrors(schema, "format", value, message, refs);
+    setResponseValueAndErrors(schema, "format", value, message2, refs);
   }
 }
-function addPattern(schema, regex, message, refs) {
+function addPattern(schema, regex, message2, refs) {
   if (schema.pattern || schema.allOf?.some((x) => x.pattern)) {
     if (!schema.allOf) {
       schema.allOf = [];
@@ -24129,10 +29025,10 @@ function addPattern(schema, regex, message, refs) {
     }
     schema.allOf.push({
       pattern: stringifyRegExpWithFlags(regex, refs),
-      ...message && refs.errorMessages && { errorMessage: { pattern: message } }
+      ...message2 && refs.errorMessages && { errorMessage: { pattern: message2 } }
     });
   } else {
-    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex, refs), message, refs);
+    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex, refs), message2, refs);
   }
 }
 function stringifyRegExpWithFlags(regex, refs) {
@@ -24728,7 +29624,7 @@ function parseSetDef(def, refs) {
   }
   return schema;
 }
-var init_set = __esm({
+var init_set2 = __esm({
   "node_modules/zod-to-json-schema/dist/esm/parsers/set.js"() {
     init_errorMessages();
     init_parseDef();
@@ -24829,7 +29725,7 @@ var init_selectParser = __esm({
     init_pipeline();
     init_promise();
     init_record();
-    init_set();
+    init_set2();
     init_string();
     init_tuple();
     init_undefined();
@@ -25087,7 +29983,7 @@ var init_esm = __esm({
     init_promise();
     init_readonly();
     init_record();
-    init_set();
+    init_set2();
     init_string();
     init_tuple();
     init_undefined();
@@ -25219,15 +30115,15 @@ var init_protocol = __esm({
                 let queuedMessage;
                 while (queuedMessage = await this._taskMessageQueue.dequeue(taskId, extra.sessionId)) {
                   if (queuedMessage.type === "response" || queuedMessage.type === "error") {
-                    const message = queuedMessage.message;
-                    const requestId = message.id;
+                    const message2 = queuedMessage.message;
+                    const requestId = message2.id;
                     const resolver = this._requestResolvers.get(requestId);
                     if (resolver) {
                       this._requestResolvers.delete(requestId);
                       if (queuedMessage.type === "response") {
-                        resolver(message);
+                        resolver(message2);
                       } else {
-                        const errorMessage = message;
+                        const errorMessage = message2;
                         const error2 = new McpError(errorMessage.error.code, errorMessage.error.message, errorMessage.error.data);
                         resolver(error2);
                       }
@@ -25366,16 +30262,16 @@ var init_protocol = __esm({
           this._onerror(error2);
         };
         const _onmessage = this._transport?.onmessage;
-        this._transport.onmessage = (message, extra) => {
-          _onmessage?.(message, extra);
-          if (isJSONRPCResultResponse(message) || isJSONRPCErrorResponse(message)) {
-            this._onresponse(message);
-          } else if (isJSONRPCRequest(message)) {
-            this._onrequest(message, extra);
-          } else if (isJSONRPCNotification(message)) {
-            this._onnotification(message);
+        this._transport.onmessage = (message2, extra) => {
+          _onmessage?.(message2, extra);
+          if (isJSONRPCResultResponse(message2) || isJSONRPCErrorResponse(message2)) {
+            this._onresponse(message2);
+          } else if (isJSONRPCRequest(message2)) {
+            this._onrequest(message2, extra);
+          } else if (isJSONRPCNotification(message2)) {
+            this._onnotification(message2);
           } else {
-            this._onerror(new Error(`Unknown message type: ${JSON.stringify(message)}`));
+            this._onerror(new Error(`Unknown message type: ${JSON.stringify(message2)}`));
           }
         };
         await this._transport.start();
@@ -25985,12 +30881,12 @@ var init_protocol = __esm({
        * the error appropriately (e.g., by failing the task, logging, etc.). The Protocol layer
        * simply propagates the error.
        */
-      async _enqueueTaskMessage(taskId, message, sessionId) {
+      async _enqueueTaskMessage(taskId, message2, sessionId) {
         if (!this._taskStore || !this._taskMessageQueue) {
           throw new Error("Cannot enqueue task message: taskStore and taskMessageQueue are not configured");
         }
         const maxQueueSize = this._options?.maxTaskQueueSize;
-        await this._taskMessageQueue.enqueue(taskId, message, sessionId, maxQueueSize);
+        await this._taskMessageQueue.enqueue(taskId, message2, sessionId, maxQueueSize);
       }
       /**
        * Clears the message queue for a task and rejects any pending request resolvers.
@@ -26000,9 +30896,9 @@ var init_protocol = __esm({
       async _clearTaskQueue(taskId, sessionId) {
         if (this._taskMessageQueue) {
           const messages = await this._taskMessageQueue.dequeueAll(taskId, sessionId);
-          for (const message of messages) {
-            if (message.type === "request" && isJSONRPCRequest(message.message)) {
-              const requestId = message.message.id;
+          for (const message2 of messages) {
+            if (message2.type === "request" && isJSONRPCRequest(message2.message)) {
+              const requestId = message2.message.id;
               const resolver = this._requestResolvers.get(requestId);
               if (resolver) {
                 resolver(new McpError(ErrorCode.InternalError, "Task cancelled or completed"));
@@ -27442,12 +32338,12 @@ var require_errors = __commonJS({
       }
       return [E.schemaPath, schPath];
     }
-    function extraErrorProps(cxt, { params, message }, keyValues) {
+    function extraErrorProps(cxt, { params, message: message2 }, keyValues) {
       const { keyword, data: data2, schemaValue, it } = cxt;
       const { opts, propertyName, topSchemaRef, schemaPath } = it;
       keyValues.push([E.keyword, keyword], [E.params, typeof params == "function" ? params(cxt) : params || (0, codegen_1._)`{}`]);
       if (opts.messages) {
-        keyValues.push([E.message, typeof message == "function" ? message(cxt) : message]);
+        keyValues.push([E.message, typeof message2 == "function" ? message2(cxt) : message2]);
       }
       if (opts.verbose) {
         keyValues.push([E.schema, schemaValue], [E.parentSchema, (0, codegen_1._)`${topSchemaRef}${schemaPath}`], [names_1.default.data, data2]);
@@ -27595,8 +32491,8 @@ var require_dataType = __commonJS({
       return types;
     }
     exports.getSchemaTypes = getSchemaTypes;
-    function getJSONTypes(ts) {
-      const types = Array.isArray(ts) ? ts : ts ? [ts] : [];
+    function getJSONTypes(ts2) {
+      const types = Array.isArray(ts2) ? ts2 : ts2 ? [ts2] : [];
       if (types.every(rules_1.isJSONType))
         return types;
       throw new Error("type must be JSONType or JSONType[]: " + types.join(","));
@@ -28638,18 +33534,18 @@ var require_validate = __commonJS({
       });
       narrowSchemaTypes(it, types);
     }
-    function checkMultipleTypes(it, ts) {
-      if (ts.length > 1 && !(ts.length === 2 && ts.includes("null"))) {
+    function checkMultipleTypes(it, ts2) {
+      if (ts2.length > 1 && !(ts2.length === 2 && ts2.includes("null"))) {
         strictTypesError(it, "use allowUnionTypes to allow union type keyword");
       }
     }
-    function checkKeywordTypes(it, ts) {
+    function checkKeywordTypes(it, ts2) {
       const rules = it.self.RULES.all;
       for (const keyword in rules) {
         const rule = rules[keyword];
         if (typeof rule == "object" && (0, applicability_1.shouldUseRule)(it.schema, rule)) {
           const { type } = rule.definition;
-          if (type.length && !type.some((t) => hasApplicableType(ts, t))) {
+          if (type.length && !type.some((t) => hasApplicableType(ts2, t))) {
             strictTypesError(it, `missing type "${type.join(",")}" for keyword "${keyword}"`);
           }
         }
@@ -28658,18 +33554,18 @@ var require_validate = __commonJS({
     function hasApplicableType(schTs, kwdT) {
       return schTs.includes(kwdT) || kwdT === "number" && schTs.includes("integer");
     }
-    function includesType(ts, t) {
-      return ts.includes(t) || t === "integer" && ts.includes("number");
+    function includesType(ts2, t) {
+      return ts2.includes(t) || t === "integer" && ts2.includes("number");
     }
     function narrowSchemaTypes(it, withTypes) {
-      const ts = [];
+      const ts2 = [];
       for (const t of it.dataTypes) {
         if (includesType(withTypes, t))
-          ts.push(t);
+          ts2.push(t);
         else if (withTypes.includes("integer") && t === "number")
-          ts.push("integer");
+          ts2.push("integer");
       }
-      it.dataTypes = ts;
+      it.dataTypes = ts2;
     }
     function strictTypesError(it, msg) {
       const schemaPath = it.schemaEnv.baseId + it.errSchemaPath;
@@ -30267,11 +35163,11 @@ var require_core = __commonJS({
         }
         const valid = this.validate($schema, schema);
         if (!valid && throwOrLogError) {
-          const message = "schema is invalid: " + this.errorsText();
+          const message2 = "schema is invalid: " + this.errorsText();
           if (this.opts.validateSchema === "log")
-            this.logger.error(message);
+            this.logger.error(message2);
           else
-            throw new Error(message);
+            throw new Error(message2);
         }
         return valid;
       }
@@ -34605,8 +39501,8 @@ var init_mcp = __esm({
 function deserializeMessage(line) {
   return JSONRPCMessageSchema.parse(JSON.parse(line));
 }
-function serializeMessage(message) {
-  return JSON.stringify(message) + "\n";
+function serializeMessage(message2) {
+  return JSON.stringify(message2) + "\n";
 }
 var STDIO_DEFAULT_MAX_BUFFER_SIZE, ReadBuffer;
 var init_stdio = __esm({
@@ -34684,11 +39580,11 @@ var init_stdio2 = __esm({
       processReadBuffer() {
         while (true) {
           try {
-            const message = this._readBuffer.readMessage();
-            if (message === null) {
+            const message2 = this._readBuffer.readMessage();
+            if (message2 === null) {
               break;
             }
-            this.onmessage?.(message);
+            this.onmessage?.(message2);
           } catch (error2) {
             this.onerror?.(error2);
           }
@@ -34704,9 +39600,9 @@ var init_stdio2 = __esm({
         this._readBuffer.clear();
         this.onclose?.();
       }
-      send(message) {
+      send(message2) {
         return new Promise((resolve) => {
-          const json = serializeMessage(message);
+          const json = serializeMessage(message2);
           if (this._stdout.write(json)) {
             resolve();
           } else {
@@ -34743,8 +39639,8 @@ function chaveDe(nome, args) {
   };
   return `${nome} ${JSON.stringify(ordenar(args ?? {}))}`;
 }
-function minutos(ms) {
-  const m = Math.max(1, Math.ceil(ms / MINUTO));
+function minutos(ms2) {
+  const m = Math.max(1, Math.ceil(ms2 / MINUTO));
   return m === 1 ? "1 minuto" : `${m} minutos`;
 }
 function recusa(motivo, esperarMs) {
@@ -34863,1851 +39759,6 @@ O resto da Glia tamb\xE9m est\xE1 aqui: anota\xE7\xF5es do projeto (\`listar_ano
 Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.
 
 Nunca consulte a Glia em loop nem fique "de olho" esperando algo mudar (tarefa nova, notifica\xE7\xE3o, resposta no chat): cada consulta gasta a cota di\xE1ria de leituras da equipe inteira, e quando ela acaba a Glia sai do ar para todo mundo. O servidor recusa rajadas e a mesma consulta repetida \u2014 se receber "Limite de uso da Glia", pare e avise o usu\xE1rio.`;
-  }
-});
-
-// node_modules/date-fns/constants.js
-var daysInYear, maxTime, minTime, secondsInHour, secondsInDay, secondsInWeek, secondsInYear, secondsInMonth, secondsInQuarter, constructFromSymbol;
-var init_constants = __esm({
-  "node_modules/date-fns/constants.js"() {
-    daysInYear = 365.2425;
-    maxTime = Math.pow(10, 8) * 24 * 60 * 60 * 1e3;
-    minTime = -maxTime;
-    secondsInHour = 3600;
-    secondsInDay = secondsInHour * 24;
-    secondsInWeek = secondsInDay * 7;
-    secondsInYear = secondsInDay * daysInYear;
-    secondsInMonth = secondsInYear / 12;
-    secondsInQuarter = secondsInMonth * 3;
-    constructFromSymbol = Symbol.for("constructDateFrom");
-  }
-});
-
-// node_modules/date-fns/constructFrom.js
-function constructFrom(date3, value) {
-  if (typeof date3 === "function") return date3(value);
-  if (date3 && typeof date3 === "object" && constructFromSymbol in date3)
-    return date3[constructFromSymbol](value);
-  if (date3 instanceof Date) return new date3.constructor(value);
-  return new Date(value);
-}
-var init_constructFrom = __esm({
-  "node_modules/date-fns/constructFrom.js"() {
-    init_constants();
-  }
-});
-
-// node_modules/date-fns/toDate.js
-function toDate(argument, context) {
-  return constructFrom(context || argument, argument);
-}
-var init_toDate = __esm({
-  "node_modules/date-fns/toDate.js"() {
-    init_constructFrom();
-  }
-});
-
-// node_modules/date-fns/addDays.js
-var init_addDays = __esm({
-  "node_modules/date-fns/addDays.js"() {
-  }
-});
-
-// node_modules/date-fns/addMonths.js
-var init_addMonths = __esm({
-  "node_modules/date-fns/addMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/add.js
-var init_add = __esm({
-  "node_modules/date-fns/add.js"() {
-  }
-});
-
-// node_modules/date-fns/isSaturday.js
-var init_isSaturday = __esm({
-  "node_modules/date-fns/isSaturday.js"() {
-  }
-});
-
-// node_modules/date-fns/isSunday.js
-var init_isSunday = __esm({
-  "node_modules/date-fns/isSunday.js"() {
-  }
-});
-
-// node_modules/date-fns/isWeekend.js
-var init_isWeekend = __esm({
-  "node_modules/date-fns/isWeekend.js"() {
-  }
-});
-
-// node_modules/date-fns/addBusinessDays.js
-var init_addBusinessDays = __esm({
-  "node_modules/date-fns/addBusinessDays.js"() {
-  }
-});
-
-// node_modules/date-fns/addMilliseconds.js
-var init_addMilliseconds = __esm({
-  "node_modules/date-fns/addMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/addHours.js
-var init_addHours = __esm({
-  "node_modules/date-fns/addHours.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfWeek.js
-var init_startOfWeek = __esm({
-  "node_modules/date-fns/startOfWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfISOWeek.js
-var init_startOfISOWeek = __esm({
-  "node_modules/date-fns/startOfISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/getISOWeekYear.js
-var init_getISOWeekYear = __esm({
-  "node_modules/date-fns/getISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/_lib/normalizeDates.js
-function normalizeDates(context, ...dates) {
-  const normalize2 = constructFrom.bind(
-    null,
-    context || dates.find((date3) => typeof date3 === "object")
-  );
-  return dates.map(normalize2);
-}
-var init_normalizeDates = __esm({
-  "node_modules/date-fns/_lib/normalizeDates.js"() {
-    init_constructFrom();
-  }
-});
-
-// node_modules/date-fns/startOfDay.js
-function startOfDay(date3, options) {
-  const _date2 = toDate(date3, options?.in);
-  _date2.setHours(0, 0, 0, 0);
-  return _date2;
-}
-var init_startOfDay = __esm({
-  "node_modules/date-fns/startOfDay.js"() {
-    init_toDate();
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarDays.js
-var init_differenceInCalendarDays = __esm({
-  "node_modules/date-fns/differenceInCalendarDays.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfISOWeekYear.js
-var init_startOfISOWeekYear = __esm({
-  "node_modules/date-fns/startOfISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/setISOWeekYear.js
-var init_setISOWeekYear = __esm({
-  "node_modules/date-fns/setISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/addISOWeekYears.js
-var init_addISOWeekYears = __esm({
-  "node_modules/date-fns/addISOWeekYears.js"() {
-  }
-});
-
-// node_modules/date-fns/addMinutes.js
-var init_addMinutes = __esm({
-  "node_modules/date-fns/addMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/addQuarters.js
-var init_addQuarters = __esm({
-  "node_modules/date-fns/addQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/addSeconds.js
-var init_addSeconds = __esm({
-  "node_modules/date-fns/addSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/addWeeks.js
-var init_addWeeks = __esm({
-  "node_modules/date-fns/addWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/addYears.js
-var init_addYears = __esm({
-  "node_modules/date-fns/addYears.js"() {
-  }
-});
-
-// node_modules/date-fns/areIntervalsOverlapping.js
-var init_areIntervalsOverlapping = __esm({
-  "node_modules/date-fns/areIntervalsOverlapping.js"() {
-  }
-});
-
-// node_modules/date-fns/max.js
-var init_max = __esm({
-  "node_modules/date-fns/max.js"() {
-  }
-});
-
-// node_modules/date-fns/min.js
-var init_min = __esm({
-  "node_modules/date-fns/min.js"() {
-  }
-});
-
-// node_modules/date-fns/clamp.js
-var init_clamp = __esm({
-  "node_modules/date-fns/clamp.js"() {
-  }
-});
-
-// node_modules/date-fns/closestIndexTo.js
-var init_closestIndexTo = __esm({
-  "node_modules/date-fns/closestIndexTo.js"() {
-  }
-});
-
-// node_modules/date-fns/closestTo.js
-var init_closestTo = __esm({
-  "node_modules/date-fns/closestTo.js"() {
-  }
-});
-
-// node_modules/date-fns/compareAsc.js
-var init_compareAsc = __esm({
-  "node_modules/date-fns/compareAsc.js"() {
-  }
-});
-
-// node_modules/date-fns/compareDesc.js
-var init_compareDesc = __esm({
-  "node_modules/date-fns/compareDesc.js"() {
-  }
-});
-
-// node_modules/date-fns/constructNow.js
-function constructNow(date3) {
-  return constructFrom(date3, Date.now());
-}
-var init_constructNow = __esm({
-  "node_modules/date-fns/constructNow.js"() {
-    init_constructFrom();
-  }
-});
-
-// node_modules/date-fns/daysToWeeks.js
-var init_daysToWeeks = __esm({
-  "node_modules/date-fns/daysToWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameDay.js
-function isSameDay(laterDate, earlierDate, options) {
-  const [dateLeft_, dateRight_] = normalizeDates(
-    options?.in,
-    laterDate,
-    earlierDate
-  );
-  return +startOfDay(dateLeft_) === +startOfDay(dateRight_);
-}
-var init_isSameDay = __esm({
-  "node_modules/date-fns/isSameDay.js"() {
-    init_normalizeDates();
-    init_startOfDay();
-  }
-});
-
-// node_modules/date-fns/isDate.js
-var init_isDate = __esm({
-  "node_modules/date-fns/isDate.js"() {
-  }
-});
-
-// node_modules/date-fns/isValid.js
-var init_isValid = __esm({
-  "node_modules/date-fns/isValid.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInBusinessDays.js
-var init_differenceInBusinessDays = __esm({
-  "node_modules/date-fns/differenceInBusinessDays.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarISOWeekYears.js
-var init_differenceInCalendarISOWeekYears = __esm({
-  "node_modules/date-fns/differenceInCalendarISOWeekYears.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarISOWeeks.js
-var init_differenceInCalendarISOWeeks = __esm({
-  "node_modules/date-fns/differenceInCalendarISOWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarMonths.js
-var init_differenceInCalendarMonths = __esm({
-  "node_modules/date-fns/differenceInCalendarMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/getQuarter.js
-var init_getQuarter = __esm({
-  "node_modules/date-fns/getQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarQuarters.js
-var init_differenceInCalendarQuarters = __esm({
-  "node_modules/date-fns/differenceInCalendarQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarWeeks.js
-var init_differenceInCalendarWeeks = __esm({
-  "node_modules/date-fns/differenceInCalendarWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInCalendarYears.js
-var init_differenceInCalendarYears = __esm({
-  "node_modules/date-fns/differenceInCalendarYears.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInDays.js
-var init_differenceInDays = __esm({
-  "node_modules/date-fns/differenceInDays.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInHours.js
-var init_differenceInHours = __esm({
-  "node_modules/date-fns/differenceInHours.js"() {
-  }
-});
-
-// node_modules/date-fns/subISOWeekYears.js
-var init_subISOWeekYears = __esm({
-  "node_modules/date-fns/subISOWeekYears.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInISOWeekYears.js
-var init_differenceInISOWeekYears = __esm({
-  "node_modules/date-fns/differenceInISOWeekYears.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInMilliseconds.js
-var init_differenceInMilliseconds = __esm({
-  "node_modules/date-fns/differenceInMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInMinutes.js
-var init_differenceInMinutes = __esm({
-  "node_modules/date-fns/differenceInMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfDay.js
-function endOfDay(date3, options) {
-  const _date2 = toDate(date3, options?.in);
-  _date2.setHours(23, 59, 59, 999);
-  return _date2;
-}
-var init_endOfDay = __esm({
-  "node_modules/date-fns/endOfDay.js"() {
-    init_toDate();
-  }
-});
-
-// node_modules/date-fns/endOfMonth.js
-var init_endOfMonth = __esm({
-  "node_modules/date-fns/endOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/isLastDayOfMonth.js
-var init_isLastDayOfMonth = __esm({
-  "node_modules/date-fns/isLastDayOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInMonths.js
-var init_differenceInMonths = __esm({
-  "node_modules/date-fns/differenceInMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInQuarters.js
-var init_differenceInQuarters = __esm({
-  "node_modules/date-fns/differenceInQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInSeconds.js
-var init_differenceInSeconds = __esm({
-  "node_modules/date-fns/differenceInSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInWeeks.js
-var init_differenceInWeeks = __esm({
-  "node_modules/date-fns/differenceInWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/differenceInYears.js
-var init_differenceInYears = __esm({
-  "node_modules/date-fns/differenceInYears.js"() {
-  }
-});
-
-// node_modules/date-fns/eachDayOfInterval.js
-var init_eachDayOfInterval = __esm({
-  "node_modules/date-fns/eachDayOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/eachHourOfInterval.js
-var init_eachHourOfInterval = __esm({
-  "node_modules/date-fns/eachHourOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/eachMinuteOfInterval.js
-var init_eachMinuteOfInterval = __esm({
-  "node_modules/date-fns/eachMinuteOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/eachMonthOfInterval.js
-var init_eachMonthOfInterval = __esm({
-  "node_modules/date-fns/eachMonthOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfQuarter.js
-var init_startOfQuarter = __esm({
-  "node_modules/date-fns/startOfQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/eachQuarterOfInterval.js
-var init_eachQuarterOfInterval = __esm({
-  "node_modules/date-fns/eachQuarterOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/eachWeekOfInterval.js
-var init_eachWeekOfInterval = __esm({
-  "node_modules/date-fns/eachWeekOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/eachWeekendOfInterval.js
-var init_eachWeekendOfInterval = __esm({
-  "node_modules/date-fns/eachWeekendOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfMonth.js
-var init_startOfMonth = __esm({
-  "node_modules/date-fns/startOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/eachWeekendOfMonth.js
-var init_eachWeekendOfMonth = __esm({
-  "node_modules/date-fns/eachWeekendOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfYear.js
-var init_endOfYear = __esm({
-  "node_modules/date-fns/endOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfYear.js
-var init_startOfYear = __esm({
-  "node_modules/date-fns/startOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/eachWeekendOfYear.js
-var init_eachWeekendOfYear = __esm({
-  "node_modules/date-fns/eachWeekendOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/eachYearOfInterval.js
-var init_eachYearOfInterval = __esm({
-  "node_modules/date-fns/eachYearOfInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfDecade.js
-var init_endOfDecade = __esm({
-  "node_modules/date-fns/endOfDecade.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfHour.js
-var init_endOfHour = __esm({
-  "node_modules/date-fns/endOfHour.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfWeek.js
-var init_endOfWeek = __esm({
-  "node_modules/date-fns/endOfWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfISOWeek.js
-var init_endOfISOWeek = __esm({
-  "node_modules/date-fns/endOfISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfISOWeekYear.js
-var init_endOfISOWeekYear = __esm({
-  "node_modules/date-fns/endOfISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfMinute.js
-var init_endOfMinute = __esm({
-  "node_modules/date-fns/endOfMinute.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfQuarter.js
-var init_endOfQuarter = __esm({
-  "node_modules/date-fns/endOfQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfSecond.js
-var init_endOfSecond = __esm({
-  "node_modules/date-fns/endOfSecond.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfToday.js
-var init_endOfToday = __esm({
-  "node_modules/date-fns/endOfToday.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfTomorrow.js
-var init_endOfTomorrow = __esm({
-  "node_modules/date-fns/endOfTomorrow.js"() {
-  }
-});
-
-// node_modules/date-fns/endOfYesterday.js
-var init_endOfYesterday = __esm({
-  "node_modules/date-fns/endOfYesterday.js"() {
-  }
-});
-
-// node_modules/date-fns/getDayOfYear.js
-var init_getDayOfYear = __esm({
-  "node_modules/date-fns/getDayOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/getISOWeek.js
-var init_getISOWeek = __esm({
-  "node_modules/date-fns/getISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/getWeekYear.js
-var init_getWeekYear = __esm({
-  "node_modules/date-fns/getWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfWeekYear.js
-var init_startOfWeekYear = __esm({
-  "node_modules/date-fns/startOfWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/getWeek.js
-var init_getWeek = __esm({
-  "node_modules/date-fns/getWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/format.js
-var init_format = __esm({
-  "node_modules/date-fns/format.js"() {
-  }
-});
-
-// node_modules/date-fns/formatDistance.js
-var init_formatDistance = __esm({
-  "node_modules/date-fns/formatDistance.js"() {
-  }
-});
-
-// node_modules/date-fns/formatDistanceStrict.js
-var init_formatDistanceStrict = __esm({
-  "node_modules/date-fns/formatDistanceStrict.js"() {
-  }
-});
-
-// node_modules/date-fns/formatDistanceToNow.js
-var init_formatDistanceToNow = __esm({
-  "node_modules/date-fns/formatDistanceToNow.js"() {
-  }
-});
-
-// node_modules/date-fns/formatDistanceToNowStrict.js
-var init_formatDistanceToNowStrict = __esm({
-  "node_modules/date-fns/formatDistanceToNowStrict.js"() {
-  }
-});
-
-// node_modules/date-fns/formatDuration.js
-var init_formatDuration = __esm({
-  "node_modules/date-fns/formatDuration.js"() {
-  }
-});
-
-// node_modules/date-fns/formatISO.js
-var init_formatISO = __esm({
-  "node_modules/date-fns/formatISO.js"() {
-  }
-});
-
-// node_modules/date-fns/formatISO9075.js
-var init_formatISO9075 = __esm({
-  "node_modules/date-fns/formatISO9075.js"() {
-  }
-});
-
-// node_modules/date-fns/formatISODuration.js
-var init_formatISODuration = __esm({
-  "node_modules/date-fns/formatISODuration.js"() {
-  }
-});
-
-// node_modules/date-fns/formatRFC3339.js
-var init_formatRFC3339 = __esm({
-  "node_modules/date-fns/formatRFC3339.js"() {
-  }
-});
-
-// node_modules/date-fns/formatRFC7231.js
-var init_formatRFC7231 = __esm({
-  "node_modules/date-fns/formatRFC7231.js"() {
-  }
-});
-
-// node_modules/date-fns/formatRelative.js
-var init_formatRelative = __esm({
-  "node_modules/date-fns/formatRelative.js"() {
-  }
-});
-
-// node_modules/date-fns/fromUnixTime.js
-var init_fromUnixTime = __esm({
-  "node_modules/date-fns/fromUnixTime.js"() {
-  }
-});
-
-// node_modules/date-fns/getDate.js
-var init_getDate = __esm({
-  "node_modules/date-fns/getDate.js"() {
-  }
-});
-
-// node_modules/date-fns/getDay.js
-var init_getDay = __esm({
-  "node_modules/date-fns/getDay.js"() {
-  }
-});
-
-// node_modules/date-fns/getDaysInMonth.js
-var init_getDaysInMonth = __esm({
-  "node_modules/date-fns/getDaysInMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/isLeapYear.js
-var init_isLeapYear = __esm({
-  "node_modules/date-fns/isLeapYear.js"() {
-  }
-});
-
-// node_modules/date-fns/getDaysInYear.js
-var init_getDaysInYear = __esm({
-  "node_modules/date-fns/getDaysInYear.js"() {
-  }
-});
-
-// node_modules/date-fns/getDecade.js
-var init_getDecade = __esm({
-  "node_modules/date-fns/getDecade.js"() {
-  }
-});
-
-// node_modules/date-fns/getDefaultOptions.js
-var init_getDefaultOptions = __esm({
-  "node_modules/date-fns/getDefaultOptions.js"() {
-  }
-});
-
-// node_modules/date-fns/getHours.js
-var init_getHours = __esm({
-  "node_modules/date-fns/getHours.js"() {
-  }
-});
-
-// node_modules/date-fns/getISODay.js
-var init_getISODay = __esm({
-  "node_modules/date-fns/getISODay.js"() {
-  }
-});
-
-// node_modules/date-fns/getISOWeeksInYear.js
-var init_getISOWeeksInYear = __esm({
-  "node_modules/date-fns/getISOWeeksInYear.js"() {
-  }
-});
-
-// node_modules/date-fns/getMilliseconds.js
-var init_getMilliseconds = __esm({
-  "node_modules/date-fns/getMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/getMinutes.js
-var init_getMinutes = __esm({
-  "node_modules/date-fns/getMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/getMonth.js
-var init_getMonth = __esm({
-  "node_modules/date-fns/getMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/getOverlappingDaysInIntervals.js
-var init_getOverlappingDaysInIntervals = __esm({
-  "node_modules/date-fns/getOverlappingDaysInIntervals.js"() {
-  }
-});
-
-// node_modules/date-fns/getSeconds.js
-var init_getSeconds = __esm({
-  "node_modules/date-fns/getSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/getTime.js
-var init_getTime = __esm({
-  "node_modules/date-fns/getTime.js"() {
-  }
-});
-
-// node_modules/date-fns/getUnixTime.js
-var init_getUnixTime = __esm({
-  "node_modules/date-fns/getUnixTime.js"() {
-  }
-});
-
-// node_modules/date-fns/getWeekOfMonth.js
-var init_getWeekOfMonth = __esm({
-  "node_modules/date-fns/getWeekOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfMonth.js
-var init_lastDayOfMonth = __esm({
-  "node_modules/date-fns/lastDayOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/getWeeksInMonth.js
-var init_getWeeksInMonth = __esm({
-  "node_modules/date-fns/getWeeksInMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/getYear.js
-var init_getYear = __esm({
-  "node_modules/date-fns/getYear.js"() {
-  }
-});
-
-// node_modules/date-fns/hoursToMilliseconds.js
-var init_hoursToMilliseconds = __esm({
-  "node_modules/date-fns/hoursToMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/hoursToMinutes.js
-var init_hoursToMinutes = __esm({
-  "node_modules/date-fns/hoursToMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/hoursToSeconds.js
-var init_hoursToSeconds = __esm({
-  "node_modules/date-fns/hoursToSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/interval.js
-var init_interval = __esm({
-  "node_modules/date-fns/interval.js"() {
-  }
-});
-
-// node_modules/date-fns/intervalToDuration.js
-var init_intervalToDuration = __esm({
-  "node_modules/date-fns/intervalToDuration.js"() {
-  }
-});
-
-// node_modules/date-fns/intlFormat.js
-var init_intlFormat = __esm({
-  "node_modules/date-fns/intlFormat.js"() {
-  }
-});
-
-// node_modules/date-fns/intlFormatDistance.js
-var init_intlFormatDistance = __esm({
-  "node_modules/date-fns/intlFormatDistance.js"() {
-  }
-});
-
-// node_modules/date-fns/isAfter.js
-var init_isAfter = __esm({
-  "node_modules/date-fns/isAfter.js"() {
-  }
-});
-
-// node_modules/date-fns/isBefore.js
-function isBefore(date3, dateToCompare) {
-  return +toDate(date3) < +toDate(dateToCompare);
-}
-var init_isBefore = __esm({
-  "node_modules/date-fns/isBefore.js"() {
-    init_toDate();
-  }
-});
-
-// node_modules/date-fns/isEqual.js
-var init_isEqual = __esm({
-  "node_modules/date-fns/isEqual.js"() {
-  }
-});
-
-// node_modules/date-fns/isExists.js
-var init_isExists = __esm({
-  "node_modules/date-fns/isExists.js"() {
-  }
-});
-
-// node_modules/date-fns/isFirstDayOfMonth.js
-var init_isFirstDayOfMonth = __esm({
-  "node_modules/date-fns/isFirstDayOfMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/isFriday.js
-var init_isFriday = __esm({
-  "node_modules/date-fns/isFriday.js"() {
-  }
-});
-
-// node_modules/date-fns/isFuture.js
-var init_isFuture = __esm({
-  "node_modules/date-fns/isFuture.js"() {
-  }
-});
-
-// node_modules/date-fns/transpose.js
-var init_transpose = __esm({
-  "node_modules/date-fns/transpose.js"() {
-  }
-});
-
-// node_modules/date-fns/setWeek.js
-var init_setWeek = __esm({
-  "node_modules/date-fns/setWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/setISOWeek.js
-var init_setISOWeek = __esm({
-  "node_modules/date-fns/setISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/setDay.js
-var init_setDay = __esm({
-  "node_modules/date-fns/setDay.js"() {
-  }
-});
-
-// node_modules/date-fns/setISODay.js
-var init_setISODay = __esm({
-  "node_modules/date-fns/setISODay.js"() {
-  }
-});
-
-// node_modules/date-fns/parse.js
-var init_parse5 = __esm({
-  "node_modules/date-fns/parse.js"() {
-  }
-});
-
-// node_modules/date-fns/isMatch.js
-var init_isMatch = __esm({
-  "node_modules/date-fns/isMatch.js"() {
-  }
-});
-
-// node_modules/date-fns/isMonday.js
-var init_isMonday = __esm({
-  "node_modules/date-fns/isMonday.js"() {
-  }
-});
-
-// node_modules/date-fns/isPast.js
-var init_isPast = __esm({
-  "node_modules/date-fns/isPast.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfHour.js
-var init_startOfHour = __esm({
-  "node_modules/date-fns/startOfHour.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameHour.js
-var init_isSameHour = __esm({
-  "node_modules/date-fns/isSameHour.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameWeek.js
-var init_isSameWeek = __esm({
-  "node_modules/date-fns/isSameWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameISOWeek.js
-var init_isSameISOWeek = __esm({
-  "node_modules/date-fns/isSameISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameISOWeekYear.js
-var init_isSameISOWeekYear = __esm({
-  "node_modules/date-fns/isSameISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfMinute.js
-var init_startOfMinute = __esm({
-  "node_modules/date-fns/startOfMinute.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameMinute.js
-var init_isSameMinute = __esm({
-  "node_modules/date-fns/isSameMinute.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameMonth.js
-var init_isSameMonth = __esm({
-  "node_modules/date-fns/isSameMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameQuarter.js
-var init_isSameQuarter = __esm({
-  "node_modules/date-fns/isSameQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfSecond.js
-var init_startOfSecond = __esm({
-  "node_modules/date-fns/startOfSecond.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameSecond.js
-var init_isSameSecond = __esm({
-  "node_modules/date-fns/isSameSecond.js"() {
-  }
-});
-
-// node_modules/date-fns/isSameYear.js
-var init_isSameYear = __esm({
-  "node_modules/date-fns/isSameYear.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisHour.js
-var init_isThisHour = __esm({
-  "node_modules/date-fns/isThisHour.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisISOWeek.js
-var init_isThisISOWeek = __esm({
-  "node_modules/date-fns/isThisISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisMinute.js
-var init_isThisMinute = __esm({
-  "node_modules/date-fns/isThisMinute.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisMonth.js
-var init_isThisMonth = __esm({
-  "node_modules/date-fns/isThisMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisQuarter.js
-var init_isThisQuarter = __esm({
-  "node_modules/date-fns/isThisQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisSecond.js
-var init_isThisSecond = __esm({
-  "node_modules/date-fns/isThisSecond.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisWeek.js
-var init_isThisWeek = __esm({
-  "node_modules/date-fns/isThisWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/isThisYear.js
-var init_isThisYear = __esm({
-  "node_modules/date-fns/isThisYear.js"() {
-  }
-});
-
-// node_modules/date-fns/isThursday.js
-var init_isThursday = __esm({
-  "node_modules/date-fns/isThursday.js"() {
-  }
-});
-
-// node_modules/date-fns/isToday.js
-function isToday(date3, options) {
-  return isSameDay(
-    constructFrom(options?.in || date3, date3),
-    constructNow(options?.in || date3)
-  );
-}
-var init_isToday = __esm({
-  "node_modules/date-fns/isToday.js"() {
-    init_constructFrom();
-    init_constructNow();
-    init_isSameDay();
-  }
-});
-
-// node_modules/date-fns/isTomorrow.js
-var init_isTomorrow = __esm({
-  "node_modules/date-fns/isTomorrow.js"() {
-  }
-});
-
-// node_modules/date-fns/isTuesday.js
-var init_isTuesday = __esm({
-  "node_modules/date-fns/isTuesday.js"() {
-  }
-});
-
-// node_modules/date-fns/isWednesday.js
-var init_isWednesday = __esm({
-  "node_modules/date-fns/isWednesday.js"() {
-  }
-});
-
-// node_modules/date-fns/isWithinInterval.js
-var init_isWithinInterval = __esm({
-  "node_modules/date-fns/isWithinInterval.js"() {
-  }
-});
-
-// node_modules/date-fns/subDays.js
-var init_subDays = __esm({
-  "node_modules/date-fns/subDays.js"() {
-  }
-});
-
-// node_modules/date-fns/isYesterday.js
-var init_isYesterday = __esm({
-  "node_modules/date-fns/isYesterday.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfDecade.js
-var init_lastDayOfDecade = __esm({
-  "node_modules/date-fns/lastDayOfDecade.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfWeek.js
-var init_lastDayOfWeek = __esm({
-  "node_modules/date-fns/lastDayOfWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfISOWeek.js
-var init_lastDayOfISOWeek = __esm({
-  "node_modules/date-fns/lastDayOfISOWeek.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfISOWeekYear.js
-var init_lastDayOfISOWeekYear = __esm({
-  "node_modules/date-fns/lastDayOfISOWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfQuarter.js
-var init_lastDayOfQuarter = __esm({
-  "node_modules/date-fns/lastDayOfQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/lastDayOfYear.js
-var init_lastDayOfYear = __esm({
-  "node_modules/date-fns/lastDayOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/lightFormat.js
-var init_lightFormat = __esm({
-  "node_modules/date-fns/lightFormat.js"() {
-  }
-});
-
-// node_modules/date-fns/milliseconds.js
-var init_milliseconds = __esm({
-  "node_modules/date-fns/milliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/millisecondsToHours.js
-var init_millisecondsToHours = __esm({
-  "node_modules/date-fns/millisecondsToHours.js"() {
-  }
-});
-
-// node_modules/date-fns/millisecondsToMinutes.js
-var init_millisecondsToMinutes = __esm({
-  "node_modules/date-fns/millisecondsToMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/millisecondsToSeconds.js
-var init_millisecondsToSeconds = __esm({
-  "node_modules/date-fns/millisecondsToSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/minutesToHours.js
-var init_minutesToHours = __esm({
-  "node_modules/date-fns/minutesToHours.js"() {
-  }
-});
-
-// node_modules/date-fns/minutesToMilliseconds.js
-var init_minutesToMilliseconds = __esm({
-  "node_modules/date-fns/minutesToMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/minutesToSeconds.js
-var init_minutesToSeconds = __esm({
-  "node_modules/date-fns/minutesToSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/monthsToQuarters.js
-var init_monthsToQuarters = __esm({
-  "node_modules/date-fns/monthsToQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/monthsToYears.js
-var init_monthsToYears = __esm({
-  "node_modules/date-fns/monthsToYears.js"() {
-  }
-});
-
-// node_modules/date-fns/nextDay.js
-var init_nextDay = __esm({
-  "node_modules/date-fns/nextDay.js"() {
-  }
-});
-
-// node_modules/date-fns/nextFriday.js
-var init_nextFriday = __esm({
-  "node_modules/date-fns/nextFriday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextMonday.js
-var init_nextMonday = __esm({
-  "node_modules/date-fns/nextMonday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextSaturday.js
-var init_nextSaturday = __esm({
-  "node_modules/date-fns/nextSaturday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextSunday.js
-var init_nextSunday = __esm({
-  "node_modules/date-fns/nextSunday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextThursday.js
-var init_nextThursday = __esm({
-  "node_modules/date-fns/nextThursday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextTuesday.js
-var init_nextTuesday = __esm({
-  "node_modules/date-fns/nextTuesday.js"() {
-  }
-});
-
-// node_modules/date-fns/nextWednesday.js
-var init_nextWednesday = __esm({
-  "node_modules/date-fns/nextWednesday.js"() {
-  }
-});
-
-// node_modules/date-fns/parseISO.js
-var init_parseISO = __esm({
-  "node_modules/date-fns/parseISO.js"() {
-  }
-});
-
-// node_modules/date-fns/parseJSON.js
-var init_parseJSON = __esm({
-  "node_modules/date-fns/parseJSON.js"() {
-  }
-});
-
-// node_modules/date-fns/previousDay.js
-var init_previousDay = __esm({
-  "node_modules/date-fns/previousDay.js"() {
-  }
-});
-
-// node_modules/date-fns/previousFriday.js
-var init_previousFriday = __esm({
-  "node_modules/date-fns/previousFriday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousMonday.js
-var init_previousMonday = __esm({
-  "node_modules/date-fns/previousMonday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousSaturday.js
-var init_previousSaturday = __esm({
-  "node_modules/date-fns/previousSaturday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousSunday.js
-var init_previousSunday = __esm({
-  "node_modules/date-fns/previousSunday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousThursday.js
-var init_previousThursday = __esm({
-  "node_modules/date-fns/previousThursday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousTuesday.js
-var init_previousTuesday = __esm({
-  "node_modules/date-fns/previousTuesday.js"() {
-  }
-});
-
-// node_modules/date-fns/previousWednesday.js
-var init_previousWednesday = __esm({
-  "node_modules/date-fns/previousWednesday.js"() {
-  }
-});
-
-// node_modules/date-fns/quartersToMonths.js
-var init_quartersToMonths = __esm({
-  "node_modules/date-fns/quartersToMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/quartersToYears.js
-var init_quartersToYears = __esm({
-  "node_modules/date-fns/quartersToYears.js"() {
-  }
-});
-
-// node_modules/date-fns/roundToNearestHours.js
-var init_roundToNearestHours = __esm({
-  "node_modules/date-fns/roundToNearestHours.js"() {
-  }
-});
-
-// node_modules/date-fns/roundToNearestMinutes.js
-var init_roundToNearestMinutes = __esm({
-  "node_modules/date-fns/roundToNearestMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/secondsToHours.js
-var init_secondsToHours = __esm({
-  "node_modules/date-fns/secondsToHours.js"() {
-  }
-});
-
-// node_modules/date-fns/secondsToMilliseconds.js
-var init_secondsToMilliseconds = __esm({
-  "node_modules/date-fns/secondsToMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/secondsToMinutes.js
-var init_secondsToMinutes = __esm({
-  "node_modules/date-fns/secondsToMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/setMonth.js
-var init_setMonth = __esm({
-  "node_modules/date-fns/setMonth.js"() {
-  }
-});
-
-// node_modules/date-fns/set.js
-var init_set2 = __esm({
-  "node_modules/date-fns/set.js"() {
-  }
-});
-
-// node_modules/date-fns/setDate.js
-var init_setDate = __esm({
-  "node_modules/date-fns/setDate.js"() {
-  }
-});
-
-// node_modules/date-fns/setDayOfYear.js
-var init_setDayOfYear = __esm({
-  "node_modules/date-fns/setDayOfYear.js"() {
-  }
-});
-
-// node_modules/date-fns/setDefaultOptions.js
-var init_setDefaultOptions = __esm({
-  "node_modules/date-fns/setDefaultOptions.js"() {
-  }
-});
-
-// node_modules/date-fns/setHours.js
-var init_setHours = __esm({
-  "node_modules/date-fns/setHours.js"() {
-  }
-});
-
-// node_modules/date-fns/setMilliseconds.js
-var init_setMilliseconds = __esm({
-  "node_modules/date-fns/setMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/setMinutes.js
-var init_setMinutes = __esm({
-  "node_modules/date-fns/setMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/setQuarter.js
-var init_setQuarter = __esm({
-  "node_modules/date-fns/setQuarter.js"() {
-  }
-});
-
-// node_modules/date-fns/setSeconds.js
-var init_setSeconds = __esm({
-  "node_modules/date-fns/setSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/setWeekYear.js
-var init_setWeekYear = __esm({
-  "node_modules/date-fns/setWeekYear.js"() {
-  }
-});
-
-// node_modules/date-fns/setYear.js
-var init_setYear = __esm({
-  "node_modules/date-fns/setYear.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfDecade.js
-var init_startOfDecade = __esm({
-  "node_modules/date-fns/startOfDecade.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfToday.js
-var init_startOfToday = __esm({
-  "node_modules/date-fns/startOfToday.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfTomorrow.js
-var init_startOfTomorrow = __esm({
-  "node_modules/date-fns/startOfTomorrow.js"() {
-  }
-});
-
-// node_modules/date-fns/startOfYesterday.js
-var init_startOfYesterday = __esm({
-  "node_modules/date-fns/startOfYesterday.js"() {
-  }
-});
-
-// node_modules/date-fns/subMonths.js
-var init_subMonths = __esm({
-  "node_modules/date-fns/subMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/sub.js
-var init_sub = __esm({
-  "node_modules/date-fns/sub.js"() {
-  }
-});
-
-// node_modules/date-fns/subBusinessDays.js
-var init_subBusinessDays = __esm({
-  "node_modules/date-fns/subBusinessDays.js"() {
-  }
-});
-
-// node_modules/date-fns/subHours.js
-var init_subHours = __esm({
-  "node_modules/date-fns/subHours.js"() {
-  }
-});
-
-// node_modules/date-fns/subMilliseconds.js
-var init_subMilliseconds = __esm({
-  "node_modules/date-fns/subMilliseconds.js"() {
-  }
-});
-
-// node_modules/date-fns/subMinutes.js
-var init_subMinutes = __esm({
-  "node_modules/date-fns/subMinutes.js"() {
-  }
-});
-
-// node_modules/date-fns/subQuarters.js
-var init_subQuarters = __esm({
-  "node_modules/date-fns/subQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/subSeconds.js
-var init_subSeconds = __esm({
-  "node_modules/date-fns/subSeconds.js"() {
-  }
-});
-
-// node_modules/date-fns/subWeeks.js
-var init_subWeeks = __esm({
-  "node_modules/date-fns/subWeeks.js"() {
-  }
-});
-
-// node_modules/date-fns/subYears.js
-var init_subYears = __esm({
-  "node_modules/date-fns/subYears.js"() {
-  }
-});
-
-// node_modules/date-fns/weeksToDays.js
-var init_weeksToDays = __esm({
-  "node_modules/date-fns/weeksToDays.js"() {
-  }
-});
-
-// node_modules/date-fns/yearsToDays.js
-var init_yearsToDays = __esm({
-  "node_modules/date-fns/yearsToDays.js"() {
-  }
-});
-
-// node_modules/date-fns/yearsToMonths.js
-var init_yearsToMonths = __esm({
-  "node_modules/date-fns/yearsToMonths.js"() {
-  }
-});
-
-// node_modules/date-fns/yearsToQuarters.js
-var init_yearsToQuarters = __esm({
-  "node_modules/date-fns/yearsToQuarters.js"() {
-  }
-});
-
-// node_modules/date-fns/index.js
-var init_date_fns = __esm({
-  "node_modules/date-fns/index.js"() {
-    init_add();
-    init_addBusinessDays();
-    init_addDays();
-    init_addHours();
-    init_addISOWeekYears();
-    init_addMilliseconds();
-    init_addMinutes();
-    init_addMonths();
-    init_addQuarters();
-    init_addSeconds();
-    init_addWeeks();
-    init_addYears();
-    init_areIntervalsOverlapping();
-    init_clamp();
-    init_closestIndexTo();
-    init_closestTo();
-    init_compareAsc();
-    init_compareDesc();
-    init_constructFrom();
-    init_constructNow();
-    init_daysToWeeks();
-    init_differenceInBusinessDays();
-    init_differenceInCalendarDays();
-    init_differenceInCalendarISOWeekYears();
-    init_differenceInCalendarISOWeeks();
-    init_differenceInCalendarMonths();
-    init_differenceInCalendarQuarters();
-    init_differenceInCalendarWeeks();
-    init_differenceInCalendarYears();
-    init_differenceInDays();
-    init_differenceInHours();
-    init_differenceInISOWeekYears();
-    init_differenceInMilliseconds();
-    init_differenceInMinutes();
-    init_differenceInMonths();
-    init_differenceInQuarters();
-    init_differenceInSeconds();
-    init_differenceInWeeks();
-    init_differenceInYears();
-    init_eachDayOfInterval();
-    init_eachHourOfInterval();
-    init_eachMinuteOfInterval();
-    init_eachMonthOfInterval();
-    init_eachQuarterOfInterval();
-    init_eachWeekOfInterval();
-    init_eachWeekendOfInterval();
-    init_eachWeekendOfMonth();
-    init_eachWeekendOfYear();
-    init_eachYearOfInterval();
-    init_endOfDay();
-    init_endOfDecade();
-    init_endOfHour();
-    init_endOfISOWeek();
-    init_endOfISOWeekYear();
-    init_endOfMinute();
-    init_endOfMonth();
-    init_endOfQuarter();
-    init_endOfSecond();
-    init_endOfToday();
-    init_endOfTomorrow();
-    init_endOfWeek();
-    init_endOfYear();
-    init_endOfYesterday();
-    init_format();
-    init_formatDistance();
-    init_formatDistanceStrict();
-    init_formatDistanceToNow();
-    init_formatDistanceToNowStrict();
-    init_formatDuration();
-    init_formatISO();
-    init_formatISO9075();
-    init_formatISODuration();
-    init_formatRFC3339();
-    init_formatRFC7231();
-    init_formatRelative();
-    init_fromUnixTime();
-    init_getDate();
-    init_getDay();
-    init_getDayOfYear();
-    init_getDaysInMonth();
-    init_getDaysInYear();
-    init_getDecade();
-    init_getDefaultOptions();
-    init_getHours();
-    init_getISODay();
-    init_getISOWeek();
-    init_getISOWeekYear();
-    init_getISOWeeksInYear();
-    init_getMilliseconds();
-    init_getMinutes();
-    init_getMonth();
-    init_getOverlappingDaysInIntervals();
-    init_getQuarter();
-    init_getSeconds();
-    init_getTime();
-    init_getUnixTime();
-    init_getWeek();
-    init_getWeekOfMonth();
-    init_getWeekYear();
-    init_getWeeksInMonth();
-    init_getYear();
-    init_hoursToMilliseconds();
-    init_hoursToMinutes();
-    init_hoursToSeconds();
-    init_interval();
-    init_intervalToDuration();
-    init_intlFormat();
-    init_intlFormatDistance();
-    init_isAfter();
-    init_isBefore();
-    init_isDate();
-    init_isEqual();
-    init_isExists();
-    init_isFirstDayOfMonth();
-    init_isFriday();
-    init_isFuture();
-    init_isLastDayOfMonth();
-    init_isLeapYear();
-    init_isMatch();
-    init_isMonday();
-    init_isPast();
-    init_isSameDay();
-    init_isSameHour();
-    init_isSameISOWeek();
-    init_isSameISOWeekYear();
-    init_isSameMinute();
-    init_isSameMonth();
-    init_isSameQuarter();
-    init_isSameSecond();
-    init_isSameWeek();
-    init_isSameYear();
-    init_isSaturday();
-    init_isSunday();
-    init_isThisHour();
-    init_isThisISOWeek();
-    init_isThisMinute();
-    init_isThisMonth();
-    init_isThisQuarter();
-    init_isThisSecond();
-    init_isThisWeek();
-    init_isThisYear();
-    init_isThursday();
-    init_isToday();
-    init_isTomorrow();
-    init_isTuesday();
-    init_isValid();
-    init_isWednesday();
-    init_isWeekend();
-    init_isWithinInterval();
-    init_isYesterday();
-    init_lastDayOfDecade();
-    init_lastDayOfISOWeek();
-    init_lastDayOfISOWeekYear();
-    init_lastDayOfMonth();
-    init_lastDayOfQuarter();
-    init_lastDayOfWeek();
-    init_lastDayOfYear();
-    init_lightFormat();
-    init_max();
-    init_milliseconds();
-    init_millisecondsToHours();
-    init_millisecondsToMinutes();
-    init_millisecondsToSeconds();
-    init_min();
-    init_minutesToHours();
-    init_minutesToMilliseconds();
-    init_minutesToSeconds();
-    init_monthsToQuarters();
-    init_monthsToYears();
-    init_nextDay();
-    init_nextFriday();
-    init_nextMonday();
-    init_nextSaturday();
-    init_nextSunday();
-    init_nextThursday();
-    init_nextTuesday();
-    init_nextWednesday();
-    init_parse5();
-    init_parseISO();
-    init_parseJSON();
-    init_previousDay();
-    init_previousFriday();
-    init_previousMonday();
-    init_previousSaturday();
-    init_previousSunday();
-    init_previousThursday();
-    init_previousTuesday();
-    init_previousWednesday();
-    init_quartersToMonths();
-    init_quartersToYears();
-    init_roundToNearestHours();
-    init_roundToNearestMinutes();
-    init_secondsToHours();
-    init_secondsToMilliseconds();
-    init_secondsToMinutes();
-    init_set2();
-    init_setDate();
-    init_setDay();
-    init_setDayOfYear();
-    init_setDefaultOptions();
-    init_setHours();
-    init_setISODay();
-    init_setISOWeek();
-    init_setISOWeekYear();
-    init_setMilliseconds();
-    init_setMinutes();
-    init_setMonth();
-    init_setQuarter();
-    init_setSeconds();
-    init_setWeek();
-    init_setWeekYear();
-    init_setYear();
-    init_startOfDay();
-    init_startOfDecade();
-    init_startOfHour();
-    init_startOfISOWeek();
-    init_startOfISOWeekYear();
-    init_startOfMinute();
-    init_startOfMonth();
-    init_startOfQuarter();
-    init_startOfSecond();
-    init_startOfToday();
-    init_startOfTomorrow();
-    init_startOfWeek();
-    init_startOfWeekYear();
-    init_startOfYear();
-    init_startOfYesterday();
-    init_sub();
-    init_subBusinessDays();
-    init_subDays();
-    init_subHours();
-    init_subISOWeekYears();
-    init_subMilliseconds();
-    init_subMinutes();
-    init_subMonths();
-    init_subQuarters();
-    init_subSeconds();
-    init_subWeeks();
-    init_subYears();
-    init_toDate();
-    init_transpose();
-    init_weeksToDays();
-    init_yearsToDays();
-    init_yearsToMonths();
-    init_yearsToQuarters();
-  }
-});
-
-// node_modules/clsx/dist/clsx.mjs
-var init_clsx = __esm({
-  "node_modules/clsx/dist/clsx.mjs"() {
-  }
-});
-
-// src/lib/utils.ts
-function toDate2(value) {
-  if (!value) return null;
-  if (value instanceof Date) return value;
-  if (typeof value.toDate === "function") return value.toDate();
-  return null;
-}
-function isOverdue(due, status) {
-  if (!due || status === "done") return false;
-  return isBefore(due, startOfDay(/* @__PURE__ */ new Date()));
-}
-function isDueToday(due, status) {
-  if (!due || status === "done") return false;
-  return isToday(due);
-}
-function nameInitials(name4) {
-  const parts = name4.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-function generateId() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 20);
-}
-function parseDateOnly(value) {
-  if (!value) return null;
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-}
-var init_utils = __esm({
-  "src/lib/utils.ts"() {
-    init_clsx();
-    init_date_fns();
   }
 });
 
@@ -36830,17 +39881,25 @@ async function updateProject(wsId, projectId, patch) {
 }
 async function archiveProject(wsId, projectId) {
   await updateDoc(wsProjectDoc(wsId, projectId), { status: "archived", updatedAt: serverTimestamp() });
+  await removerRetrato(wsId, projectId).catch(() => {
+  });
 }
 async function unarchiveProject(wsId, projectId) {
   await updateDoc(wsProjectDoc(wsId, projectId), { status: "active", updatedAt: serverTimestamp() });
 }
 async function updateProjectPhase(wsId, projectId, phase) {
-  await updateDoc(wsProjectDoc(wsId, projectId), { phase, updatedAt: serverTimestamp() });
+  await updateDoc(wsProjectDoc(wsId, projectId), {
+    phase,
+    completedAt: phase === "concluido" ? serverTimestamp() : null,
+    updatedAt: serverTimestamp()
+  });
 }
 async function deleteProject(wsId, projectId) {
   const projSnap = await getDoc(wsProjectDoc(wsId, projectId));
   const portalId = projSnap.data()?.portalId;
   if (portalId) await purgePortal(portalId);
+  if (projSnap.data()?.statusCompartilhado) await removerRetrato(wsId, projectId).catch(() => {
+  });
   const tasksSnap = await getDocs(collection(db, "workspaces", wsId, "projects", projectId, "tasks"));
   for (const t of tasksSnap.docs) {
     await deleteDoc(t.ref);
@@ -36853,7 +39912,7 @@ async function deleteProject(wsId, projectId) {
   await purgeProjectChat(wsId, projectId);
   await deleteDoc(wsProjectDoc(wsId, projectId));
 }
-var init_queries5 = __esm({
+var init_queries6 = __esm({
   "src/features/projects/queries.ts"() {
     init_firestore();
     init_firebase();
@@ -36861,6 +39920,7 @@ var init_queries5 = __esm({
     init_queries();
     init_queries2();
     init_queries3();
+    init_queries4();
     init_codes();
   }
 });
@@ -36928,16 +39988,16 @@ var GliaToolError, TTL_MS, cache2;
 var init_context = __esm({
   "mcp/src/context.ts"() {
     "use strict";
-    init_queries5();
+    init_queries6();
     init_codes();
-    init_queries4();
+    init_queries5();
     init_models();
     init_session();
     init_workspace();
     init_config();
     GliaToolError = class extends Error {
-      constructor(message) {
-        super(message);
+      constructor(message2) {
+        super(message2);
         this.name = "GliaToolError";
       }
     };
@@ -37021,7 +40081,7 @@ async function fetchAllTasks(wsId) {
   );
   return taskArrays.flat();
 }
-var init_queries6 = __esm({
+var init_queries7 = __esm({
   "src/features/calendar/queries.ts"() {
     init_firestore();
     init_firestore_paths();
@@ -37082,7 +40142,7 @@ function wouldCreateCycle(ownerType, ownerId, target, allTasks, allProjects) {
 function connectionKey(c) {
   return `${c.linkType}:${c.target.type}:${c.target.id}`;
 }
-var init_queries7 = __esm({
+var init_queries8 = __esm({
   "src/features/connections/queries.ts"() {
     init_models();
   }
@@ -37122,7 +40182,7 @@ async function markAllAsRead(uid) {
   });
   await batch.commit();
 }
-var init_queries8 = __esm({
+var init_queries9 = __esm({
   "src/features/notifications/queries.ts"() {
     init_firestore();
     init_firebase();
@@ -37144,7 +40204,7 @@ function closeChecklistOnDone(checklist) {
 }
 var init_statusChange = __esm({
   "src/features/project-detail/statusChange.ts"() {
-    init_queries7();
+    init_queries8();
   }
 });
 
@@ -37581,15 +40641,15 @@ var init_glia = __esm({
   "mcp/src/glia.ts"() {
     "use strict";
     init_firestore();
-    init_queries6();
+    init_queries7();
     init_parse();
     init_queries2();
-    init_queries7();
     init_queries8();
+    init_queries9();
     init_queries();
     init_labels();
     init_statusChange();
-    init_queries5();
+    init_queries6();
     init_queries3();
     init_codes();
     init_firestore_paths();
@@ -37608,6 +40668,9 @@ var init_glia = __esm({
       anotacaoCurta: (noteId) => `${HOSTING_ORIGIN}/a/${noteId}`,
       relatorio: (p) => `${HOSTING_ORIGIN}/projetos/${p.id}/relatorio`,
       portal: (portalId) => `${HOSTING_ORIGIN}/sugestoes/${portalId}`,
+      /** Painel público de status da workspace e o cronograma de um projeto nele (sem login). */
+      status: (token) => `${HOSTING_ORIGIN}/status/${token}`,
+      statusProjeto: (token, projectId) => `${HOSTING_ORIGIN}/status/${token}/${projectId}`,
       convite: (wsId, token) => `${HOSTING_ORIGIN}/entrar/${wsId}/${token}`,
       chat: (canal, messageId) => `${HOSTING_ORIGIN}/chat?canal=${channelKey(canal)}${messageId ? `&msg=${messageId}` : ""}`,
       calendario: () => `${HOSTING_ORIGIN}/calendario`
@@ -37634,16 +40697,16 @@ function lerPrioridade(texto) {
   if (["alta", "high", "a"].includes(n)) return "high";
   throw new Error(`Prioridade "${texto}" inv\xE1lida \u2014 use baixa, m\xE9dia ou alta.`);
 }
-function data(ts) {
-  if (!ts || typeof ts.toDate !== "function") return null;
-  return ts.toDate().toISOString().slice(0, 10);
+function data(ts2) {
+  if (!ts2 || typeof ts2.toDate !== "function") return null;
+  return ts2.toDate().toISOString().slice(0, 10);
 }
 function dataHoraLocal(d) {
   return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())} ${dois(d.getHours())}:${dois(d.getMinutes())}`;
 }
-function dataHora(ts) {
-  if (!ts || typeof ts.toDate !== "function") return "?";
-  return dataHoraLocal(ts.toDate());
+function dataHora(ts2) {
+  if (!ts2 || typeof ts2.toDate !== "function") return "?";
+  return dataHoraLocal(ts2.toDate());
 }
 function trecho(texto, max = 160) {
   const limpo = texto.replace(/\s+/g, " ").trim();
@@ -37852,76 +40915,10 @@ async function fetchPreferences(uid) {
   const snap = await getDoc(preferencesDoc(uid));
   return snap.exists() ? snap.data() : {};
 }
-var init_queries9 = __esm({
+var init_queries10 = __esm({
   "src/features/settings/queries.ts"() {
     init_firestore();
     init_firestore_paths();
-  }
-});
-
-// src/features/project-detail/roadmap/metrics.ts
-function taskCompletion(task, doneSet) {
-  if (doneSet.has(task.status)) return 1;
-  const checklist = task.checklist ?? [];
-  if (checklist.length === 0) return 0;
-  return checklist.filter((item) => item.done).length / checklist.length;
-}
-function phaseMetrics(phase, tasks, doneSet, options = {}) {
-  const own = tasks.filter((t) => t.phaseId === phase.id);
-  const doneCount = own.filter((t) => doneSet.has(t.status)).length;
-  const pending = own.filter((t) => !doneSet.has(t.status));
-  const totalCount = own.length;
-  let progress;
-  let status;
-  if (totalCount === 0) {
-    progress = phase.progress;
-    status = phase.status;
-  } else {
-    const completed = options.weighted ? own.reduce((sum, t) => sum + taskCompletion(t, doneSet), 0) : doneCount;
-    const raw = completed / totalCount * 100;
-    const allDone = doneCount === totalCount;
-    progress = allDone ? 100 : raw > 0 ? Math.min(99, Math.max(1, Math.round(raw))) : 0;
-    status = allDone ? "done" : raw > 0 ? "doing" : "todo";
-  }
-  let overdueCount = 0;
-  let dueTodayCount = 0;
-  let nextDue = null;
-  let nextDueAt = null;
-  for (const task of pending) {
-    const due = toDate2(task.dueDate);
-    if (!due) continue;
-    if (isOverdue(due)) overdueCount += 1;
-    else if (isDueToday(due)) dueTodayCount += 1;
-    const at = due.getTime();
-    if (nextDueAt === null || at < nextDueAt) {
-      nextDueAt = at;
-      nextDue = task;
-    }
-  }
-  let health;
-  if (overdueCount > 0) health = "overdue";
-  else if (dueTodayCount > 0) health = "today";
-  else if (nextDue) health = "ontrack";
-  else if (totalCount > 0 && doneCount === totalCount) health = "ontrack";
-  else health = "nodates";
-  return { progress, status, doneCount, totalCount, overdueCount, dueTodayCount, nextDue, health };
-}
-function metricsOptionsFor(roadmapType) {
-  return { weighted: (roadmapType ?? "sequencial") !== "paralelo" };
-}
-function buildRoadmapItems(phases, tasks, doneSet, roadmapType) {
-  const options = metricsOptionsFor(roadmapType);
-  return phases.map((phase) => {
-    const metrics = phaseMetrics(phase, tasks, doneSet, options);
-    return {
-      phase: { ...phase, progress: metrics.progress, status: metrics.status },
-      metrics
-    };
-  });
-}
-var init_metrics = __esm({
-  "src/features/project-detail/roadmap/metrics.ts"() {
-    init_utils();
   }
 });
 
@@ -38466,8 +41463,8 @@ var init_projetos = __esm({
     init_parse();
     init_queries();
     init_labels();
-    init_queries5();
-    init_queries9();
+    init_queries6();
+    init_queries10();
     init_models();
     init_context();
     init_format2();
@@ -38488,21 +41485,21 @@ function lerCor(ref) {
   return cor.value;
 }
 function rotuloPrazo(nota, membros) {
-  const dia = data(nota.dueDate ?? null);
-  if (!dia) return "";
+  const dia2 = data(nota.dueDate ?? null);
+  if (!dia2) return "";
   const quem = membros.find((m) => m.uid === nota.dueRecipientUid)?.displayName;
   const estado = nota.dueNotifiedAt ? " (aviso enviado)" : noteIsDue(nota) ? " (chegou)" : "";
-  return `prazo ${dia}${estado}${quem ? ` \xB7 avisa ${quem}` : ""}`;
+  return `prazo ${dia2}${estado}${quem ? ` \xB7 avisa ${quem}` : ""}`;
 }
 async function aplicarPrazo(ctx, projectId, noteId, prazo, avisar, atual) {
-  const dia = prazo === null ? null : lerData(prazo, "Prazo") ?? null;
+  const dia2 = prazo === null ? null : lerData(prazo, "Prazo") ?? null;
   const membros = await ctx.membros();
   const para = avisar ? await resolveMembro(ctx, avisar) : membros.find((m) => m.uid === (atual ?? ctx.eu.uid)) ?? membros.find((m) => m.uid === ctx.eu.uid);
-  await setNoteDue(ctx.wsId, projectId, noteId, dia, para?.uid ?? ctx.eu.uid);
-  if (!dia) return "Prazo removido.";
+  await setNoteDue(ctx.wsId, projectId, noteId, dia2, para?.uid ?? ctx.eu.uid);
+  if (!dia2) return "Prazo removido.";
   const quem = !para || para.uid === ctx.eu.uid ? "voc\xEA" : para.displayName;
-  const dataTxt = dia.toISOString().slice(0, 10);
-  if (noteIsDue({ dueDate: dia })) {
+  const dataTxt = dia2.toISOString().slice(0, 10);
+  if (noteIsDue({ dueDate: dia2 })) {
     const saiu = await notifyDueNote(ctx.wsId, projectId, noteId, quemEDosMembros(membros));
     return `Prazo ${dataTxt} \u2014 j\xE1 chegou: ${saiu ? `o aviso "revisar anota\xE7\xE3o" foi para ${quem}` : `o aviso para ${quem} j\xE1 tinha sa\xEDdo`}.`;
   }
@@ -38756,9 +41753,9 @@ ${linhas.slice(0, MAX).join("\n")}`);
       );
       secao(
         "Chat",
-        mensagens.filter(({ message }) => bate(message.text)).map(({ message, channel }) => {
+        mensagens.filter(({ message: message2 }) => bate(message2.text)).map(({ message: message2, channel }) => {
           const canal = channel.kind === "global" ? "Chat geral" : `#${projetos.find((p) => p.id === channel.projectId)?.name ?? "?"}`;
-          return `- ${dataHora(message.createdAt)} ${canal} \xB7 **${message.authorName}**: ${emVolta(message.text, termo)} \u2014 ${link.chat(channel, message.id)}`;
+          return `- ${dataHora(message2.createdAt)} ${canal} \xB7 **${message2.authorName}**: ${emVolta(message2.text, termo)} \u2014 ${link.chat(channel, message2.id)}`;
         })
       );
       secao(
@@ -38792,9 +41789,9 @@ var init_busca = __esm({
 });
 
 // src/features/chat/notify.ts
-async function notifyChatMessage(ctx, message, mentions, threadParticipants = []) {
+async function notifyChatMessage(ctx, message2, mentions, threadParticipants = []) {
   const jaAvisados = /* @__PURE__ */ new Set([ctx.actor.uid]);
-  const payload = base2(ctx, message);
+  const payload = base2(ctx, message2);
   for (const uid of mentions) {
     if (jaAvisados.has(uid)) continue;
     jaAvisados.add(uid);
@@ -38808,10 +41805,10 @@ async function notifyChatMessage(ctx, message, mentions, threadParticipants = []
     });
   }
 }
-async function notifyMessageBecameTask(ctx, message, task) {
+async function notifyMessageBecameTask(ctx, message2, task) {
   await createNotification({
-    ...base2(ctx, message),
-    recipientUid: message.authorUid,
+    ...base2(ctx, message2),
+    recipientUid: message2.authorUid,
     type: "chat_task_created",
     /**
      * A tarefa entra só como rótulo (`taskId`/`taskTitle`). `projectId` continua
@@ -38824,11 +41821,11 @@ async function notifyMessageBecameTask(ctx, message, task) {
   }).catch(() => {
   });
 }
-async function notifyChatReaction(ctx, message, emocao) {
-  if (message.authorUid === ctx.actor.uid) return;
+async function notifyChatReaction(ctx, message2, emocao) {
+  if (message2.authorUid === ctx.actor.uid) return;
   await createNotification({
-    ...base2(ctx, message),
-    recipientUid: message.authorUid,
+    ...base2(ctx, message2),
+    recipientUid: message2.authorUid,
     type: "reaction",
     sticker: emocao
   }).catch(() => {
@@ -38837,9 +41834,9 @@ async function notifyChatReaction(ctx, message, emocao) {
 var base2;
 var init_notify = __esm({
   "src/features/chat/notify.ts"() {
-    init_queries8();
+    init_queries9();
     init_parse();
-    base2 = (ctx, message) => ({
+    base2 = (ctx, message2) => ({
       actorUid: ctx.actor.uid,
       actorName: ctx.actor.name,
       actorPhoto: ctx.actor.photo,
@@ -38847,9 +41844,9 @@ var init_notify = __esm({
       projectId: ctx.channel.kind === "project" ? ctx.channel.projectId ?? "" : "",
       projectName: ctx.channel.kind === "project" ? ctx.projectName : "",
       channelKind: ctx.channel.kind,
-      messageId: message.id,
-      ...message.parentId ? { threadRootId: message.parentId } : {},
-      excerpt: excerpt(message.text, 140)
+      messageId: message2.id,
+      ...message2.parentId ? { threadRootId: message2.parentId } : {},
+      excerpt: excerpt(message2.text, 140)
     });
   }
 });
@@ -39163,7 +42160,7 @@ var init_notificacoes = __esm({
     "use strict";
     init_firestore();
     init_zod();
-    init_queries8();
+    init_queries9();
     init_prazo();
     init_firestore_paths();
     init_models();
@@ -39184,6 +42181,248 @@ var init_notificacoes = __esm({
     };
     CARENCIA_MS = 10 * 6e4;
     varridaEm = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/features/project-detail/roadmap/phaseTheme.ts
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+var PHASE_STATUS_COLORS;
+var init_phaseTheme = __esm({
+  "src/features/project-detail/roadmap/phaseTheme.ts"() {
+    PHASE_STATUS_COLORS = {
+      light: {
+        done: "#5b7a5e",
+        doing: "#3f7d7a",
+        todo: "#7a8190"
+      },
+      dark: {
+        done: "#7ba880",
+        doing: "#5aa6a2",
+        todo: "#9aa0ad"
+      }
+    };
+  }
+});
+
+// src/features/status/gantt.ts
+function deRetrato(s) {
+  return {
+    id: s.id,
+    nome: s.nome,
+    descricao: s.descricao ?? "",
+    cor: s.cor,
+    roadmapType: s.roadmapType ?? "sequencial",
+    fimPrevisto: ms(s.fimPrevisto),
+    fimPrevistoOrigem: s.fimPrevistoOrigem ?? null,
+    concluidoEm: ms(s.concluidoEm),
+    pct: s.pct ?? 0,
+    faseAtual: s.faseAtual ?? null,
+    fases: (s.fases ?? []).map((f) => ({
+      id: f.id,
+      nome: f.nome,
+      status: f.status,
+      pct: f.pct ?? 0,
+      inicio: ms(f.inicio),
+      fim: ms(f.fim),
+      inicioReal: ms(f.inicioReal),
+      fimReal: ms(f.fimReal),
+      fimInformado: !!f.fimInformado,
+      entregaveis: f.entregaveis ?? []
+    }))
+  };
+}
+function hojeMs(agora = /* @__PURE__ */ new Date()) {
+  return Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate(), 12);
+}
+function situacaoDe(p, hoje) {
+  if (p.concluidoEm !== null) {
+    const desvio = p.fimPrevisto !== null ? dias(p.concluidoEm, p.fimPrevisto) : null;
+    return {
+      concluido: true,
+      atrasado: false,
+      rotulo: "Conclu\xEDdo",
+      cor: NEUTRO,
+      bg: NEUTRO_BG,
+      diasLabel: `conclu\xEDdo em ${curto(p.concluidoEm)}`,
+      desvioConclusao: desvio
+    };
+  }
+  if (p.fimPrevisto === null) {
+    return {
+      concluido: false,
+      atrasado: false,
+      rotulo: "Sem prazo",
+      cor: NEUTRO,
+      bg: NEUTRO_BG,
+      diasLabel: "sem fim previsto",
+      desvioConclusao: null
+    };
+  }
+  const dd = dias(p.fimPrevisto, hoje);
+  const atrasado = dd < 0;
+  return {
+    concluido: false,
+    atrasado,
+    rotulo: atrasado ? "Atrasado" : "No prazo",
+    cor: atrasado ? ROSE : GREEN,
+    bg: atrasado ? ROSE_BG : GREEN_BG,
+    diasLabel: dd < 0 ? `${-dd} dias de atraso` : dd === 0 ? "vence hoje" : dd === 1 ? "falta 1 dia" : `faltam ${dd} dias`,
+    desvioConclusao: null
+  };
+}
+function leituraDaFase(f, hoje) {
+  if (f.status === "done") {
+    const atrasou = f.fimReal !== null && f.fim !== null && f.fimReal > f.fim;
+    const d = atrasou ? dias(f.fimReal, f.fim) : 0;
+    return {
+      statusLabel: atrasou ? `Conclu\xEDda \xB7 ${d}d ap\xF3s` : "Conclu\xEDda",
+      statusCor: atrasou ? ROSE : COR.done,
+      titulo: atrasou ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 100%`
+    };
+  }
+  if (f.status === "doing") {
+    const late2 = f.fim !== null && hoje > f.fim;
+    const d = late2 ? dias(hoje, f.fim) : 0;
+    return {
+      statusLabel: late2 ? `Em andamento \xB7 ${d}d al\xE9m` : "Em andamento",
+      statusCor: late2 ? ROSE : COR.doing,
+      titulo: late2 ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 ${f.pct}%`
+    };
+  }
+  return { statusLabel: "A fazer", statusCor: "hsl(34 7% 58%)", titulo: `${f.nome} \xB7 a fazer` };
+}
+var DIA, ms, dias, curto, COR, SOFT, ROSE, ROSE_BG, GREEN, GREEN_BG, NEUTRO, NEUTRO_BG;
+var init_gantt = __esm({
+  "src/features/status/gantt.ts"() {
+    init_date_fns();
+    init_locale();
+    init_phaseTheme();
+    init_utils();
+    DIA = 864e5;
+    ms = (t) => {
+      const d = toDate2(t ?? null);
+      return d ? d.getTime() : null;
+    };
+    dias = (a, b) => Math.round((a - b) / DIA);
+    curto = (t) => format(new Date(t), "d MMM", { locale: ptBR });
+    COR = PHASE_STATUS_COLORS.light;
+    SOFT = {
+      done: hexToRgba(COR.done, 0.22),
+      doing: hexToRgba(COR.doing, 0.22),
+      todo: hexToRgba(COR.todo, 0.22)
+    };
+    ROSE = "#e11d48";
+    ROSE_BG = "rgba(244,63,94,.12)";
+    GREEN = "#047857";
+    GREEN_BG = "rgba(16,185,129,.12)";
+    NEUTRO = "hsl(36 8% 39%)";
+    NEUTRO_BG = "hsl(40 32% 92%)";
+  }
+});
+
+// mcp/src/tools/status.ts
+async function descreverRetrato(ctx, p, token) {
+  const [phases, tasks] = await Promise.all([fetchPhases(ctx.wsId, p.id), fetchTasks(ctx.wsId, p.id)]);
+  const retrato = montarRetrato(p, phases, tasks);
+  const g = deRetrato({ ...retrato, id: p.id, versao: "", atualizadoPor: "" });
+  const hoje = hojeMs();
+  const sit = situacaoDe(g, hoje);
+  const linhas = [
+    `Painel p\xFAblico: ${link.status(token)}`,
+    `Cronograma de **${p.name}**: ${link.statusProjeto(token, p.id)}`,
+    `Situa\xE7\xE3o no painel: ${sit.rotulo}${g.fimPrevisto !== null ? ` \xB7 fim previsto ${data(retrato.fimPrevisto)}${retrato.fimPrevistoOrigem === "fases" ? " (pela \xFAltima fase \u2014 defina fim_previsto para fixar)" : ""} \xB7 ${sit.diasLabel}` : " \xB7 sem fim previsto (defina fim_previsto)"} \xB7 ${g.pct}% conclu\xEDdo`
+  ];
+  if (g.fases.length === 0) {
+    linhas.push("Sem fases no Panorama: o cronograma sai vazio at\xE9 o time criar fases (criar_fases).");
+  } else {
+    linhas.push("Fases como aparecem no link:");
+    g.fases.forEach((f, i) => {
+      const l = leituraDaFase(f, hoje);
+      const janela = f.inicio !== null && f.fim !== null ? `${curto(f.inicio)} \u2013 ${curto(f.fim)}` : "sem datas";
+      linhas.push(`  ${String(i + 1).padStart(2, "0")}. ${f.nome} \xB7 ${janela} \xB7 ${f.pct}% \xB7 ${l.statusLabel}`);
+    });
+  }
+  linhas.push("No link: nome, descri\xE7\xE3o, fim previsto, fases com datas, progresso e entreg\xE1veis. Fora: tarefas, respons\xE1veis, chat e anota\xE7\xF5es.");
+  return linhas.join("\n");
+}
+function registerStatusTools(server) {
+  server.registerTool(
+    "status_compartilhado",
+    {
+      title: "Link p\xFAblico de status (painel para fora da equipe)",
+      description: 'O link p\xFAblico de status da workspace: um painel SEM login com o andamento por fase dos projetos que o time escolheu compartilhar (aba Compartilhar do projeto). Sem `ativo`, s\xF3 consulta e, se o projeto j\xE1 est\xE1 no painel, republica o retrato. `ativo: true` p\xF5e o projeto no painel (cria o link da workspace na primeira vez); `ativo: false` tira. `fim_previsto` (AAAA-MM-DD; vazio tira) \xE9 a data que decide "no prazo"/"atrasado" no painel.',
+      inputSchema: {
+        projeto: projetoParam,
+        ativo: external_exports.boolean().optional().describe("true p\xF5e o projeto no painel p\xFAblico; false tira. Omitido = consultar."),
+        fim_previsto: external_exports.string().optional().describe("Fim previsto do projeto, AAAA-MM-DD. String vazia apaga (volta a valer o fim da \xFAltima fase)."),
+        workspace: workspaceParam6
+      }
+    },
+    ({ projeto, ativo, fim_previsto, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      let p = await resolveProjeto(ctx, projeto, true);
+      const notas = [];
+      const fim = lerData(fim_previsto, "Fim previsto");
+      if (fim !== void 0) {
+        await setProjectFimPrevisto(ctx.wsId, p.id, fim);
+        esquecer(`projetos:${ctx.wsId}`);
+        p = { ...p, dueDate: fim ? Timestamp.fromDate(fim) : null };
+        notas.push(fim ? `Fim previsto: ${data(p.dueDate)}.` : "Fim previsto apagado (vale o fim da \xFAltima fase).");
+      }
+      let token = await fetchStatusToken(ctx.wsId);
+      const noPainel = !!p.statusCompartilhado && !!token;
+      if (ativo === false) {
+        if (!noPainel) return [...notas, `${p.name} n\xE3o est\xE1 no painel p\xFAblico \u2014 nada para tirar.`].join("\n");
+        await desativarStatusDoProjeto(ctx.wsId, p.id, token);
+        esquecer(`projetos:${ctx.wsId}`);
+        return [...notas, `${p.name} saiu do painel p\xFAblico na hora. O link ${link.status(token)} continua valendo para os outros projetos compartilhados; status_compartilhado com ativo=true p\xF5e de volta.`].join("\n");
+      }
+      if (!noPainel && ativo !== true) {
+        return [
+          ...notas,
+          `${p.name} n\xE3o est\xE1 no painel p\xFAblico de status.`,
+          token ? `O link da workspace j\xE1 existe (${link.status(token)}); status_compartilhado com ativo=true p\xF5e este projeto nele.` : "A workspace ainda n\xE3o tem link de status; status_compartilhado com ativo=true cria o link e p\xF5e este projeto nele."
+        ].join("\n");
+      }
+      if (p.status === "archived") {
+        return [...notas, `${p.name} est\xE1 arquivado e n\xE3o entra no painel. Restaure com atualizar_projeto (arquivado=false) antes.`].join("\n");
+      }
+      const [phases, tasks] = await Promise.all([fetchPhases(ctx.wsId, p.id), fetchTasks(ctx.wsId, p.id)]);
+      const retrato = montarRetrato(p, phases, tasks);
+      if (!noPainel) {
+        token = await ativarStatusDoProjeto(ctx.wsId, p.id, retrato, ctx.eu.uid, ctx.wsName);
+        esquecer(`projetos:${ctx.wsId}`);
+        notas.push(`${p.name} entrou no painel p\xFAblico agora.`);
+      } else {
+        const r = await publicarRetrato(token, p.id, retrato, ctx.eu.uid, void 0);
+        if (r === "gravado") notas.push("Retrato republicado com o estado atual do projeto.");
+      }
+      return [...notas, await descreverRetrato(ctx, p, token)].join("\n");
+    })
+  );
+}
+var workspaceParam6;
+var init_status = __esm({
+  "mcp/src/tools/status.ts"() {
+    "use strict";
+    init_firestore();
+    init_zod();
+    init_queries();
+    init_gantt();
+    init_queries4();
+    init_snapshot();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    init_projetos();
+    workspaceParam6 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
   }
 });
 
@@ -39228,7 +42467,7 @@ function registerSugestaoTools(server) {
       inputSchema: {
         projeto: projetoParam,
         ativo: external_exports.boolean().optional().describe("true liga/religa o link; false desliga. Omitido = s\xF3 consultar (criando se n\xE3o existir)."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, ativo, workspace }) => executar(async () => {
@@ -39259,7 +42498,7 @@ function registerSugestaoTools(server) {
         projeto: projetoParam,
         status: external_exports.string().optional().describe("Filtrar: recebida | em an\xE1lise | planejada | conclu\xEDda | recusada."),
         incluir_ocultas: external_exports.boolean().optional().describe("Tamb\xE9m as que o time ocultou ou uniu a outra (padr\xE3o: n\xE3o)."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, status, incluir_ocultas, workspace }) => executar(async () => {
@@ -39286,7 +42525,7 @@ ${listaSugestoes(lista)}`;
         projeto: projetoParam,
         sugestao: sugestaoParam,
         imagens: external_exports.boolean().optional().describe("Trazer os prints em tamanho cheio (padr\xE3o: sim)."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, sugestao, imagens, workspace }) => executar(async () => {
@@ -39314,7 +42553,7 @@ ${listaSugestoes(lista)}`;
         projeto: projetoParam,
         titulo: external_exports.string().min(1),
         descricao: external_exports.string().min(1).describe("O problema ou a ideia, com contexto suficiente para o time avaliar."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, titulo, descricao, workspace }) => executar(async () => {
@@ -39346,7 +42585,7 @@ Portal: ${link.portal(pp.portal.id)}`;
         oculta: external_exports.boolean().optional().describe("true tira do mural p\xFAblico (o time continua vendo); false reexibe."),
         titulo: external_exports.string().optional().describe("S\xF3 se voc\xEA for o autor da sugest\xE3o."),
         descricao: external_exports.string().optional().describe("S\xF3 se voc\xEA for o autor da sugest\xE3o."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, sugestao, status, resposta, oculta, titulo, descricao, workspace }) => executar(async () => {
@@ -39390,7 +42629,7 @@ Portal: ${link.portal(pp.portal.id)}`;
         prazo: external_exports.string().optional().describe("AAAA-MM-DD"),
         responsaveis: external_exports.array(external_exports.string()).optional().describe("Padr\xE3o: o usu\xE1rio logado."),
         fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id)."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, sugestao, titulo, coluna, prioridade, prazo, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
@@ -39431,7 +42670,7 @@ ${link.tarefa(p, t)}${aviso}`;
         projeto: projetoParam,
         duplicada: sugestaoParam.describe("A sugest\xE3o repetida (sai do mural)."),
         principal: sugestaoParam.describe("A sugest\xE3o que fica e recebe os votos."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, duplicada, principal, workspace }) => executar(async () => {
@@ -39455,7 +42694,7 @@ ${link.tarefa(p, t)}${aviso}`;
         projeto: projetoParam,
         sugestao: sugestaoParam,
         votar: external_exports.boolean().optional().describe("true = votar (padr\xE3o), false = tirar o voto."),
-        workspace: workspaceParam6
+        workspace: workspaceParam7
       }
     },
     ({ projeto, sugestao, votar, workspace }) => executar(async () => {
@@ -39475,7 +42714,7 @@ ${link.tarefa(p, t)}${aviso}`;
     {
       title: "Excluir sugest\xE3o",
       description: "Apaga a sugest\xE3o e os prints dela de vez. Para s\xF3 tirar do mural, prefira atualizar_sugestao com oculta=true. Confirme com o usu\xE1rio antes.",
-      inputSchema: { projeto: projetoParam, sugestao: sugestaoParam, workspace: workspaceParam6 }
+      inputSchema: { projeto: projetoParam, sugestao: sugestaoParam, workspace: workspaceParam7 }
     },
     ({ projeto, sugestao, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -39486,7 +42725,7 @@ ${link.tarefa(p, t)}${aviso}`;
     })
   );
 }
-var workspaceParam6, sugestaoParam;
+var workspaceParam7, sugestaoParam;
 var init_sugestoes = __esm({
   "mcp/src/tools/sugestoes.ts"() {
     "use strict";
@@ -39502,7 +42741,7 @@ var init_sugestoes = __esm({
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam6 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam7 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     sugestaoParam = external_exports.string().describe("T\xEDtulo (ou parte \xFAnica dele) ou id da sugest\xE3o (listar_sugestoes mostra).");
   }
 });
@@ -39526,11 +42765,11 @@ function conexoesLegiveis(conns, todas, projetos) {
 }
 async function citacoes(ctx, p, t) {
   const achadas = await fetchTaskDiscussions(ctx.wsId, p.id, t.id).catch(() => []);
-  return achadas.map(({ message, channel }) => ({
+  return achadas.map(({ message: message2, channel }) => ({
     canal: channel.kind === "global" ? "Chat geral" : `#${p.name}`,
-    autor: message.authorName,
-    quando: dataHora(message.createdAt),
-    texto: message.text
+    autor: message2.authorName,
+    quando: dataHora(message2.createdAt),
+    texto: message2.text
   }));
 }
 function registerTarefaTools(server) {
@@ -39545,7 +42784,7 @@ function registerTarefaTools(server) {
         coluna: external_exports.string().optional().describe('Filtrar por coluna do Kanban (id ou nome, ex. "Em Andamento").'),
         minhas: external_exports.boolean().optional().describe("S\xF3 as tarefas em que o usu\xE1rio logado \xE9 respons\xE1vel."),
         fase: external_exports.string().optional().describe("S\xF3 as tarefas vinculadas a esta fase (nome ou id)."),
-        workspace: workspaceParam7
+        workspace: workspaceParam8
       }
     },
     ({ projeto, pendentes, coluna, minhas, fase, workspace }) => executar(async () => {
@@ -39591,7 +42830,7 @@ function registerTarefaTools(server) {
         pendentes: external_exports.boolean().optional().describe("S\xF3 as n\xE3o conclu\xEDdas (padr\xE3o: true)."),
         prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
         tag: external_exports.string().optional(),
-        workspace: workspaceParam7
+        workspace: workspaceParam8
       }
     },
     (args) => executar(async () => {
@@ -39600,7 +42839,7 @@ function registerTarefaTools(server) {
       const filtros = [];
       const hoje = /* @__PURE__ */ new Date();
       hoje.setHours(0, 0, 0, 0);
-      const dia = (t) => t.dueDate ? /* @__PURE__ */ new Date(`${data(t.dueDate)}T00:00:00`) : null;
+      const dia2 = (t) => t.dueDate ? /* @__PURE__ */ new Date(`${data(t.dueDate)}T00:00:00`) : null;
       if (args.pendentes ?? true) {
         lista = lista.filter(({ projeto, tarefa }) => !doneStatusIds(projeto.columns).has(tarefa.status));
         filtros.push("pendentes");
@@ -39616,7 +42855,7 @@ function registerTarefaTools(server) {
       }
       if (args.atrasadas) {
         lista = lista.filter(({ projeto, tarefa }) => {
-          const d = dia(tarefa);
+          const d = dia2(tarefa);
           return d !== null && d < hoje && !doneStatusIds(projeto.columns).has(tarefa.status);
         });
         filtros.push("atrasadas");
@@ -39624,7 +42863,7 @@ function registerTarefaTools(server) {
       if (args.prazo_ate) {
         const limite = lerDiaLocal(args.prazo_ate, "prazo_ate");
         lista = lista.filter(({ tarefa }) => {
-          const d = dia(tarefa);
+          const d = dia2(tarefa);
           return d !== null && d <= limite;
         });
         filtros.push(`prazo at\xE9 ${args.prazo_ate}`);
@@ -39648,7 +42887,7 @@ function registerTarefaTools(server) {
         );
         filtros.push(`"${args.texto.trim()}"`);
       }
-      lista.sort((a, b) => (dia(a.tarefa)?.getTime() ?? Infinity) - (dia(b.tarefa)?.getTime() ?? Infinity));
+      lista.sort((a, b) => (dia2(a.tarefa)?.getTime() ?? Infinity) - (dia2(b.tarefa)?.getTime() ?? Infinity));
       const titulo = `Tarefas da workspace **${ctx.wsName}**${filtros.length ? ` (${filtros.join(", ")})` : ""} \u2014 ${lista.length}:`;
       if (lista.length === 0) return `${titulo}
 
@@ -39670,7 +42909,7 @@ ${linhas.join("\n")}${resto}`;
       inputSchema: {
         tarefa: tarefaParam,
         projeto: external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo."),
-        workspace: workspaceParam7
+        workspace: workspaceParam8
       }
     },
     ({ tarefa, projeto, workspace }) => executar(async () => {
@@ -39690,7 +42929,7 @@ ${linhas.join("\n")}${resto}`;
     })
   );
 }
-var workspaceParam7, tarefaParam;
+var workspaceParam8, tarefaParam;
 var init_tarefas = __esm({
   "mcp/src/tools/tarefas.ts"() {
     "use strict";
@@ -39704,7 +42943,7 @@ var init_tarefas = __esm({
     init_glia();
     init_comum();
     init_projetos();
-    workspaceParam7 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam8 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     tarefaParam = external_exports.string().describe("C\xF3digo p\xFAblico da tarefa (ex. IC-25) ou o id do documento.");
   }
 });
@@ -39737,7 +42976,7 @@ function registerTarefaEscritaTools(server) {
         subtarefas: external_exports.array(external_exports.string()).optional().describe("Textos das subtarefas iniciais."),
         responsaveis: responsaveisParam,
         fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id) a que a tarefa pertence."),
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ projeto, titulo, descricao, coluna, prioridade, prazo, inicio, tags, subtarefas, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
@@ -39786,7 +43025,7 @@ ${link.tarefa(p, t)}${aviso}`;
         tags: external_exports.array(external_exports.string()).optional().describe("Substitui a lista inteira de tags."),
         fase: external_exports.string().optional().describe("Fase (nome ou id). String vazia desvincula."),
         responsaveis: responsaveisParam.describe("Substitui a lista inteira de respons\xE1veis."),
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ tarefa, projeto, titulo, descricao, prioridade, prazo, inicio, tags, fase, responsaveis: responsaveis2, workspace }) => executar(async () => {
@@ -39857,7 +43096,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         coluna: external_exports.string().describe('Coluna de destino (id ou nome, ex. "Conclu\xEDdo") \u2014 a atual, para s\xF3 reordenar.'),
         posicao: external_exports.number().int().min(1).optional().describe("Posi\xE7\xE3o na coluna (1 = topo). Padr\xE3o: no fim."),
         projeto: projetoOpcional2,
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ tarefa, coluna, posicao, projeto, workspace }) => executar(async () => {
@@ -39881,7 +43120,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         subtarefa: external_exports.string().describe("Id ou texto (ou parte \xFAnica do texto) da subtarefa."),
         feito: external_exports.boolean().optional().describe("true = feita (padr\xE3o), false = reabrir."),
         projeto: projetoOpcional2,
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ tarefa, subtarefa, feito, projeto, workspace }) => executar(async () => {
@@ -39906,7 +43145,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         texto: external_exports.string().min(1),
         responsavel: external_exports.string().optional().describe("Nome, e-mail ou uid de quem fica com a subtarefa."),
         projeto: projetoOpcional2,
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ tarefa, texto, responsavel, projeto, workspace }) => executar(async () => {
@@ -39930,7 +43169,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
         tarefa: tarefaParam,
         texto: external_exports.string().min(1),
         projeto: projetoOpcional2,
-        workspace: workspaceParam8
+        workspace: workspaceParam9
       }
     },
     ({ tarefa, texto, projeto, workspace }) => executar(async () => {
@@ -39951,7 +43190,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
     })
   );
 }
-var workspaceParam8, projetoOpcional2, prazoParam2, inicioParam, responsaveisParam, lerPrazo;
+var workspaceParam9, projetoOpcional2, prazoParam2, inicioParam, responsaveisParam, lerPrazo;
 var init_tarefas_escrita = __esm({
   "mcp/src/tools/tarefas-escrita.ts"() {
     "use strict";
@@ -39968,7 +43207,7 @@ var init_tarefas_escrita = __esm({
     init_comum();
     init_projetos();
     init_tarefas();
-    workspaceParam8 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam9 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoOpcional2 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
     prazoParam2 = external_exports.string().optional().describe("Prazo no formato AAAA-MM-DD. String vazia remove o prazo.");
     inicioParam = external_exports.string().optional().describe("In\xEDcio no formato AAAA-MM-DD (opcional). String vazia remove.");
@@ -39998,7 +43237,7 @@ function registerTarefaExtrasTools(server) {
     {
       title: "Excluir tarefa",
       description: "Apaga a tarefa e os coment\xE1rios dela de vez (n\xE3o h\xE1 lixeira; o n\xFAmero do c\xF3digo n\xE3o \xE9 reaproveitado). Para tirar do caminho sem apagar, mova para a conclus\xE3o. Confirme com o usu\xE1rio antes.",
-      inputSchema: { tarefa: tarefaParam, projeto: projetoOpcional3, workspace: workspaceParam9 }
+      inputSchema: { tarefa: tarefaParam, projeto: projetoOpcional3, workspace: workspaceParam10 }
     },
     ({ tarefa, projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -40019,7 +43258,7 @@ function registerTarefaExtrasTools(server) {
         responsavel: external_exports.string().optional().describe("Nome, e-mail ou uid. String vazia tira o respons\xE1vel."),
         remover: external_exports.boolean().optional().describe("true apaga a subtarefa."),
         projeto: projetoOpcional3,
-        workspace: workspaceParam9
+        workspace: workspaceParam10
       }
     },
     ({ tarefa, subtarefa, texto, responsavel, remover, projeto, workspace }) => executar(async () => {
@@ -40070,7 +43309,7 @@ function registerTarefaExtrasTools(server) {
         alvo: external_exports.string().describe('Tarefa (IC-3) ou projeto ("projeto:Nome" ou o nome) do outro lado.'),
         tipo: external_exports.enum(["depende_de", "relacionada"]).describe("depende_de = s\xF3 conclui depois do alvo; relacionada = refer\xEAncia."),
         remover: external_exports.boolean().optional(),
-        workspace: workspaceParam9
+        workspace: workspaceParam10
       }
     },
     ({ tarefa, projeto_origem, alvo, tipo, remover, workspace }) => executar(async () => {
@@ -40123,7 +43362,7 @@ function registerTarefaExtrasTools(server) {
         tarefa: tarefaParam,
         comentario: external_exports.string().describe("Id do coment\xE1rio (ver_tarefa mostra)."),
         projeto: projetoOpcional3,
-        workspace: workspaceParam9
+        workspace: workspaceParam10
       }
     },
     ({ tarefa, comentario, projeto, workspace }) => executar(async () => {
@@ -40148,7 +43387,7 @@ function registerTarefaExtrasTools(server) {
         mensagem: external_exports.string().optional().describe("Id da mensagem do chat (ler_chat mostra)."),
         canal: external_exports.string().optional().describe('Canal da mensagem: "geral" (padr\xE3o) ou o projeto.'),
         remover: external_exports.boolean().optional(),
-        workspace: workspaceParam9
+        workspace: workspaceParam10
       }
     },
     ({ figurinha, tarefa, comentario, mensagem, canal, remover, workspace }) => executar(async () => {
@@ -40183,7 +43422,7 @@ function registerTarefaExtrasTools(server) {
     })
   );
 }
-var workspaceParam9, projetoOpcional3;
+var workspaceParam10, projetoOpcional3;
 var init_tarefas_extras = __esm({
   "mcp/src/tools/tarefas-extras.ts"() {
     "use strict";
@@ -40191,10 +43430,10 @@ var init_tarefas_extras = __esm({
     init_zod();
     init_queries2();
     init_notify();
-    init_queries7();
     init_queries8();
+    init_queries9();
     init_queries();
-    init_queries5();
+    init_queries6();
     init_task_code();
     init_models();
     init_session();
@@ -40202,7 +43441,7 @@ var init_tarefas_extras = __esm({
     init_glia();
     init_comum();
     init_tarefas();
-    workspaceParam9 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
+    workspaceParam10 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoOpcional3 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
   }
 });
@@ -40281,7 +43520,7 @@ ${descreverWorkspaces(lista)}`);
     {
       title: "Listar membros da workspace",
       description: "Quem est\xE1 na workspace (nome, e-mail, papel). Use para atribuir respons\xE1veis ou mencionar algu\xE9m com @Nome.",
-      inputSchema: { workspace: workspaceParam10 }
+      inputSchema: { workspace: workspaceParam11 }
     },
     ({ workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -40297,7 +43536,7 @@ ${listaMembros(membros, ctx.eu.uid)}`;
       description: "Cria um link de convite para a workspace (vale 7 dias, uma pessoa por link). Quem abre e entra com o Google vira membro com o papel escolhido. S\xF3 dono/admin convida. Entregue o link ao usu\xE1rio para ele mandar.",
       inputSchema: {
         papel: external_exports.enum(["membro", "admin"]).optional().describe("Papel de quem entrar (padr\xE3o: membro)."),
-        workspace: workspaceParam10
+        workspace: workspaceParam11
       }
     },
     ({ papel, workspace }) => executar(async () => {
@@ -40314,7 +43553,7 @@ ${link.convite(ctx.wsId, token)}`;
     {
       title: "Listar convites pendentes",
       description: "Os links de convite ainda n\xE3o usados da workspace, com papel, quem criou, validade e o link. S\xF3 dono/admin.",
-      inputSchema: { workspace: workspaceParam10 }
+      inputSchema: { workspace: workspaceParam11 }
     },
     ({ workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -40337,7 +43576,7 @@ ${linhas.join("\n")}`;
     {
       title: "Revogar convite",
       description: "Cancela um link de convite (o link para de funcionar). Use o token ou o link inteiro (listar_convites mostra).",
-      inputSchema: { convite: external_exports.string().describe("Token ou link do convite."), workspace: workspaceParam10 }
+      inputSchema: { convite: external_exports.string().describe("Token ou link do convite."), workspace: workspaceParam11 }
     },
     ({ convite, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -40358,7 +43597,7 @@ ${linhas.join("\n")}`;
         membro: external_exports.string().describe("Nome, e-mail ou uid."),
         papel: external_exports.enum(["membro", "admin"]).optional(),
         remover: external_exports.boolean().optional(),
-        workspace: workspaceParam10
+        workspace: workspaceParam11
       }
     },
     ({ membro, papel, remover, workspace }) => executar(async () => {
@@ -40394,7 +43633,7 @@ ${linhas.join("\n")}`;
     {
       title: "Renomear a workspace",
       description: "Muda o nome da workspace (equipe) para todos os membros. S\xF3 dono/admin.",
-      inputSchema: { nome: external_exports.string().min(1), workspace: workspaceParam10 }
+      inputSchema: { nome: external_exports.string().min(1), workspace: workspaceParam11 }
     },
     ({ nome, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
@@ -40422,12 +43661,12 @@ async function exigirAdmin(ctx) {
     throw new GliaToolError(`S\xF3 o dono ou um admin de ${ctx.wsName} faz isso \u2014 voc\xEA \xE9 ${eu ? PAPEL[eu.role] : "membro"}.`);
   }
 }
-var workspaceParam10, PAPEL;
+var workspaceParam11, PAPEL;
 var init_workspace2 = __esm({
   "mcp/src/tools/workspace.ts"() {
     "use strict";
     init_zod();
-    init_queries4();
+    init_queries5();
     init_login();
     init_session();
     init_workspace();
@@ -40435,7 +43674,7 @@ var init_workspace2 = __esm({
     init_format2();
     init_glia();
     init_comum();
-    workspaceParam10 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
+    workspaceParam11 = external_exports.string().optional().describe("Nome ou id da workspace. Opcional quando voc\xEA est\xE1 em uma s\xF3 (ou GLIA_WORKSPACE est\xE1 definida).");
     PAPEL = { owner: "dono", admin: "admin", member: "membro" };
   }
 });
@@ -40450,6 +43689,7 @@ function registerAll(server) {
   registerTarefaExtrasTools(server);
   registerAnotacaoTools(server);
   registerSugestaoTools(server);
+  registerStatusTools(server);
   registerChatTools(server);
   registerNotificacaoTools(server);
   registerBuscaTools(server);
@@ -40463,6 +43703,7 @@ var init_tools = __esm({
     init_fases();
     init_notificacoes();
     init_projetos();
+    init_status();
     init_sugestoes();
     init_tarefas();
     init_tarefas_escrita();
