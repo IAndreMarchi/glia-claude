@@ -113,7 +113,7 @@ var VERSION, HOSTING_ORIGIN, flags, EMULATOR, carregada, arquivoCache;
 var init_config = __esm({
   "mcp/src/config.ts"() {
     "use strict";
-    VERSION = "0.5.0";
+    VERSION = "0.6.0";
     HOSTING_ORIGIN = "https://spacetask-d20d2.web.app";
     flags = {
       /** Liga nos emuladores locais (auth :9099, firestore :8080) em vez do projeto real. */
@@ -11882,22 +11882,15 @@ function assigneeFields(assignees) {
     assigneePhoto: primeiro?.photo ?? null
   };
 }
-async function createTask(wsId, input) {
-  const status = input.status ?? "todo";
+function assigneesOrMe(input) {
   const me = auth.currentUser;
-  const assignees = input.assignees?.length ? input.assignees : me ? [{ uid: me.uid, name: me.displayName ?? null, photo: me.photoURL ?? null }] : [];
-  const existing = await fetchTasks(wsId, input.projectId);
-  const maxOrder = existing.filter((t) => t.status === status).reduce((m, t) => Math.max(m, t.order), -1);
-  let seq = null;
-  try {
-    seq = await allocateTaskSeq(wsId, input.projectId);
-  } catch (err) {
-    console.error("[task-code] n\xE3o foi poss\xEDvel numerar a tarefa nova", err);
-  }
-  const ref = await addDoc(wsTasksCol(wsId, input.projectId), {
+  return input.assignees?.length ? input.assignees : me ? [{ uid: me.uid, name: me.displayName ?? null, photo: me.photoURL ?? null }] : [];
+}
+function newTaskData(input, order, seq) {
+  return {
     title: input.title.trim(),
     description: (input.description ?? "").trim(),
-    status,
+    status: input.status ?? "todo",
     priority: input.priority ?? "med",
     startDate: input.startDate ? Timestamp.fromDate(input.startDate) : null,
     dueDate: input.dueDate ? Timestamp.fromDate(input.dueDate) : null,
@@ -11906,18 +11899,55 @@ async function createTask(wsId, input) {
     comment: (input.comment ?? "").trim(),
     connections: input.connections ?? [],
     phaseId: input.phaseId ?? null,
-    ...assigneeFields(assignees),
-    order: maxOrder + 1,
+    ...assigneeFields(assigneesOrMe(input)),
+    order,
     // Campo ausente FICA FORA do payload — este Firestore não ignora undefined.
     ...seq ? { seq } : {},
     ...input.sourceMessage ? { sourceMessage: input.sourceMessage } : {},
     ...input.sourceSugestao ? { sourceSugestao: input.sourceSugestao } : {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
-  });
+  };
+}
+async function createTask(wsId, input) {
+  const status = input.status ?? "todo";
+  const existing = await fetchTasks(wsId, input.projectId);
+  const maxOrder = existing.filter((t) => t.status === status).reduce((m, t) => Math.max(m, t.order), -1);
+  let seq = null;
+  try {
+    seq = await allocateTaskSeq(wsId, input.projectId);
+  } catch (err) {
+    console.error("[task-code] n\xE3o foi poss\xEDvel numerar a tarefa nova", err);
+  }
+  const ref = await addDoc(wsTasksCol(wsId, input.projectId), newTaskData(input, maxOrder + 1, seq));
   return ref.id;
 }
-async function updateTask(wsId, projectId, taskId, patch) {
+async function createTasksBatch(wsId, projectId, inputs) {
+  if (inputs.length === 0) return [];
+  if (inputs.length > 450) throw new Error("createTasksBatch: no m\xE1ximo 450 tarefas por lote");
+  const existing = await fetchTasks(wsId, projectId);
+  const nextOrder = /* @__PURE__ */ new Map();
+  for (const t of existing) nextOrder.set(t.status, Math.max(nextOrder.get(t.status) ?? -1, t.order));
+  let first = 0;
+  try {
+    first = await allocateTaskSeqBlock(wsId, projectId, inputs.length);
+  } catch (err) {
+    console.error("[task-code] n\xE3o foi poss\xEDvel numerar as tarefas do lote", err);
+  }
+  const batch = writeBatch(db);
+  const out = inputs.map((input, i) => {
+    const status = input.status ?? "todo";
+    const order = (nextOrder.get(status) ?? -1) + 1;
+    nextOrder.set(status, order);
+    const seq = first ? first + i : null;
+    const ref = doc(wsTasksCol(wsId, projectId));
+    batch.set(ref, newTaskData({ ...input, projectId }, order, seq));
+    return { id: ref.id, seq };
+  });
+  await batch.commit();
+  return out;
+}
+function taskPatchData(patch) {
   const data2 = { updatedAt: serverTimestamp() };
   for (const [k, v] of Object.entries(patch)) {
     if (k === "dueDate" || k === "startDate") {
@@ -11927,7 +11957,10 @@ async function updateTask(wsId, projectId, taskId, patch) {
     }
   }
   if (patch.assignees) Object.assign(data2, assigneeFields(patch.assignees));
-  await updateDoc(wsTaskDoc(wsId, projectId, taskId), data2);
+  return data2;
+}
+async function updateTask(wsId, projectId, taskId, patch) {
+  await updateDoc(wsTaskDoc(wsId, projectId, taskId), taskPatchData(patch));
 }
 async function purgeTaskMessages(wsId, projectId, taskId) {
   const snap = await getDocs(wsTaskMessagesCol(wsId, projectId, taskId));
@@ -12096,7 +12129,7 @@ async function fetchTaskMessages(wsId, projectId, taskId) {
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
-async function sendTaskMessage(wsId, projectId, taskId, input) {
+function taskMessageData(input) {
   const data2 = {
     authorUid: input.authorUid,
     authorName: input.authorName,
@@ -12108,7 +12141,19 @@ async function sendTaskMessage(wsId, projectId, taskId, input) {
   if (input.authorAvatar) data2.authorAvatar = input.authorAvatar;
   if (input.kind) data2.kind = input.kind;
   if (input.sticker) data2.sticker = input.sticker;
-  await addDoc(wsTaskMessagesCol(wsId, projectId, taskId), data2);
+  return data2;
+}
+async function sendTaskMessage(wsId, projectId, taskId, input) {
+  await addDoc(wsTaskMessagesCol(wsId, projectId, taskId), taskMessageData(input));
+}
+async function applyTaskBatch(wsId, ops) {
+  if (ops.length === 0) return;
+  const batch = writeBatch(db);
+  for (const op of ops) {
+    if (op.message) batch.set(doc(wsTaskMessagesCol(wsId, op.projectId, op.taskId)), taskMessageData(op.message));
+    if (op.patch) batch.update(wsTaskDoc(wsId, op.projectId, op.taskId), taskPatchData(op.patch));
+  }
+  await batch.commit();
 }
 async function deleteTaskMessage(wsId, projectId, taskId, messageId) {
   await deleteDoc(wsTaskMessageDoc(wsId, projectId, taskId, messageId));
@@ -17297,18 +17342,24 @@ function montarRetrato(project, phases, tasks) {
   const entryStatus = [...columns].sort((a, b) => a.order - b.order)[0]?.id ?? "todo";
   const items = buildRoadmapItems(phases, tasks, doneSet, roadmapType);
   const linhas = montarLinhas(items, tasks, doneSet, entryStatus);
-  const fases = linhas.map((l) => ({
-    id: l.phase.id,
-    nome: l.phase.name || `Fase ${String(l.index + 1).padStart(2, "0")}`,
-    status: l.situacao,
-    pct: l.situacao === "done" ? 100 : l.phase.progress,
-    inicio: ts(l.previsto.inicio),
-    fim: ts(l.previsto.fim),
-    inicioReal: ts(l.realizado.inicio),
-    fimReal: ts(l.realizado.fim),
-    fimInformado: l.realizado.fimInformado,
-    entregaveis: (l.phase.deliverables ?? []).map((d) => ({ id: d.id, texto: d.text, feito: !!d.done }))
-  }));
+  const fases = linhas.map((l) => {
+    const own = tasks.filter((t) => t.phaseId === l.phase.id);
+    const prazos = own.map((t) => toDate2(t.dueDate)).filter((d) => d !== null).map((d) => d.toISOString().slice(0, 10)).sort();
+    return {
+      id: l.phase.id,
+      nome: l.phase.name || `Fase ${String(l.index + 1).padStart(2, "0")}`,
+      status: l.situacao,
+      pct: l.situacao === "done" ? 100 : l.phase.progress,
+      inicio: ts(l.previsto.inicio),
+      fim: ts(l.previsto.fim),
+      inicioReal: ts(l.realizado.inicio),
+      fimReal: ts(l.realizado.fim),
+      fimInformado: l.realizado.fimInformado,
+      entregaveis: (l.phase.deliverables ?? []).map((d) => ({ id: d.id, texto: d.text, feito: !!d.done })),
+      prazos,
+      semPrazo: own.length - prazos.length
+    };
+  });
   const aggregate = roadmapAggregate(items);
   const atual = linhas.find((l) => l.situacao === "doing") ?? linhas.find((l) => l.situacao === "todo") ?? linhas[linhas.length - 1];
   const fimDoProjeto = toDate2(project.dueDate ?? null);
@@ -17351,7 +17402,9 @@ function assinatura(r) {
       dia(f.inicioReal),
       dia(f.fimReal),
       f.fimInformado,
-      f.entregaveis.map((e) => [e.id, e.texto, e.feito])
+      f.entregaveis.map((e) => [e.id, e.texto, e.feito]),
+      f.prazos ?? [],
+      f.semPrazo ?? 0
     ])
   ];
   const texto = JSON.stringify(partes);
@@ -17362,6 +17415,7 @@ function assinatura(r) {
 var ts, dia;
 var init_snapshot = __esm({
   "src/features/status/snapshot.ts"() {
+    "use strict";
     init_firestore();
     init_metrics();
     init_relatorio();
@@ -39643,10 +39697,10 @@ function minutos(ms2) {
   const m = Math.max(1, Math.ceil(ms2 / MINUTO));
   return m === 1 ? "1 minuto" : `${m} minutos`;
 }
-function recusa(motivo, esperarMs) {
-  console.error(`[glia-mcp] freio: ${motivo}`);
+function recusa(motivo2, esperarMs) {
+  console.error(`[glia-mcp] freio: ${motivo2}`);
   return [
-    `Limite de uso da Glia: ${motivo}. Esta chamada N\xC3O foi feita; volta a ser aceita em ${minutos(esperarMs)}.`,
+    `Limite de uso da Glia: ${motivo2}. Esta chamada N\xC3O foi feita; volta a ser aceita em ${minutos(esperarMs)}.`,
     "N\xE3o consulte a Glia em loop nem fique esperando algo mudar por ela: cada consulta gasta a cota di\xE1ria de leituras da equipe inteira, e quando a cota acaba a Glia sai do ar para todo mundo at\xE9 o dia seguinte.",
     "Pare aqui e diga ao usu\xE1rio o que voc\xEA estava tentando fazer \u2014 ele decide se vale continuar mais tarde."
   ].join("\n\n");
@@ -39725,9 +39779,9 @@ function registerPrompts(server) {
 Passos:
 1. Use listar_projetos para confirmar o projeto e listar_tarefas (pendentes=true) para ver a fila. Me mostre a lista com os c\xF3digos e pergunte por onde come\xE7ar, a menos que eu j\xE1 tenha dito.
 2. Para cada tarefa: ver_tarefa, entenda descri\xE7\xE3o, subtarefas, coment\xE1rios e depend\xEAncias. Se faltar contexto, pergunte antes de agir.
-3. Execute o trabalho neste reposit\xF3rio. Marque cada subtarefa conclu\xEDda com marcar_subtarefa; use adicionar_subtarefa para trabalho novo que descobrir.
-4. Ao terminar, comentar_tarefa com um resumo objetivo (o que mudou, arquivos/PR, o que ficou de fora) e s\xF3 ent\xE3o mover_tarefa para a pr\xF3xima coluna.
-5. Ideias que surgirem e n\xE3o forem escopo desta tarefa: criar_sugestao no projeto.
+3. Execute o trabalho neste reposit\xF3rio. V\xE1 anotando para si as subtarefas que fechou e o trabalho novo que descobriu \u2014 n\xE3o grave a cada passo.
+4. Ao terminar a tarefa (ou um bloco de v\xE1rias), registre tudo numa chamada s\xF3 com tarefas_em_lote: subtarefas_feitas, subtarefas_novas, o comentario com um resumo objetivo (o que mudou, arquivos/PR, o que ficou de fora) e a coluna seguinte, no mesmo item.
+5. Ideias que surgirem e n\xE3o forem escopo desta tarefa: criar_sugestao no projeto. Tarefa nova s\xF3 com respons\xE1vel definido (pergunte se n\xE3o souber) e com os passos em subtarefas, n\xE3o na descri\xE7\xE3o.
 
 Cite as tarefas pelo c\xF3digo (ex. IC-25) e me diga, ao final, o que foi movido e o que ficou pendente.`
           }
@@ -39746,19 +39800,27 @@ var init_prompts = __esm({
 Vocabul\xE1rio: workspace (a equipe) > projeto (com sigla, ex. IC) > tarefa (c\xF3digo p\xFAblico IC-25, coluna do Kanban, prioridade, prazo, respons\xE1veis, subtarefas) > coment\xE1rios da tarefa. Projetos podem ter fases (roadmap) e um portal de sugest\xF5es de melhoria.
 
 Como trabalhar em um projeto:
-1. \`listar_projetos\` para achar o projeto (por nome ou sigla), depois \`listar_tarefas\` com pendentes=true.
-2. Antes de agir numa tarefa, \`ver_tarefa\` \u2014 a descri\xE7\xE3o, as subtarefas, os coment\xE1rios e as depend\xEAncias dizem o que de fato precisa ser feito.
-3. Ao concluir cada parte, \`marcar_subtarefa\`. Se descobriu trabalho novo, \`adicionar_subtarefa\` em vez de fazer em sil\xEAncio.
-4. Ao terminar, \`comentar_tarefa\` dizendo o que foi feito, onde (arquivos, PR, commit) e o que ficou de fora. Nunca mova para a coluna de conclus\xE3o sem esse coment\xE1rio \u2014 \xE9 o registro que a equipe l\xEA.
-5. S\xF3 ent\xE3o \`mover_tarefa\` para a coluna certa (revis\xE3o, conclu\xEDdo\u2026). Se a Glia recusar por depend\xEAncia aberta, diga isso ao usu\xE1rio em vez de for\xE7ar.
+1. \`listar_projetos\` para achar o projeto (por nome ou sigla), depois \`listar_tarefas\` com pendentes=true \u2014 UMA vez: a lista j\xE1 traz coluna, respons\xE1veis, prazo e subtarefas.
+2. Antes de agir numa tarefa, \`ver_tarefa\` \u2014 a descri\xE7\xE3o, as subtarefas, os coment\xE1rios e as depend\xEAncias dizem o que de fato precisa ser feito. N\xE3o abra tarefa em que n\xE3o vai mexer.
+3. Durante o trabalho, ACUMULE em vez de gravar a cada passo: guarde para si as subtarefas que fechou, o trabalho novo que descobriu e o que vai dizer no coment\xE1rio.
+4. Ao fechar um bloco (terminou a tarefa, terminou v\xE1rias, ou o usu\xE1rio pediu para registrar), grave tudo numa chamada s\xF3 com \`tarefas_em_lote\`: por tarefa, \`subtarefas_feitas\`, \`subtarefas_novas\`, \`comentario\` (o que foi feito, onde \u2014 arquivos, PR, commit \u2014 e o que ficou de fora) e \`coluna\`. Coment\xE1rio e coluna no mesmo item: a tarefa nunca vai para a conclus\xE3o sem o registro que a equipe l\xEA. Vale tamb\xE9m para uma tarefa s\xF3 (um item).
+5. Se a Glia recusar por depend\xEAncia aberta, diga isso ao usu\xE1rio em vez de for\xE7ar.
+\`marcar_subtarefa\`, \`comentar_tarefa\` e \`mover_tarefa\` continuam para o pedido pontual ("move a IC-3 para revis\xE3o").
+
+Ao criar e organizar tarefas:
+- Toda tarefa tem respons\xE1vel: informe \`responsaveis\` sempre. Se o pedido n\xE3o diz quem faz, pergunte ao usu\xE1rio antes de criar ("eu" = ele pr\xF3prio) \u2014 n\xE3o deixe cair no padr\xE3o por esquecimento.
+- Descri\xE7\xE3o \xE9 contexto, n\xE3o checklist: o porqu\xEA, o que j\xE1 se sabe e o crit\xE9rio de pronto. Os passos v\xE3o em \`subtarefas\` \u2014 curtas, verific\xE1veis, uma entrega cada; trabalho de outra pessoa vira subtarefa com respons\xE1vel (\`@Nome\` no texto avisa). A Glia recusa criar tarefa com lista de passos na descri\xE7\xE3o e nenhuma subtarefa.
+- Prazo e prioridade quando o usu\xE1rio disser; n\xE3o invente data.
+- Duas ou mais tarefas para criar (estruturar um projeto, quebrar um pedido em entregas)? \`criar_tarefas\`, uma chamada s\xF3 para at\xE9 50 \u2014 n\xE3o um criar_tarefa por tarefa.
+- V\xE1rios cart\xF5es para mexer depois de criar (prioridade, prazo, subtarefas novas, coluna)? \`tarefas_em_lote\`, n\xE3o uma chamada por tarefa.
 
 Estruturar um projeto: \`criar_projeto\` (devolve a sigla; aceita colunas, panorama e as fases iniciais) e \`criar_fases\` para as etapas do roadmap, na ordem em que acontecem. Depois vincule as tarefas \xE0 fase (\`fase\` em criar_tarefa/atualizar_tarefa): com tarefas vinculadas, o progresso da fase sai delas \u2014 n\xE3o se edita \xE0 m\xE3o. \`atualizar_fase\` muda datas, dono, entreg\xE1veis e a posi\xE7\xE3o; \`atualizar_projeto\` muda nome, situa\xE7\xE3o, panorama e arquiva. Confirme o nome com o usu\xE1rio antes de criar um projeto (a sigla nasce dele e n\xE3o muda) e antes de excluir fase com tarefas.
 
 O resto da Glia tamb\xE9m est\xE1 aqui: anota\xE7\xF5es do projeto (\`listar_anotacoes\`, \`criar_anotacao\`, \`atualizar_anotacao\`\u2026), o portal de sugest\xF5es \u2014 a "esteira de melhorias" (\`portal_sugestoes\` devolve o link p\xFAblico; \`listar_sugestoes\`, \`ver_sugestao\` com os prints, \`atualizar_sugestao\`, \`converter_sugestao\`, \`mesclar_sugestoes\`), o chat da equipe (\`ler_chat\`, \`enviar_mensagem\`, \`criar_tarefa_da_mensagem\`), colunas do quadro (\`configurar_colunas\`), depend\xEAncias (\`conectar\`), rea\xE7\xF5es (\`reagir\`), notifica\xE7\xF5es (\`listar_notificacoes\`), equipe (\`convidar_pessoa\`, \`gerenciar_membro\`) e a busca geral (\`buscar\`, \`buscar_tarefas\`). As respostas trazem o link da Glia de cada coisa \u2014 repasse ao usu\xE1rio. Mensagem no chat fala com a equipe: confirme o texto antes de enviar. Excluir (tarefa, anota\xE7\xE3o, sugest\xE3o, mensagem, projeto) n\xE3o tem lixeira: confirme antes.
 
-Ao criar tarefa (\`criar_tarefa\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.
+Ao criar tarefa (\`criar_tarefa\` ou \`criar_tarefas\`), informe o c\xF3digo devolvido (ex. "criei a IC-31"). Ideias e melhorias que n\xE3o s\xE3o trabalho imediato v\xE3o em \`criar_sugestao\`, n\xE3o em tarefa. Cite tarefas sempre pelo c\xF3digo (IC-25). Se um nome de projeto, tarefa ou pessoa for amb\xEDguo, a tool devolve os candidatos \u2014 escolha com o usu\xE1rio, n\xE3o chute.
 
-Nunca consulte a Glia em loop nem fique "de olho" esperando algo mudar (tarefa nova, notifica\xE7\xE3o, resposta no chat): cada consulta gasta a cota di\xE1ria de leituras da equipe inteira, e quando ela acaba a Glia sai do ar para todo mundo. O servidor recusa rajadas e a mesma consulta repetida \u2014 se receber "Limite de uso da Glia", pare e avise o usu\xE1rio.`;
+Gaste pouco: a equipe inteira divide a mesma cota di\xE1ria de leituras e escritas, e quando ela acaba a Glia sai do ar para todo mundo. Agrupe escritas (\`criar_tarefas\`, \`tarefas_em_lote\`), n\xE3o releia para conferir o que acabou de gravar (a resposta da tool j\xE1 diz o que mudou) e nunca consulte a Glia em loop nem fique "de olho" esperando algo mudar (tarefa nova, notifica\xE7\xE3o, resposta no chat). O servidor recusa rajadas e a mesma consulta repetida \u2014 se receber "Limite de uso da Glia", pare e avise o usu\xE1rio.`;
   }
 });
 
@@ -39926,10 +39988,10 @@ var init_queries6 = __esm({
 });
 
 // mcp/src/context.ts
-async function lembrado(chave, carregar) {
+async function lembrado(chave, carregar2) {
   const hit = cache2.get(chave);
   if (hit && Date.now() - hit.em < TTL_MS) return hit.valor;
-  const valor = await carregar();
+  const valor = await carregar2();
   cache2.set(chave, { em: Date.now(), valor });
   return valor;
 }
@@ -40445,7 +40507,7 @@ async function moverTarefa(ctx, projeto, tarefa, colunaRef, posicao) {
   }
   const done = doneStatusIds(projeto.columns);
   const entrouConclusao = done.has(coluna.id) && !done.has(tarefa.status);
-  if (entrouConclusao) {
+  if (entrouConclusao && temDependencia(tarefa)) {
     const [todas, projetos] = await Promise.all([fetchAllTasks(ctx.wsId), fetchProjects(ctx.wsId, "active")]);
     const bloqueio = blockedByDependenciesMessage(tarefa, todas, projetos);
     if (bloqueio) throw new GliaToolError(`A Glia recusou concluir ${codigo(projeto, tarefa)}: ${bloqueio}.`);
@@ -40471,7 +40533,7 @@ async function moverTarefa(ctx, projeto, tarefa, colunaRef, posicao) {
   return { coluna, entrouConclusao, fechouChecklist, posicao: idx + 1 };
 }
 async function dependenciasAbertas(ctx, tarefa) {
-  if (!tarefa.connections?.some((c) => c.linkType === "depends_on")) return [];
+  if (!temDependencia(tarefa)) return [];
   const [todas, projetos] = await Promise.all([fetchAllTasks(ctx.wsId), fetchProjects(ctx.wsId, "active")]);
   return getOpenDependencies(tarefa, todas, projetos).map((d) => d.title);
 }
@@ -40636,7 +40698,7 @@ function lerDiaLocal(valor, rotulo) {
   if (!m) throw new GliaToolError(`${rotulo} "${valor}" inv\xE1lido \u2014 use AAAA-MM-DD.`);
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 }
-var link, tituloDaNota, FIGURINHAS;
+var temDependencia, link, tituloDaNota, FIGURINHAS;
 var init_glia = __esm({
   "mcp/src/glia.ts"() {
     "use strict";
@@ -40659,6 +40721,7 @@ var init_glia = __esm({
     init_session();
     init_config();
     init_context();
+    temDependencia = (tarefa) => !!tarefa.connections?.some((c) => c.linkType === "depends_on");
     link = {
       projeto: (p) => `${HOSTING_ORIGIN}/projetos/${p.id}`,
       aba: (p, aba) => `${HOSTING_ORIGIN}/projetos/${p.id}?tab=${aba}`,
@@ -40922,10 +40985,220 @@ var init_queries10 = __esm({
   }
 });
 
+// src/features/project-detail/roadmap/ritmo.ts
+function fracaoDoTempo(inicio, fim, hoje) {
+  const total = Math.round((fim - inicio) / DIA) + 1;
+  const passados = Math.round((hoje - inicio) / DIA) + 1;
+  if (total <= 0) return 1;
+  return Math.max(0, Math.min(1, passados / total));
+}
+function esperadoDaFase(f, hoje) {
+  if (f.fim !== null && f.fim < hoje) return 1;
+  if (f.inicio !== null && f.inicio > hoje) return 0;
+  const tempo = f.inicio !== null && f.fim !== null ? fracaoDoTempo(f.inicio, f.fim, hoje) : null;
+  const semPrazo = tempo === null ? 0 : f.semPrazo;
+  const total = f.prazos.length + semPrazo;
+  if (total === 0) return tempo;
+  const vencidas = f.prazos.filter((p) => p <= hoje).length;
+  return (vencidas + semPrazo * (tempo ?? 0)) / total;
+}
+function ritmoDoProjeto(fases, hoje) {
+  if (fases.length === 0) return null;
+  let soma = 0;
+  let somaReal = 0;
+  let cobradas = 0;
+  for (const f of fases) {
+    const real = Math.max(0, Math.min(100, f.pct));
+    const e = esperadoDaFase(f, hoje);
+    somaReal += real;
+    if (e === null) soma += real;
+    else {
+      soma += e * 100;
+      cobradas += 1;
+    }
+  }
+  if (cobradas === 0) return null;
+  const esperado = Math.round(soma / fases.length);
+  const realizado = Math.round(somaReal / fases.length);
+  return { esperado, realizado, desvio: realizado - esperado };
+}
+function leituraDoRitmo(r) {
+  const d = r.desvio;
+  const sinal = `${d > 0 ? "+" : d < 0 ? "\u2212" : ""}${Math.abs(d)} pts`;
+  if (Math.abs(d) <= TOLERANCIA_PTS) return { rotulo: "no ritmo", sinal, tom: "ritmo" };
+  return d < 0 ? { rotulo: `${-d} pts atr\xE1s do previsto`, sinal, tom: "atras" } : { rotulo: `${d} pts \xE0 frente do previsto`, sinal, tom: "frente" };
+}
+function ritmoEmTexto(r) {
+  return `Esperado hoje ${r.esperado}% \xB7 realizado ${r.realizado}% \xB7 ${leituraDoRitmo(r).rotulo}`;
+}
+var DIA, TOLERANCIA_PTS;
+var init_ritmo = __esm({
+  "src/features/project-detail/roadmap/ritmo.ts"() {
+    init_utils();
+    DIA = 864e5;
+    TOLERANCIA_PTS = 2;
+  }
+});
+
+// src/features/project-detail/roadmap/phaseTheme.ts
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+var PHASE_STATUS_COLORS;
+var init_phaseTheme = __esm({
+  "src/features/project-detail/roadmap/phaseTheme.ts"() {
+    PHASE_STATUS_COLORS = {
+      light: {
+        done: "#5b7a5e",
+        doing: "#3f7d7a",
+        todo: "#7a8190"
+      },
+      dark: {
+        done: "#7ba880",
+        doing: "#5aa6a2",
+        todo: "#9aa0ad"
+      }
+    };
+  }
+});
+
+// src/features/status/gantt.ts
+function deRetrato(s) {
+  return {
+    id: s.id,
+    nome: s.nome,
+    descricao: s.descricao ?? "",
+    cor: s.cor,
+    roadmapType: s.roadmapType ?? "sequencial",
+    fimPrevisto: ms(s.fimPrevisto),
+    fimPrevistoOrigem: s.fimPrevistoOrigem ?? null,
+    concluidoEm: ms(s.concluidoEm),
+    pct: s.pct ?? 0,
+    faseAtual: s.faseAtual ?? null,
+    fases: (s.fases ?? []).map((f) => ({
+      id: f.id,
+      nome: f.nome,
+      status: f.status,
+      pct: f.pct ?? 0,
+      inicio: ms(f.inicio),
+      fim: ms(f.fim),
+      inicioReal: ms(f.inicioReal),
+      fimReal: ms(f.fimReal),
+      fimInformado: !!f.fimInformado,
+      entregaveis: f.entregaveis ?? [],
+      prazos: (f.prazos ?? []).map(diaMs).filter((t) => t !== null),
+      semPrazo: f.semPrazo ?? 0
+    }))
+  };
+}
+function diaMs(d) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], 12) : null;
+}
+function hojeMs(agora = /* @__PURE__ */ new Date()) {
+  return Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate(), 12);
+}
+function situacaoDe(p, hoje) {
+  if (p.concluidoEm !== null) {
+    const desvio = p.fimPrevisto !== null ? dias(p.concluidoEm, p.fimPrevisto) : null;
+    return {
+      concluido: true,
+      atrasado: false,
+      rotulo: "Conclu\xEDdo",
+      cor: NEUTRO,
+      bg: NEUTRO_BG,
+      diasLabel: `conclu\xEDdo em ${curto(p.concluidoEm)}`,
+      desvioConclusao: desvio
+    };
+  }
+  if (p.fimPrevisto === null) {
+    return {
+      concluido: false,
+      atrasado: false,
+      rotulo: "Sem prazo",
+      cor: NEUTRO,
+      bg: NEUTRO_BG,
+      diasLabel: "sem fim previsto",
+      desvioConclusao: null
+    };
+  }
+  const dd = dias(p.fimPrevisto, hoje);
+  const atrasado = dd < 0;
+  return {
+    concluido: false,
+    atrasado,
+    rotulo: atrasado ? "Atrasado" : "No prazo",
+    cor: atrasado ? ROSE : GREEN,
+    bg: atrasado ? ROSE_BG : GREEN_BG,
+    diasLabel: dd < 0 ? `${-dd} dias de atraso` : dd === 0 ? "vence hoje" : dd === 1 ? "falta 1 dia" : `faltam ${dd} dias`,
+    desvioConclusao: null
+  };
+}
+function leituraDaFase(f, hoje) {
+  if (f.status === "done") {
+    const atrasou = f.fimReal !== null && f.fim !== null && f.fimReal > f.fim;
+    const d = atrasou ? dias(f.fimReal, f.fim) : 0;
+    return {
+      statusLabel: atrasou ? `Conclu\xEDda \xB7 ${d}d ap\xF3s` : "Conclu\xEDda",
+      statusCor: atrasou ? ROSE : COR.done,
+      titulo: atrasou ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 100%`
+    };
+  }
+  if (f.status === "doing") {
+    const late2 = f.fim !== null && hoje > f.fim;
+    const d = late2 ? dias(hoje, f.fim) : 0;
+    return {
+      statusLabel: late2 ? `Em andamento \xB7 ${d}d al\xE9m` : "Em andamento",
+      statusCor: late2 ? ROSE : COR.doing,
+      titulo: late2 ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 ${f.pct}%`
+    };
+  }
+  return { statusLabel: "A fazer", statusCor: "hsl(34 7% 58%)", titulo: `${f.nome} \xB7 a fazer` };
+}
+var DIA2, ms, dias, curto, COR, SOFT, ROSE, ROSE_BG, GREEN, GREEN_BG, NEUTRO, NEUTRO_BG;
+var init_gantt = __esm({
+  "src/features/status/gantt.ts"() {
+    init_date_fns();
+    init_locale();
+    init_phaseTheme();
+    init_utils();
+    DIA2 = 864e5;
+    ms = (t) => {
+      const d = toDate2(t ?? null);
+      return d ? d.getTime() : null;
+    };
+    dias = (a, b) => Math.round((a - b) / DIA2);
+    curto = (t) => format(new Date(t), "d MMM", { locale: ptBR });
+    COR = PHASE_STATUS_COLORS.light;
+    SOFT = {
+      done: hexToRgba(COR.done, 0.22),
+      doing: hexToRgba(COR.doing, 0.22),
+      todo: hexToRgba(COR.todo, 0.22)
+    };
+    ROSE = "#e11d48";
+    ROSE_BG = "rgba(244,63,94,.12)";
+    GREEN = "#047857";
+    GREEN_BG = "rgba(16,185,129,.12)";
+    NEUTRO = "hsl(36 8% 39%)";
+    NEUTRO_BG = "hsl(40 32% 92%)";
+  }
+});
+
 // mcp/src/tools/fases.ts
 async function roadmap(ctx, p) {
+  return (await roadmapComRitmo(ctx, p)).itens;
+}
+async function roadmapComRitmo(ctx, p) {
   const [fases, tarefas] = await Promise.all([fetchPhases(ctx.wsId, p.id), fetchTasks(ctx.wsId, p.id)]);
-  return buildRoadmapItems(fases, tarefas, doneStatusIds(p.columns), p.roadmapType);
+  const itens = buildRoadmapItems(fases, tarefas, doneStatusIds(p.columns), p.roadmapType);
+  const retrato = montarRetrato({ ...p, roadmapType: "sequencial" }, fases, tarefas);
+  const g = deRetrato({ ...retrato, id: p.id, versao: "", atualizadoPor: "" });
+  const r = g.concluidoEm === null ? ritmoDoProjeto(g.fases, hojeMs()) : null;
+  return { itens, ritmo: r ? ritmoEmTexto(r) : null };
 }
 function registerFaseTools(server) {
   server.registerTool(
@@ -40938,11 +41211,13 @@ function registerFaseTools(server) {
     ({ projeto, workspace }) => executar(async () => {
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto, true);
-      const itens = await roadmap(ctx, p);
+      const { itens, ritmo } = await roadmapComRitmo(ctx, p);
       const nouns = roadmapNouns(p.roadmapType);
       const desligado = p.hasRoadmap === false ? "\n(o panorama est\xE1 desligado neste projeto \u2014 criar_fases liga de novo)" : "";
       const titulo = nouns.plural.charAt(0).toUpperCase() + nouns.plural.slice(1);
-      return `${titulo} de **${p.name}** (${p.roadmapType ?? "sequencial"}):${desligado}
+      const linhaRitmo = ritmo ? `
+${ritmo} (pelo cronograma das fases).` : "";
+      return `${titulo} de **${p.name}** (${p.roadmapType ?? "sequencial"}):${desligado}${linhaRitmo}
 ${listaFases(itens, p.roadmapType)}`;
     })
   );
@@ -41141,6 +41416,9 @@ var init_fases = __esm({
     init_queries();
     init_metrics();
     init_labels();
+    init_ritmo();
+    init_gantt();
+    init_snapshot();
     init_utils();
     init_models();
     init_parse();
@@ -41278,9 +41556,9 @@ ${listaProjetos(projetos, abertas)}`;
           const rotulo = roadmapNouns(tipo).plural;
           linhas.push(`${rotulo[0].toUpperCase()}${rotulo.slice(1)}: ${criadas.map((f, i) => `${i + 1}. ${f.name}`).join(" \xB7 ")}`);
         } catch (err) {
-          const motivo = err instanceof Error ? err.message : String(err);
+          const motivo2 = err instanceof Error ? err.message : String(err);
           throw new GliaToolError(`${linhas[0]}
-Mas as fases N\xC3O foram criadas: ${motivo}
+Mas as fases N\xC3O foram criadas: ${motivo2}
 Corrija e chame criar_fases no projeto ${p.code ?? p.id}.`);
         }
       }
@@ -42184,148 +42462,6 @@ var init_notificacoes = __esm({
   }
 });
 
-// src/features/project-detail/roadmap/phaseTheme.ts
-function hexToRgba(hex, alpha) {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-var PHASE_STATUS_COLORS;
-var init_phaseTheme = __esm({
-  "src/features/project-detail/roadmap/phaseTheme.ts"() {
-    PHASE_STATUS_COLORS = {
-      light: {
-        done: "#5b7a5e",
-        doing: "#3f7d7a",
-        todo: "#7a8190"
-      },
-      dark: {
-        done: "#7ba880",
-        doing: "#5aa6a2",
-        todo: "#9aa0ad"
-      }
-    };
-  }
-});
-
-// src/features/status/gantt.ts
-function deRetrato(s) {
-  return {
-    id: s.id,
-    nome: s.nome,
-    descricao: s.descricao ?? "",
-    cor: s.cor,
-    roadmapType: s.roadmapType ?? "sequencial",
-    fimPrevisto: ms(s.fimPrevisto),
-    fimPrevistoOrigem: s.fimPrevistoOrigem ?? null,
-    concluidoEm: ms(s.concluidoEm),
-    pct: s.pct ?? 0,
-    faseAtual: s.faseAtual ?? null,
-    fases: (s.fases ?? []).map((f) => ({
-      id: f.id,
-      nome: f.nome,
-      status: f.status,
-      pct: f.pct ?? 0,
-      inicio: ms(f.inicio),
-      fim: ms(f.fim),
-      inicioReal: ms(f.inicioReal),
-      fimReal: ms(f.fimReal),
-      fimInformado: !!f.fimInformado,
-      entregaveis: f.entregaveis ?? []
-    }))
-  };
-}
-function hojeMs(agora = /* @__PURE__ */ new Date()) {
-  return Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate(), 12);
-}
-function situacaoDe(p, hoje) {
-  if (p.concluidoEm !== null) {
-    const desvio = p.fimPrevisto !== null ? dias(p.concluidoEm, p.fimPrevisto) : null;
-    return {
-      concluido: true,
-      atrasado: false,
-      rotulo: "Conclu\xEDdo",
-      cor: NEUTRO,
-      bg: NEUTRO_BG,
-      diasLabel: `conclu\xEDdo em ${curto(p.concluidoEm)}`,
-      desvioConclusao: desvio
-    };
-  }
-  if (p.fimPrevisto === null) {
-    return {
-      concluido: false,
-      atrasado: false,
-      rotulo: "Sem prazo",
-      cor: NEUTRO,
-      bg: NEUTRO_BG,
-      diasLabel: "sem fim previsto",
-      desvioConclusao: null
-    };
-  }
-  const dd = dias(p.fimPrevisto, hoje);
-  const atrasado = dd < 0;
-  return {
-    concluido: false,
-    atrasado,
-    rotulo: atrasado ? "Atrasado" : "No prazo",
-    cor: atrasado ? ROSE : GREEN,
-    bg: atrasado ? ROSE_BG : GREEN_BG,
-    diasLabel: dd < 0 ? `${-dd} dias de atraso` : dd === 0 ? "vence hoje" : dd === 1 ? "falta 1 dia" : `faltam ${dd} dias`,
-    desvioConclusao: null
-  };
-}
-function leituraDaFase(f, hoje) {
-  if (f.status === "done") {
-    const atrasou = f.fimReal !== null && f.fim !== null && f.fimReal > f.fim;
-    const d = atrasou ? dias(f.fimReal, f.fim) : 0;
-    return {
-      statusLabel: atrasou ? `Conclu\xEDda \xB7 ${d}d ap\xF3s` : "Conclu\xEDda",
-      statusCor: atrasou ? ROSE : COR.done,
-      titulo: atrasou ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 100%`
-    };
-  }
-  if (f.status === "doing") {
-    const late2 = f.fim !== null && hoje > f.fim;
-    const d = late2 ? dias(hoje, f.fim) : 0;
-    return {
-      statusLabel: late2 ? `Em andamento \xB7 ${d}d al\xE9m` : "Em andamento",
-      statusCor: late2 ? ROSE : COR.doing,
-      titulo: late2 ? `${f.nome} \xB7 ${d} dias al\xE9m do previsto` : `${f.nome} \xB7 ${f.pct}%`
-    };
-  }
-  return { statusLabel: "A fazer", statusCor: "hsl(34 7% 58%)", titulo: `${f.nome} \xB7 a fazer` };
-}
-var DIA, ms, dias, curto, COR, SOFT, ROSE, ROSE_BG, GREEN, GREEN_BG, NEUTRO, NEUTRO_BG;
-var init_gantt = __esm({
-  "src/features/status/gantt.ts"() {
-    init_date_fns();
-    init_locale();
-    init_phaseTheme();
-    init_utils();
-    DIA = 864e5;
-    ms = (t) => {
-      const d = toDate2(t ?? null);
-      return d ? d.getTime() : null;
-    };
-    dias = (a, b) => Math.round((a - b) / DIA);
-    curto = (t) => format(new Date(t), "d MMM", { locale: ptBR });
-    COR = PHASE_STATUS_COLORS.light;
-    SOFT = {
-      done: hexToRgba(COR.done, 0.22),
-      doing: hexToRgba(COR.doing, 0.22),
-      todo: hexToRgba(COR.todo, 0.22)
-    };
-    ROSE = "#e11d48";
-    ROSE_BG = "rgba(244,63,94,.12)";
-    GREEN = "#047857";
-    GREEN_BG = "rgba(16,185,129,.12)";
-    NEUTRO = "hsl(36 8% 39%)";
-    NEUTRO_BG = "hsl(40 32% 92%)";
-  }
-});
-
 // mcp/src/tools/status.ts
 async function descreverRetrato(ctx, p, token) {
   const [phases, tasks] = await Promise.all([fetchPhases(ctx.wsId, p.id), fetchTasks(ctx.wsId, p.id)]);
@@ -42338,6 +42474,8 @@ async function descreverRetrato(ctx, p, token) {
     `Cronograma de **${p.name}**: ${link.statusProjeto(token, p.id)}`,
     `Situa\xE7\xE3o no painel: ${sit.rotulo}${g.fimPrevisto !== null ? ` \xB7 fim previsto ${data(retrato.fimPrevisto)}${retrato.fimPrevistoOrigem === "fases" ? " (pela \xFAltima fase \u2014 defina fim_previsto para fixar)" : ""} \xB7 ${sit.diasLabel}` : " \xB7 sem fim previsto (defina fim_previsto)"} \xB7 ${g.pct}% conclu\xEDdo`
   ];
+  const ritmo = sit.concluido ? null : ritmoDoProjeto(g.fases, hoje);
+  if (ritmo) linhas.push(`Ritmo no painel: ${ritmoEmTexto(ritmo)}.`);
   if (g.fases.length === 0) {
     linhas.push("Sem fases no Panorama: o cronograma sai vazio at\xE9 o time criar fases (criar_fases).");
   } else {
@@ -42417,6 +42555,7 @@ var init_status = __esm({
     init_gantt();
     init_queries4();
     init_snapshot();
+    init_ritmo();
     init_context();
     init_format2();
     init_glia();
@@ -42949,6 +43088,13 @@ var init_tarefas = __esm({
 });
 
 // mcp/src/tools/tarefas-escrita.ts
+function passosNaDescricao(descricao) {
+  const itens = (descricao ?? "").split(/\r?\n/).flatMap((l) => {
+    const m = ITEM_DE_LISTA.exec(l);
+    return m ? [m[1].trim()] : [];
+  });
+  return itens.length >= 3 ? itens : [];
+}
 function novoItem(texto, responsavel) {
   const item = { id: generateId(), text: texto.trim(), done: false };
   if (responsavel) {
@@ -42958,55 +43104,123 @@ function novoItem(texto, responsavel) {
   }
   return item;
 }
+function passosForaDoLugar(t) {
+  const passos = passosNaDescricao(t.descricao);
+  if (!passos.length || t.subtarefas?.some((x) => x.trim()) || t.lista_na_descricao) return null;
+  return `a descri\xE7\xE3o tem ${passos.length} itens de lista e a tarefa n\xE3o tem subtarefas. Na Glia, passos s\xE3o subtarefas (a equipe marca, o progresso da fase conta por elas); a descri\xE7\xE3o fica com o contexto e o crit\xE9rio de pronto.
+Mande de novo com \`subtarefas\`: ${JSON.stringify(passos)} \u2014 e a descri\xE7\xE3o sem a lista. Se a lista \xE9 refer\xEAncia (campos, crit\xE9rios de aceite) e n\xE3o passos, repita com \`lista_na_descricao: true\`.`;
+}
+async function prepararTarefa(ctx, p, t) {
+  const coluna = t.coluna ? resolveColuna(p, t.coluna) : colunasDe(p)[0];
+  const assignees = await Promise.all(t.responsaveis.map(async (r) => comoResponsavel(await resolveMembro(ctx, r))));
+  const faseDoc = t.fase ? await resolveFase(ctx, p, t.fase) : null;
+  const dueDate = lerPrazo(t.prazo) ?? null;
+  const startDate = lerData(t.inicio, "In\xEDcio") ?? null;
+  if (dueDate && startDate && dueDate < startDate) throw new GliaToolError("O prazo n\xE3o pode vir antes do in\xEDcio.");
+  let priority = "med";
+  if (t.prioridade) {
+    try {
+      priority = lerPrioridade(t.prioridade);
+    } catch (err) {
+      throw new GliaToolError(err.message);
+    }
+  }
+  let checklist = (t.subtarefas ?? []).filter((x) => x.trim()).map((x) => novoItem(x));
+  if (doneStatusIds(p.columns).has(coluna.id)) checklist = closeChecklistOnDone(checklist) ?? checklist;
+  return {
+    coluna,
+    assignees,
+    input: {
+      title: t.titulo,
+      description: t.descricao,
+      status: coluna.id,
+      priority,
+      dueDate,
+      startDate,
+      tags: t.tags?.map((x) => x.trim()).filter(Boolean),
+      checklist,
+      assignees,
+      phaseId: faseDoc?.id ?? null
+    }
+  };
+}
 function registerTarefaEscritaTools(server) {
   server.registerTool(
     "criar_tarefa",
     {
       title: "Criar tarefa",
-      description: "Cria uma tarefa num projeto e devolve o c\xF3digo dela (ex. IC-31). Sem respons\xE1vel, o usu\xE1rio logado assume. Respons\xE1veis novos s\xE3o notificados.",
-      inputSchema: {
-        projeto: projetoParam,
-        titulo: external_exports.string().min(1).describe("T\xEDtulo curto."),
-        descricao: external_exports.string().optional().describe("Descri\xE7\xE3o completa (o que, por qu\xEA, crit\xE9rios)."),
-        coluna: external_exports.string().optional().describe("Coluna inicial (id ou nome). Padr\xE3o: a primeira do quadro."),
-        prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta (padr\xE3o: m\xE9dia)."),
-        prazo: prazoParam2,
-        inicio: inicioParam,
-        tags: external_exports.array(external_exports.string()).optional(),
-        subtarefas: external_exports.array(external_exports.string()).optional().describe("Textos das subtarefas iniciais."),
-        responsaveis: responsaveisParam,
-        fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id) a que a tarefa pertence."),
-        workspace: workspaceParam9
-      }
+      description: 'Cria UMA tarefa num projeto e devolve o c\xF3digo dela (ex. IC-31) \u2014 para duas ou mais, use criar_tarefas (uma chamada s\xF3). `responsaveis` \xE9 obrigat\xF3rio: se o pedido n\xE3o diz quem faz, PERGUNTE ao usu\xE1rio ("eu" = ele pr\xF3prio). A descri\xE7\xE3o \xE9 contexto (porqu\xEA, crit\xE9rio de pronto); os passos v\xE3o em `subtarefas`, um por item \u2014 descri\xE7\xE3o com lista de passos e sem subtarefas \xE9 recusada. Respons\xE1veis novos s\xE3o notificados.',
+      inputSchema: { projeto: projetoParam, ...camposDaTarefa, workspace: workspaceParam9 }
     },
-    ({ projeto, titulo, descricao, coluna, prioridade, prazo, inicio, tags, subtarefas, responsaveis: responsaveis2, fase, workspace }) => executar(async () => {
+    ({ projeto, workspace, ...campos }) => executar(async () => {
+      const fora = passosForaDoLugar(campos);
+      if (fora) throw new GliaToolError(`N\xE3o criei: ${fora}`);
       const ctx = await contexto(workspace);
       const p = await resolveProjeto(ctx, projeto);
-      const col = coluna ? resolveColuna(p, coluna) : colunasDe(p)[0];
-      const assignees = responsaveis2?.length ? await Promise.all(responsaveis2.map(async (r) => comoResponsavel(await resolveMembro(ctx, r)))) : [];
-      const faseDoc = fase ? await resolveFase(ctx, p, fase) : null;
-      let checklist = (subtarefas ?? []).filter((s) => s.trim()).map((s) => novoItem(s));
-      if (doneStatusIds(p.columns).has(col.id)) checklist = closeChecklistOnDone(checklist) ?? checklist;
-      const id = await createTask(ctx.wsId, {
-        projectId: p.id,
-        title: titulo,
-        description: descricao,
-        status: col.id,
-        priority: prioridade ? lerPrioridade(prioridade) : "med",
-        dueDate: lerPrazo(prazo) ?? null,
-        startDate: lerData(inicio, "In\xEDcio") ?? null,
-        tags: tags?.map((t2) => t2.trim()).filter(Boolean),
-        checklist,
-        assignees,
-        phaseId: faseDoc?.id ?? null
-      });
+      const { input, coluna, assignees } = await prepararTarefa(ctx, p, campos);
+      const id = await createTask(ctx.wsId, { ...input, projectId: p.id });
       const t = await lerTarefa(ctx, p, id);
       const avisados = await avisarResponsaveis(ctx, p, id, t.title, [], assignees);
       const aviso = avisados.length ? `
 Avisei: ${await nomes(ctx, avisados)}.` : "";
-      return `Criada **${codigo(p, t)}** em "${col.label}" de ${p.name}.
+      return `Criada **${codigo(p, t)}** em "${coluna.label}" de ${p.name}.
 ${linhaTarefa(p, t)}
 ${link.tarefa(p, t)}${aviso}`;
+    })
+  );
+  server.registerTool(
+    "criar_tarefas",
+    {
+      title: "Criar v\xE1rias tarefas de uma vez",
+      description: [
+        `Cria at\xE9 ${MAX_NOVAS} tarefas no MESMO projeto numa chamada s\xF3 \u2014 use sempre que for criar duas ou mais (estruturar um projeto, quebrar um pedido em entregas), em vez de chamar criar_tarefa uma por uma: gasta muito menos da cota da equipe.`,
+        "Cada item tem os mesmos campos do criar_tarefa: `responsaveis` obrigat\xF3rio (pergunte ao usu\xE1rio se n\xE3o souber) e os passos em `subtarefas`, n\xE3o na descri\xE7\xE3o.",
+        "A lista \xE9 validada inteira antes de gravar: um item com problema e NENHUMA tarefa \xE9 criada \u2014 a resposta aponta cada problema para o reenvio. Os c\xF3digos saem na ordem da lista."
+      ].join(" "),
+      inputSchema: {
+        projeto: projetoParam,
+        tarefas: external_exports.array(tarefaNova).min(1).max(MAX_NOVAS).describe("As tarefas, na ordem em que devem ser numeradas."),
+        workspace: workspaceParam9
+      }
+    },
+    ({ projeto, tarefas, workspace }) => executar(async () => {
+      const rotulo = (i) => `${i + 1}. "${tarefas[i].titulo}"`;
+      const recusa2 = (problemas2) => new GliaToolError(`N\xE3o criei nenhuma das ${tarefas.length} tarefas \u2014 corrija e mande a lista de novo:
+${problemas2.join("\n")}`);
+      const fora = tarefas.flatMap((t, i) => {
+        const msg = passosForaDoLugar(t);
+        return msg ? [`- ${rotulo(i)}: ${msg}`] : [];
+      });
+      if (fora.length) throw recusa2(fora);
+      const ctx = await contexto(workspace);
+      const p = await resolveProjeto(ctx, projeto);
+      const problemas = [];
+      const prontas = [];
+      for (const [i, t] of tarefas.entries()) {
+        try {
+          prontas.push(await prepararTarefa(ctx, p, t));
+        } catch (err) {
+          if (!(err instanceof GliaToolError)) throw err;
+          problemas.push(`- ${rotulo(i)}: ${err.message}`);
+        }
+      }
+      if (problemas.length) throw recusa2(problemas);
+      const criadas = await createTasksBatch(ctx.wsId, p.id, prontas.map((x) => x.input));
+      const membros = await ctx.membros();
+      const avisados = /* @__PURE__ */ new Set();
+      const linhas = [];
+      for (const [i, c] of criadas.entries()) {
+        const { input, coluna, assignees } = prontas[i];
+        for (const uid of await avisarResponsaveis(ctx, p, c.id, input.title.trim(), [], assignees)) avisados.add(uid);
+        const resp = assignees.map((a) => membros.find((m) => m.uid === a.uid)?.displayName ?? a.name ?? a.uid).join(", ");
+        const subs = input.checklist?.length ? ` \xB7 ${input.checklist.length} subtarefa(s)` : "";
+        linhas.push(`- **${formatTaskCode(p.code, c.seq) ?? c.id}** ${input.title.trim()} \u2014 "${coluna.label}" \xB7 resp: ${resp}${subs}
+  ${link.tarefa(p, c)}`);
+      }
+      const aviso = avisados.size ? `
+Avisei: ${await nomes(ctx, [...avisados])}.` : "";
+      return `Criei ${criadas.length} tarefa(s) em ${p.name}:
+${linhas.join("\n")}${aviso}`;
     })
   );
   server.registerTool(
@@ -43190,7 +43404,7 @@ ${linhaTarefa(p, depois)}${aviso}`;
     })
   );
 }
-var workspaceParam9, projetoOpcional2, prazoParam2, inicioParam, responsaveisParam, lerPrazo;
+var workspaceParam9, projetoOpcional2, prazoParam2, inicioParam, responsaveisParam, lerPrazo, ITEM_DE_LISTA, camposDaTarefa, tarefaNova, MAX_NOVAS;
 var init_tarefas_escrita = __esm({
   "mcp/src/tools/tarefas-escrita.ts"() {
     "use strict";
@@ -43198,6 +43412,7 @@ var init_tarefas_escrita = __esm({
     init_queries();
     init_statusChange();
     init_parse();
+    init_task_code();
     init_utils();
     init_models();
     init_session();
@@ -43213,6 +43428,22 @@ var init_tarefas_escrita = __esm({
     inicioParam = external_exports.string().optional().describe("In\xEDcio no formato AAAA-MM-DD (opcional). String vazia remove.");
     responsaveisParam = external_exports.array(external_exports.string()).optional().describe('Respons\xE1veis, por nome, e-mail ou uid (ver listar_membros). "eu" = o usu\xE1rio logado.');
     lerPrazo = (prazo) => lerData(prazo, "Prazo");
+    ITEM_DE_LISTA = /^\s*(?:[-*•]|\d+[.)])\s+(?:\[[ xX]?\]\s*)?(\S.*)$/;
+    camposDaTarefa = {
+      titulo: external_exports.string().min(1).describe("T\xEDtulo curto."),
+      descricao: external_exports.string().optional().describe("Contexto: o porqu\xEA, o que j\xE1 se sabe e o crit\xE9rio de pronto. Passos N\xC3O v\xE3o aqui \u2014 v\xE3o em `subtarefas`."),
+      coluna: external_exports.string().optional().describe("Coluna inicial (id ou nome). Padr\xE3o: a primeira do quadro."),
+      prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta (padr\xE3o: m\xE9dia)."),
+      prazo: prazoParam2,
+      inicio: inicioParam,
+      tags: external_exports.array(external_exports.string()).optional(),
+      subtarefas: external_exports.array(external_exports.string()).optional().describe("Os passos, um por item: curtos, verific\xE1veis, uma entrega cada. @Nome no texto avisa a pessoa."),
+      responsaveis: external_exports.array(external_exports.string()).min(1).describe('Quem faz (obrigat\xF3rio): nome, e-mail ou uid (ver listar_membros); "eu" = o usu\xE1rio logado. N\xE3o sabe? Pergunte ao usu\xE1rio antes de criar.'),
+      lista_na_descricao: external_exports.boolean().optional().describe("true s\xF3 quando a lista da descri\xE7\xE3o \xE9 refer\xEAncia (campos, crit\xE9rios de aceite), n\xE3o passos a fazer."),
+      fase: external_exports.string().optional().describe("Fase do roadmap (nome ou id) a que a tarefa pertence.")
+    };
+    tarefaNova = external_exports.object(camposDaTarefa);
+    MAX_NOVAS = 50;
   }
 });
 
@@ -43443,6 +43674,277 @@ var init_tarefas_extras = __esm({
     init_tarefas();
     workspaceParam10 = external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).");
     projetoOpcional3 = external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 necess\xE1rio quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo.");
+  }
+});
+
+// mcp/src/tools/tarefas-lote.ts
+function motivo(err) {
+  if (err instanceof GliaToolError) return err.message;
+  if (err instanceof Error && /inválid/.test(err.message)) return err.message;
+  throw err;
+}
+async function localizar(ctx, alvos) {
+  const projetos = await ctx.projetos(true);
+  for (const a of alvos) {
+    try {
+      const ref = a.item.tarefa.trim().replace(/^#/, "");
+      if (!ref) throw new GliaToolError("Informe a tarefa (c\xF3digo como IC-25 ou id).");
+      const parsed = parseTaskCode(ref);
+      if (parsed) {
+        const p = projetos.find((x) => x.code?.toUpperCase() === parsed.code);
+        if (!p) throw new GliaToolError(`Nenhum projeto com a sigla ${parsed.code}.`);
+        a.projeto = p;
+        a.seq = parsed.seq;
+      } else if (a.item.projeto) {
+        a.projeto = await resolveProjeto(ctx, a.item.projeto, true);
+        a.id = ref;
+      } else {
+        const r = await resolveTarefa(ctx, ref);
+        a.projeto = r.projeto;
+        a.tarefa = r.tarefa;
+      }
+    } catch (err) {
+      a.erro = motivo(err);
+    }
+  }
+}
+async function carregar(ctx, alvos) {
+  const inteiros = /* @__PURE__ */ new Map();
+  const porProjeto = /* @__PURE__ */ new Map();
+  for (const a of alvos) {
+    if (a.erro || a.tarefa || !a.projeto) continue;
+    porProjeto.set(a.projeto.id, [...porProjeto.get(a.projeto.id) ?? [], a]);
+  }
+  const comMovimento = new Set(alvos.filter((a) => !a.erro && a.item.coluna && a.projeto).map((a) => a.projeto.id));
+  await Promise.all(
+    [...porProjeto.values()].map(async (grupo) => {
+      const p = grupo[0].projeto;
+      let achadas;
+      if (comMovimento.has(p.id)) {
+        achadas = await tarefasDoProjeto(ctx, p);
+        inteiros.set(p.id, achadas);
+      } else {
+        const seqs = [...new Set(grupo.flatMap((a) => a.seq !== void 0 ? [a.seq] : []))];
+        achadas = [];
+        for (let i = 0; i < seqs.length; i += 30) {
+          const snap = await getDocs(query(wsTasksCol(ctx.wsId, p.id), where("seq", "in", seqs.slice(i, i + 30))));
+          achadas.push(...snap.docs.map((d) => ({ id: d.id, projectId: p.id, ...d.data() })));
+        }
+        for (const a of grupo) {
+          if (a.id && !achadas.some((t) => t.id === a.id)) {
+            try {
+              achadas.push(await lerTarefa(ctx, p, a.id));
+            } catch (err) {
+              a.erro = motivo(err);
+            }
+          }
+        }
+      }
+      for (const a of grupo) {
+        if (a.erro) continue;
+        a.tarefa = achadas.find((t) => a.seq !== void 0 ? t.seq === a.seq : t.id === a.id);
+        if (!a.tarefa) a.erro = `N\xE3o existe em ${p.name} (pode ter sido exclu\xEDda).`;
+      }
+    })
+  );
+  for (const a of alvos) {
+    if (!a.erro && a.item.coluna && a.projeto && !inteiros.has(a.projeto.id)) {
+      inteiros.set(a.projeto.id, await tarefasDoProjeto(ctx, a.projeto));
+    }
+  }
+  return inteiros;
+}
+async function planejar(ctx, a) {
+  const { item, projeto: p, tarefa: t } = a;
+  const patch = {};
+  const feito = [];
+  let checklist = t.checklist ?? [];
+  let marcadas = 0;
+  for (const ref of item.subtarefas_feitas ?? []) {
+    const sub = resolveSubtarefa({ ...t, checklist }, ref);
+    if (sub.done) continue;
+    checklist = checklist.map((i) => i.id === sub.id ? { ...i, done: true } : i);
+    marcadas++;
+  }
+  if (marcadas) {
+    patch.checklist = checklist;
+    feito.push(`marquei ${marcadas} subtarefa(s)`);
+  }
+  const novas = [];
+  for (const nova of item.subtarefas_novas ?? []) {
+    const { texto, responsavel } = typeof nova === "string" ? { texto: nova, responsavel: void 0 } : nova;
+    if (!texto.trim()) continue;
+    novas.push(novoItem(texto, responsavel ? comoResponsavel(await resolveMembro(ctx, responsavel)) : void 0));
+  }
+  if (novas.length) {
+    checklist = [...checklist, ...novas];
+    patch.checklist = checklist;
+    feito.push(`adicionei ${novas.length} subtarefa(s)`);
+  }
+  if (item.prioridade !== void 0) {
+    patch.priority = lerPrioridade(item.prioridade);
+    feito.push("mudei a prioridade");
+  }
+  const due = lerData(item.prazo, "Prazo");
+  if (due !== void 0) {
+    const inicio = toDate2(t.startDate ?? null);
+    if (due && inicio && due < inicio) throw new GliaToolError("O prazo n\xE3o pode vir antes do in\xEDcio.");
+    patch.dueDate = due;
+    feito.push(due ? "mudei o prazo" : "tirei o prazo");
+  }
+  const comentario = item.comentario?.trim() || void 0;
+  if (comentario) feito.push("comentei");
+  let coluna;
+  let entrouConclusao = false;
+  let fechouChecklist = 0;
+  if (item.coluna !== void 0) {
+    coluna = resolveColuna(p, item.coluna);
+    if (coluna.id === t.status) {
+      feito.push(`j\xE1 estava em "${coluna.label}"`);
+      coluna = void 0;
+    } else {
+      const done = doneStatusIds(p.columns);
+      entrouConclusao = done.has(coluna.id) && !done.has(t.status);
+      patch.status = coluna.id;
+      if (entrouConclusao) {
+        const fechado = closeChecklistOnDone(checklist);
+        if (fechado) {
+          fechouChecklist = checklist.filter((i) => !i.done).length;
+          patch.checklist = fechado;
+        }
+      }
+      feito.push(`movi de "${rotuloColuna(p, t.status)}" para "${coluna.label}"${fechouChecklist ? ` (fechei ${fechouChecklist} subtarefa(s) aberta(s))` : ""}`);
+    }
+  }
+  const temAlgo = Object.keys(patch).length > 0 || comentario;
+  if (!temAlgo && !feito.length) throw new GliaToolError("Nada para fazer: informe coluna, comentario, subtarefas_feitas, subtarefas_novas, prioridade ou prazo.");
+  return { alvo: a, patch, comentario, coluna, entrouConclusao, marcadas, novas, fechouChecklist, feito };
+}
+async function checarDependencias(ctx, planos) {
+  const concluindo = planos.filter((pl) => pl.entrouConclusao);
+  if (!concluindo.some((pl) => temDependencia(pl.alvo.tarefa))) return;
+  const [todas, projetos] = await Promise.all([fetchAllTasks(ctx.wsId), fetchProjects(ctx.wsId, "active")]);
+  let ativos = new Set(concluindo);
+  for (; ; ) {
+    const statusNovo = new Map([...ativos].map((pl) => [pl.alvo.tarefa.id, pl.coluna.id]));
+    const simulado = todas.map((t) => statusNovo.has(t.id) ? { ...t, status: statusNovo.get(t.id) } : t);
+    const bloqueados = [...ativos].filter((pl) => {
+      const msg = temDependencia(pl.alvo.tarefa) ? blockedByDependenciesMessage(pl.alvo.tarefa, simulado, projetos) : null;
+      if (msg) pl.alvo.erro = `A Glia recusou concluir: ${msg}.`;
+      return !!msg;
+    });
+    if (bloqueados.length === 0) break;
+    ativos = new Set([...ativos].filter((pl) => !bloqueados.includes(pl)));
+  }
+}
+function registerTarefaLoteTools(server) {
+  server.registerTool(
+    "tarefas_em_lote",
+    {
+      title: "Atualizar v\xE1rias tarefas de uma vez",
+      description: [
+        `Marca e cria subtarefas, comenta, muda prioridade/prazo e move de coluna at\xE9 ${MAX_ITENS} tarefas numa chamada s\xF3 \u2014 use SEMPRE que for mexer em mais de uma tarefa (ex. fechar o dia: comentar e concluir v\xE1rias), em vez de chamar comentar_tarefa/mover_tarefa uma por uma: gasta muito menos da cota da equipe.`,
+        'Cada item: `tarefa` + o que mudar. Dentro do item tudo \xE9 gravado junto (o coment\xE1rio entra com a mudan\xE7a de coluna, ent\xE3o "comentar antes de concluir" vale no mesmo item).',
+        "Entrar numa coluna de conclus\xE3o respeita depend\xEAncias (tarefas conclu\xEDdas no mesmo lote contam) e fecha as subtarefas. Item recusado fica de fora sem gravar nada dele; os outros seguem \u2014 a resposta lista um por um."
+      ].join(" "),
+      inputSchema: {
+        itens: external_exports.array(itemParam).min(1).max(MAX_ITENS).describe("Uma entrada por tarefa (n\xE3o repita a mesma tarefa: junte tudo num item)."),
+        workspace: external_exports.string().optional().describe("Nome ou id da workspace (opcional quando h\xE1 uma s\xF3).")
+      }
+    },
+    ({ itens, workspace }) => executar(async () => {
+      const ctx = await contexto(workspace);
+      const alvos = itens.map((item, i) => ({ n: i + 1, item }));
+      await localizar(ctx, alvos);
+      const inteiros = await carregar(ctx, alvos);
+      const vistas = /* @__PURE__ */ new Set();
+      const planos = [];
+      for (const a of alvos) {
+        if (a.erro || !a.projeto || !a.tarefa) continue;
+        if (vistas.has(a.tarefa.id)) {
+          a.erro = "Repetida no lote \u2014 junte tudo desta tarefa num item s\xF3.";
+          continue;
+        }
+        vistas.add(a.tarefa.id);
+        try {
+          planos.push(await planejar(ctx, a));
+        } catch (err) {
+          a.erro = motivo(err);
+        }
+      }
+      await checarDependencias(ctx, planos);
+      const validos = planos.filter((pl) => !pl.alvo.erro);
+      const maiorOrdem = /* @__PURE__ */ new Map();
+      for (const pl of validos) {
+        if (!pl.coluna) continue;
+        const p = pl.alvo.projeto;
+        const chave = `${p.id}|${pl.coluna.id}`;
+        const base3 = maiorOrdem.get(chave) ?? (inteiros.get(p.id) ?? []).filter((t) => t.status === pl.coluna.id).reduce((m, t) => Math.max(m, t.order), -1);
+        pl.patch.order = base3 + 1;
+        maiorOrdem.set(chave, base3 + 1);
+      }
+      const membros = validos.some((pl) => pl.comentario) ? await ctx.membros() : [];
+      const ops = validos.map((pl) => ({
+        projectId: pl.alvo.projeto.id,
+        taskId: pl.alvo.tarefa.id,
+        patch: Object.keys(pl.patch).length ? pl.patch : void 0,
+        message: pl.comentario ? { authorUid: ctx.eu.uid, authorName: nomeDe(ctx.eu), authorPhoto: fotoDe(ctx.eu), text: pl.comentario, mentions: resolveMentions(pl.comentario, membros) } : void 0
+      }));
+      await applyTaskBatch(ctx.wsId, ops.filter((o) => o.patch || o.message));
+      const avisados = /* @__PURE__ */ new Set();
+      for (const pl of validos) {
+        const { projeto: p, tarefa: t } = pl.alvo;
+        for (const sub of pl.novas) for (const uid of await avisarSubtarefa(ctx, p, t.id, t.title, sub)) avisados.add(uid);
+        if (!pl.comentario) continue;
+        for (const uid of await avisarMencoes(ctx, p, t.id, t.title, pl.comentario)) avisados.add(uid);
+      }
+      const linhas = alvos.map((a) => {
+        const nome = a.projeto && a.tarefa ? `**${codigo(a.projeto, a.tarefa)}**` : `"${a.item.tarefa}"`;
+        if (a.erro) return `- \u2718 ${nome}: N\xC3O gravei nada desta tarefa \u2014 ${a.erro}`;
+        const pl = validos.find((x) => x.alvo === a);
+        return `- \u2714 ${nome}: ${pl.feito.join(", ")}${pl.entrouConclusao ? ". Tarefa conclu\xEDda" : ""}.`;
+      });
+      const falhas = alvos.filter((a) => a.erro).length;
+      const cabeca = falhas ? `Gravei ${alvos.length - falhas} de ${alvos.length} tarefa(s); ${falhas} ficou(aram) de fora.` : `Gravei as ${alvos.length} tarefa(s) de uma vez.`;
+      const aviso = avisados.size ? `
+Avisei: ${await nomes(ctx, [...avisados])}.` : "";
+      return `${cabeca}
+${linhas.join("\n")}${aviso}`;
+    })
+  );
+}
+var MAX_ITENS, itemParam;
+var init_tarefas_lote = __esm({
+  "mcp/src/tools/tarefas-lote.ts"() {
+    "use strict";
+    init_firestore();
+    init_zod();
+    init_queries7();
+    init_parse();
+    init_queries();
+    init_statusChange();
+    init_queries6();
+    init_firestore_paths();
+    init_task_code();
+    init_utils();
+    init_models();
+    init_session();
+    init_context();
+    init_format2();
+    init_glia();
+    init_comum();
+    init_tarefas_escrita();
+    MAX_ITENS = 50;
+    itemParam = external_exports.object({
+      tarefa: external_exports.string().describe("C\xF3digo p\xFAblico (IC-25) ou id da tarefa."),
+      projeto: external_exports.string().optional().describe("Projeto (nome/sigla/id) \u2014 s\xF3 quando `tarefa` \xE9 um id, n\xE3o um c\xF3digo."),
+      subtarefas_feitas: external_exports.array(external_exports.string()).optional().describe("Subtarefas a marcar como feitas (id ou texto, como em marcar_subtarefa)."),
+      subtarefas_novas: external_exports.array(external_exports.union([external_exports.string(), external_exports.object({ texto: external_exports.string().min(1), responsavel: external_exports.string().optional() })])).optional().describe("Subtarefas a acrescentar: texto, ou {texto, responsavel} quando a parte \xE9 de outra pessoa. \xC9 assim que se quebra em passos uma tarefa que ficou com tudo na descri\xE7\xE3o."),
+      comentario: external_exports.string().optional().describe("Coment\xE1rio no chat da tarefa (@Nome avisa a pessoa). Gravado junto com o resto do item."),
+      prioridade: external_exports.string().optional().describe("baixa | m\xE9dia | alta"),
+      prazo: external_exports.string().optional().describe("AAAA-MM-DD; string vazia remove o prazo."),
+      coluna: external_exports.string().optional().describe("Coluna de destino (id ou nome). A tarefa vai para o fim da coluna.")
+    });
   }
 });
 
@@ -43687,6 +44189,7 @@ function registerAll(server) {
   registerTarefaTools(server);
   registerTarefaEscritaTools(server);
   registerTarefaExtrasTools(server);
+  registerTarefaLoteTools(server);
   registerAnotacaoTools(server);
   registerSugestaoTools(server);
   registerStatusTools(server);
@@ -43708,6 +44211,7 @@ var init_tools = __esm({
     init_tarefas();
     init_tarefas_escrita();
     init_tarefas_extras();
+    init_tarefas_lote();
     init_workspace2();
   }
 });

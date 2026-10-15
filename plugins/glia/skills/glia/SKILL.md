@@ -30,10 +30,19 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 1. **Achar o projeto**: `listar_projetos` (nome, sigla, quantas tarefas abertas).
 2. **Ver a fila**: `listar_tarefas` com `pendentes: true` (padrão). Mostre a lista com os códigos e confirme por onde começar, a menos que o usuário já tenha dito.
 3. **Antes de mexer**: `ver_tarefa` — descrição, subtarefas (com ids), comentários, dependências abertas. É aí que está o que de fato precisa ser feito. Se faltar contexto, pergunte.
-4. **Durante o trabalho**: a cada parte concluída, `marcar_subtarefa`. Descobriu trabalho novo? `adicionar_subtarefa` em vez de fazer em silêncio.
-5. **Ao terminar**: `comentar_tarefa` com o que foi feito, onde (arquivos, PR, commit) e o que ficou de fora. **Nunca** mova para a coluna de conclusão sem esse comentário — é o registro que a equipe lê. Use `@Nome` para chamar alguém (a pessoa é notificada).
-6. **Só então** `mover_tarefa` para a coluna certa (Revisão, Concluído…). Concluir fecha as subtarefas junto. Se a Glia recusar por dependência aberta ("Bloqueada por: …"), diga ao usuário — não force.
+4. **Durante o trabalho, acumule**: guarde para si as subtarefas que fechou, o trabalho novo que descobriu e o que vai dizer no comentário. Não grave a cada passo — cada chamada gasta a cota da equipe inteira.
+5. **Ao fechar um bloco** (terminou a tarefa, terminou várias, ou o usuário pediu para registrar): **uma** chamada `tarefas_em_lote`, um item por tarefa com `subtarefas_feitas`, `subtarefas_novas`, `comentario` e `coluna`. O comentário diz o que foi feito, onde (arquivos, PR, commit) e o que ficou de fora; como entra no mesmo item da mudança de coluna, a tarefa **nunca** vai para a conclusão sem o registro que a equipe lê. Use `@Nome` para chamar alguém (a pessoa é notificada). Até 50 tarefas por chamada; concluir fecha as subtarefas restantes; tarefas concluídas no mesmo lote liberam as que dependem delas; item recusado fica de fora (nada dele é gravado) e os outros seguem.
+6. **Dependência aberta** ("Bloqueada por: …"): diga ao usuário — não force. Para um pedido pontual ("move a IC-3 para revisão"), `mover_tarefa`, `comentar_tarefa` e `marcar_subtarefa` continuam valendo.
 7. **Ideias fora do escopo** viram `criar_sugestao` no projeto, não tarefa nova. Trabalho concreto que precisa existir agora vira `criar_tarefa` (informe o código devolvido: "criei a IC-31").
+
+## Criar tarefas do jeito que a equipe lê
+
+- **Toda tarefa tem responsável.** Informe `responsaveis` sempre (o campo é obrigatório no `criar_tarefa`). Se o pedido não diz quem faz, **pergunte** ao usuário antes de criar — `"eu"` = ele próprio. Não deixe cair em você por esquecimento.
+- **Descrição é contexto, não checklist.** Na descrição: o porquê, o que já se sabe, o critério de pronto. Os **passos** vão em `subtarefas` — curtas, verificáveis, uma entrega cada ("Criar endpoint POST /clientes", não "backend"). Parte de outra pessoa vira subtarefa com responsável (`@Nome` no texto avisa). A Glia **recusa** criar tarefa com 3+ itens de lista na descrição e nenhuma subtarefa; se a lista for referência (campos, critérios de aceite) e não passos, repita com `lista_na_descricao: true`.
+- **Uma tarefa = uma entrega** que alguém consegue terminar. Trabalho grande vira várias tarefas (ou fases), não uma tarefa com 15 subtarefas de pessoas diferentes.
+- **Prazo e prioridade** só quando o usuário disser — não invente data.
+- **Várias de uma vez**: duas ou mais tarefas novas vão num `criar_tarefas` só (até 50, mesmo projeto, os mesmos campos do `criar_tarefa` por item). A lista é validada inteira antes de gravar — um item com problema e nenhuma é criada; a resposta aponta cada um para o reenvio. Os códigos saem na ordem da lista.
+- **Depois de criar**, ajustes em várias tarefas (subtarefas novas, prioridade, prazo, coluna) vão num `tarefas_em_lote` só.
 
 ## Estruturar um projeto (projeto → fases → tarefas)
 
@@ -67,6 +76,8 @@ Sem as tools do servidor `glia` na sessão? O plugin não está instalado: peça
 
 Tudo que é apagado (tarefa, anotação, sugestão, mensagem, projeto) **não tem lixeira**: confirme com o usuário antes. Toda resposta traz o link da Glia para a pessoa conferir — repasse-o.
 
+**Gaste pouco.** Agrupe escritas (`criar_tarefas`, `tarefas_em_lote`), leia a fila uma vez (`listar_tarefas` já traz coluna, responsáveis, prazo e subtarefas), não abra `ver_tarefa` de tarefa em que não vai mexer e não releia para conferir o que acabou de gravar — a resposta da tool já diz o que mudou.
+
 **Não consulte a Glia em loop.** Nada de ficar "de olho" esperando tarefa nova, notificação ou resposta no chat, nem de repetir a mesma listagem para ver se mudou: cada consulta gasta a cota diária de leituras da equipe inteira, e quando ela acaba a Glia sai do ar para todo mundo até o dia seguinte. O servidor recusa rajadas e a mesma consulta repetida; se uma tool responder "Limite de uso da Glia", pare e diga ao usuário o que estava tentando fazer.
 
 ## Referências rápidas
@@ -83,6 +94,8 @@ Tudo que é apagado (tarefa, anotação, sugestão, mensagem, projeto) **não te
 | minhas tarefas atrasadas / o que vence na semana, em todos os projetos | `buscar_tarefas` com `minhas`, `atrasadas`, `prazo_ate` |
 | mudar título/descrição/prazo/início/prioridade/tags/fase/responsáveis | `atualizar_tarefa` (só os campos informados mudam) |
 | reordenar dentro da coluna | `mover_tarefa` com `posicao` (1 = topo) |
+| comentar/mover/marcar subtarefas em várias tarefas | `tarefas_em_lote` (uma chamada, até 50) |
+| criar várias tarefas num projeto | `criar_tarefas` (uma chamada, até 50) |
 | editar, atribuir ou remover uma subtarefa | `atualizar_subtarefa` |
 | "a IC-3 depende da IC-2" / relacionar | `conectar` (`tipo` depende_de ou relacionada; `remover` desfaz) |
 | apagar tarefa / meu comentário | `excluir_tarefa`, `excluir_comentario` |
